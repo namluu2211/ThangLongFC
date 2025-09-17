@@ -44,6 +44,7 @@
 	padding: 6px 10px;
 	box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 	transition: box-shadow .2s;
+	position: relative;
 }
 .player-card:hover {
 	box-shadow: 0 4px 16px rgba(0,0,0,0.12);
