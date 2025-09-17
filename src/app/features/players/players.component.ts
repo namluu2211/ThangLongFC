@@ -8,41 +8,75 @@ import { dividePlayersByPosition, Player } from './player-utils';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div>
-      <button class="btn" (click)="divideTeams()">Chia đội tự động theo vị trí</button>
-      <button class="btn" (click)="randomSubstitution()">Thay người ngẫu nhiên</button>
-      <h3>Team A</h3>
-      <div *ngFor="let pos of allPositions">
-        <strong>{{pos}}:</strong>
-        <span *ngFor="let p of getPlayersByPosition(teamA, pos)">
-          <input type="text" [(ngModel)]="p.firstName" style="width:90px" /> <input type="text" [(ngModel)]="p.lastName" style="width:90px" />
-        </span>
+  <div class="container mt-4">
+      <div class="d-flex justify-content-center mb-4">
+        <div class="btn-group" role="group">
+          <button class="btn btn-primary" (click)="divideTeams()">Chia đội tự động theo vị trí</button>
+          <button class="btn btn-success" (click)="randomSubstitution()">Thay người ngẫu nhiên</button>
+        </div>
       </div>
-      <div style="margin-top:12px;">
-        <label>Tỷ số: <input type="text" [(ngModel)]="scoreA" style="width:60px" /></label>
-        <label style="margin-left:12px;">Thẻ vàng: <input type="text" [(ngModel)]="yellowA" style="width:60px" /></label>
-        <label style="margin-left:12px;">Thẻ đỏ: <input type="text" [(ngModel)]="redA" style="width:60px" /></label>
-        <label style="margin-left:12px;">Ghi Bàn: <input type="text" [(ngModel)]="scorerA" style="width:120px" /></label>
-        <label style="margin-left:12px;">Kiến Tạo: <input type="text" [(ngModel)]="assistA" style="width:120px" /></label>
-      </div>
-      <h3>Team B</h3>
-      <div *ngFor="let pos of allPositions">
-        <strong>{{pos}}:</strong>
-        <span *ngFor="let p of getPlayersByPosition(teamB, pos)">
-          <input type="text" [(ngModel)]="p.firstName" style="width:90px" /> <input type="text" [(ngModel)]="p.lastName" style="width:90px" />
-        </span>
-      </div>
-      <div style="margin-top:12px;">
-        <label>Tỷ số: <input type="text" [(ngModel)]="scoreB" style="width:60px" /></label>
-        <label style="margin-left:12px;">Thẻ vàng: <input type="text" [(ngModel)]="yellowB" style="width:60px" /></label>
-        <label style="margin-left:12px;">Thẻ đỏ: <input type="text" [(ngModel)]="redB" style="width:60px" /></label>
-        <label style="margin-left:12px;">Ghi Bàn: <input type="text" [(ngModel)]="scorerB" style="width:120px" /></label>
-        <label style="margin-left:12px;">Kiến Tạo: <input type="text" [(ngModel)]="assistB" style="width:120px" /></label>
+  <div class="row gy-4">
+        <div class="col-md-6">
+          <div class="card mb-4 shadow-sm rounded-4 border-0">
+            <div class="card-header bg-info text-white rounded-top-4"><h4 class="mb-0 fw-bold">Team A</h4></div>
+            <div class="card-body">
+              <div *ngFor="let pos of allPositions" class="mb-3">
+                <div class="position-label mb-2">{{pos}}</div>
+                <div class="players-row">
+                  <ng-container *ngFor="let p of getPlayersByPosition(teamA, pos)">
+                    <div class="player-card position-relative">
+                      <img [src]="p.avatar" alt="avatar" class="player-avatar" />
+                      <input type="text" [(ngModel)]="p.firstName" class="player-input" />
+                      <button type="button" class="delete-btn" (click)="removePlayer(teamA, p)" title="Xóa khỏi trận này">✖</button>
+                    </div>
+                  </ng-container>
+                </div>
+              </div>
+              <div class="mt-3 d-flex align-items-center gap-3 justify-content-center">
+                <span title="Tỷ số" class="d-flex align-items-center"><span class="fw-bold">Tỷ số</span> <input type="text" [(ngModel)]="scoreA" class="form-control form-control-sm ms-1" style="width:120px" /></span>
+                <span title="Thẻ vàng" class="d-flex align-items-center"><span style="font-size:1.5em;">🟨</span> <input type="text" [(ngModel)]="yellowA" class="form-control form-control-sm ms-1" style="width:60px" /></span>
+                <span title="Thẻ đỏ" class="d-flex align-items-center"><span style="font-size:1.5em;">🟥</span> <input type="text" [(ngModel)]="redA" class="form-control form-control-sm ms-1" style="width:60px" /></span>
+                <span title="Ghi Bàn" class="d-flex align-items-center"><span style="font-size:1.5em;">⚽</span> <input type="text" [(ngModel)]="scorerA" class="form-control form-control-sm ms-1" style="width:120px" /></span>
+                <span title="Kiến Tạo" class="d-flex align-items-center"><span style="font-size:1.5em;">🎯</span> <input type="text" [(ngModel)]="assistA" class="form-control form-control-sm ms-1" style="width:120px" /></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card mb-4 shadow-sm rounded-4 border-0">
+            <div class="card-header bg-warning text-white rounded-top-4"><h4 class="mb-0 fw-bold">Team B</h4></div>
+            <div class="card-body">
+              <div *ngFor="let pos of allPositions" class="mb-3">
+                <div class="position-label mb-2">{{pos}}</div>
+                <div class="players-row">
+                  <ng-container *ngFor="let p of getPlayersByPosition(teamB, pos)">
+                    <div class="player-card position-relative">
+                      <img [src]="p.avatar" alt="avatar" class="player-avatar" />
+                      <input type="text" [(ngModel)]="p.firstName" class="player-input" />
+                      <button type="button" class="delete-btn" (click)="removePlayer(teamB, p)" title="Xóa khỏi trận này">✖</button>
+                    </div>
+                  </ng-container>
+                </div>
+              </div>
+              <div class="mt-3 d-flex align-items-center gap-3 justify-content-center">
+                <span title="Tỷ số" class="d-flex align-items-center"><span class="fw-bold">Tỷ số</span> <input type="text" [(ngModel)]="scoreB" class="form-control form-control-sm ms-1" style="width:120px" /></span>
+                <span title="Thẻ vàng" class="d-flex align-items-center"><span style="font-size:1.5em;">🟨</span> <input type="text" [(ngModel)]="yellowB" class="form-control form-control-sm ms-1" style="width:60px" /></span>
+                <span title="Thẻ đỏ" class="d-flex align-items-center"><span style="font-size:1.5em;">🟥</span> <input type="text" [(ngModel)]="redB" class="form-control form-control-sm ms-1" style="width:60px" /></span>
+                <span title="Ghi Bàn" class="d-flex align-items-center"><span style="font-size:1.5em;">⚽</span> <input type="text" [(ngModel)]="scorerB" class="form-control form-control-sm ms-1" style="width:120px" /></span>
+                <span title="Kiến Tạo" class="d-flex align-items-center"><span style="font-size:1.5em;">🎯</span> <input type="text" [(ngModel)]="assistB" class="form-control form-control-sm ms-1" style="width:120px" /></span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `
 })
 export class PlayersComponent implements OnInit {
+  removePlayer(team: any[], player: any) {
+    const idx = team.indexOf(player);
+    if (idx > -1) team.splice(idx, 1);
+  }
   allPlayers: any[] = [];
   teamA: any[] = [];
   teamB: any[] = [];
