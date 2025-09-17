@@ -1,11 +1,85 @@
-body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+.delete-btn {
+	background: #fff;
+	border: none;
+	color: #d00;
+	font-size: 1.1rem;
+	font-weight: bold;
+	border-radius: 50%;
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	cursor: pointer;
+	transition: background .2s, color .2s;
+}
+.delete-btn:hover {
+	background: #ffeaea;
+	color: #a00;
+}
+.position-label {
+	font-weight: bold;
+	font-size: 1.15rem;
+	color: #222;
+	letter-spacing: 0.5px;
+}
+.players-row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	gap: 12px;
+	overflow-x: auto;
+	align-items: center;
+	width: 100%;
+}
+.player-card {
+	display: flex;
+	align-items: center;
+	border: 1px solid #e0e0e0;
+	border-radius: 12px;
+	background: #f8f9fa;
+	padding: 6px 10px;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+	transition: box-shadow .2s;
+}
+.player-card:hover {
+	box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+	background: #f0f8ff;
+}
+.player-avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	margin-right: 8px;
+	border: 1px solid #bbb;
+	object-fit: cover;
+}
+.player-input {
+	width: 120px;
+	font-weight: 500;
+	font-size: 1rem;
+	border-radius: 6px;
+	border: 1px solid #ccc;
+	padding: 2px 8px;
+	background: #fff;
+}
+
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f8fafc; }
 .header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#0b5; color:#003; }
 .title { font-weight:700; font-size:20px; }
 .login { display:flex; gap:8px; align-items:center; }
 .container { padding: 16px; }
-.btn { padding:6px 10px; border:1px solid #888; background:#eee; cursor:pointer; border-radius:4px; }
+.btn { padding:6px 10px; border:1px solid #888; background:#eee; cursor:pointer; border-radius:4px; transition:box-shadow .2s; }
+.btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); background:#e0e0e0; }
 .hline { border-top:1px solid #ccc; margin:12px 0; }
 .table { width:100%; border-collapse:collapse; }
 .table th, .table td { border:1px solid #ddd; padding:8px; }
 .right { text-align:right; }
 .small { font-size: 13px; color:#555; }
+.card { box-shadow: 0 2px 12px rgba(0,0,0,0.07); border-radius: 1rem; }
+.card-header { font-size: 1.2rem; font-weight: 600; }
+.player-card { box-shadow: 0 1px 4px rgba(0,0,0,0.04); cursor:pointer; }
+.player-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); background:#f0f8ff; }
