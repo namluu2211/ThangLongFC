@@ -1,8 +1,24 @@
 import { Component } from '@angular/core';
 import { HeaderComponent } from './core/header.component';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatchInfoComponent } from './features/match-info/match-info.component';
+import { HistoryComponent } from './features/history/history.component';
+import { PlayersComponent } from './features/players/players.component';
+import { FundComponent } from './features/fund/fund.component';
+import { StatsComponent } from './features/stats/stats.component';
 @Component({
   selector: 'app-root',
-  imports: [HeaderComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    HeaderComponent,
+    MatchInfoComponent,
+    HistoryComponent,
+    PlayersComponent,
+    FundComponent,
+    StatsComponent
+  ],
   template: `
     <div class="header">
       <div class="title">Thăng Long - FC</div>

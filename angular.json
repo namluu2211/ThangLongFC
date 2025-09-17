@@ -13,22 +13,56 @@
             "outputPath": "dist/thanglong-fc",
             "index": "src/index.html",
             "main": "src/main.ts",
-            "polyfills": [],
+            "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.json",
             "assets": ["src/assets"],
             "styles": ["src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false,
+              "extractCss": true,
+              "namedChunks": false,
+              "aot": true,
+              "extractLicenses": true,
+              "vendorChunk": false,
+              "buildOptimizer": true
+            },
+            "development": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true
+            }
           }
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
             "buildTarget": "thanglong-fc:build"
+          },
+          "configurations": {
+            "development": {
+              "buildTarget": "thanglong-fc:build:development"
+            },
+            "production": {
+              "buildTarget": "thanglong-fc:build:production"
+            }
           }
         }
       }
     }
   },
-  "defaultProject": "thanglong-fc",
   "cli": {
     "analytics": false
   }

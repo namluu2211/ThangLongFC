@@ -1,7 +1,11 @@
 import { Component, EventEmitter, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-header',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   template: `
     <div style="display:flex; align-items:center; gap:8px;">
       <div *ngIf="!loggedIn" class="login">

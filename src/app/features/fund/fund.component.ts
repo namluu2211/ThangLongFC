@@ -1,6 +1,9 @@
 import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-fund',
+  standalone: true,
+  imports: [CommonModule],
   template: `
     <div>
       <h3>Quỹ hiện tại</h3>

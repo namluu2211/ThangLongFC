@@ -1,6 +1,9 @@
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-players',
+  standalone: true,
+  imports: [CommonModule],
   template: `
     <div>
       <h3>Danh sách cầu thủ</h3>

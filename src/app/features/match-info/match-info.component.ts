@@ -1,7 +1,11 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-match-info',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   template: `
     <div>
       <h3>Thông tin trận đấu</h3>
