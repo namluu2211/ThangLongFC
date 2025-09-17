@@ -10,8 +10,8 @@ This repository is a minimal Angular app skeleton that implements:
 - Thống kê đơn giản theo tháng
 
 ## Users
-- NamLuu (superadmin) - password: 84913933835
-- SyNguyen (admin) - password: 84909282287
+- NamLuu (superadmin)
+- SyNguyen (admin)
 
 Passwords are stored as SHA-256 hashes in the header component.
 
