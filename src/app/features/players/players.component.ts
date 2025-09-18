@@ -169,6 +169,4 @@ export class PlayersComponent implements OnInit {
   getPlayersByPosition(team: any[], pos: string) {
     return team.filter(x => x.position === pos);
   }
-
-  // ...existing code...
 }
