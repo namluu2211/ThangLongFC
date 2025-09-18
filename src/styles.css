@@ -1,3 +1,177 @@
+/* Prettier UI for Thăng Long FC web app */
+.btn {
+	background: linear-gradient(90deg, #007bff 0%, #00c6ff 100%);
+	color: #030303;
+	border: none;
+	border-radius: 24px;
+	padding: 8px 20px;
+	font-weight: 600;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+	transition: background 0.2s, box-shadow 0.2s;
+}
+.btn:hover {
+	background: linear-gradient(90deg, #0056b3 0%, #00a6d6 100%);
+	box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.fw-bold {
+	font-weight: 700;
+	color: #007bff;
+}
+.player-avatar,
+.player-avatar-small {
+	border-radius: 50%;
+	border: 2px solid #00c6ff;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+	object-fit: cover;
+}
+.player-avatar {
+	width: 64px;
+	height: 64px;
+}
+.player-avatar-small {
+	width: 28px;
+	height: 28px;
+}
+.player-input {
+	border: 1px solid #00c6ff;
+	border-radius: 8px;
+	padding: 4px 8px;
+	font-size: 1em;
+	margin-bottom: 2px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+	transition: border 0.2s;
+}
+.player-input:focus {
+	border-color: #007bff;
+	outline: none;
+}
+.players-line {
+	font-size: 1.08em;
+	color: #222;
+	margin-bottom: 2px;
+}
+.position-label {
+	font-weight: 700;
+	color: #00c6ff;
+	font-size: 1.08em;
+}
+.title {
+	font-size: 2em;
+	font-weight: 700;
+	color: #007bff;
+	margin-bottom: 8px;
+	letter-spacing: 1px;
+}
+.hline {
+	border-bottom: 2px solid #00c6ff;
+	margin: 12px 0 18px 0;
+}
+.container {
+	background: #f4faff;
+	border-radius: 18px;
+	padding: 24px 18px;
+	box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.players-list {
+	min-height: 120px;
+}
+.player-card-list {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: #f8f9fa;
+	border-radius: 12px;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+	padding: 12px 10px;
+	width: 110px;
+	cursor: pointer;
+	transition: box-shadow .2s;
+}
+.player-card-list:hover {
+	box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+	background: #f0f8ff;
+}
+.player-avatar.clickable {
+	border: 2px solid #007bff;
+	cursor: pointer;
+	transition: border .2s;
+}
+.player-avatar.clickable:hover {
+	border: 2px solid #0056b3;
+}
+.modal-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(0,0,0,0.25);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+.modal-content {
+	background: #fff;
+	border-radius: 12px;
+	box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+	padding: 24px 20px;
+	min-width: 260px;
+	max-width: 90vw;
+}
+.modal-header {
+	font-size: 1.2rem;
+	margin-bottom: 12px;
+}
+.modal-body {
+	font-size: 1rem;
+	margin-bottom: 16px;
+}
+.modal-footer {
+	text-align: right;
+}
+@media (max-width: 600px) {
+	.container {
+		padding: 6px;
+	}
+	.card {
+		border-radius: 0.7rem;
+		margin-bottom: 16px;
+	}
+	.card-header {
+		font-size: 1rem;
+		padding: 10px 12px;
+	}
+	.players-row {
+		gap: 8px;
+	}
+	.player-card {
+		padding: 4px 6px;
+		min-width: 140px;
+	}
+	.player-avatar {
+		width: 32px;
+		height: 32px;
+		margin-right: 6px;
+	}
+	.player-input {
+		width: 80px;
+		font-size: 0.95rem;
+		padding: 2px 6px;
+	}
+	.delete-btn {
+		width: 20px;
+		height: 20px;
+		font-size: 1rem;
+		top: 2px;
+		right: 2px;
+	}
+	.position-label {
+		font-size: 1rem;
+		margin-bottom: 4px;
+	}
+}
 .delete-btn {
 	background: #fff;
 	border: none;

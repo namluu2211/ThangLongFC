@@ -6,7 +6,9 @@
     "start": "ng serve --open",
     "build": "ng build",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "build:prod": "ng build --configuration production --base-href=https://namluu2211.github.io/ThangLongFC/ --output-path dist/browser",
+    "deploy": "npm run build:prod && npx angular-cli-ghpages --dir=dist/browser --branch=gh-pages --no-silent"
   },
   "dependencies": {
     "@angular/animations": "^19.2.0",
@@ -26,6 +28,7 @@
     "@angular-devkit/build-angular": "^19.2.17",
     "@angular/cli": "^19.2.17",
     "@angular/compiler-cli": "^19.2.0",
+    "angular-cli-ghpages": "^2.0.3",
     "typescript": ">=5.5.0 <5.9.0"
   }
 }
