@@ -25,6 +25,12 @@ ng serve
 ```
 3. Open http://localhost:4200
 
+## How to deploy Prod
+- Run:
+```bash
+npm run deploy
+```
+
 ## Notes
 - This is a minimal skeleton designed for local use and demonstration.
 - Data (match history and current fund) are stored in `localStorage`.

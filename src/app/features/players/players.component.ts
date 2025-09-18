@@ -14,6 +14,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
       <ng-container *ngIf="mode === 'auto'; else listMode">
         <div class="d-flex justify-content-center mb-4">
           <button class="btn btn-primary" (click)="divideTeams()">Chia đội tự động</button>
+          <button class="btn btn-success ms-2" (click)="saveMatchInfo()">Lưu Thông Tin</button>
+          <span *ngIf="matchSaveMessage" class="ms-2 text-success small">{{matchSaveMessage}}</span>
         </div>
         <div class="row gy-4">
           <div class="col-md-6">
@@ -111,6 +113,31 @@ import { dividePlayersByPosition, Player } from './player-utils';
   `,
 })
 export class PlayersComponent implements OnInit {
+  matchSaveMessage = '';
+  saveMatchInfo() {
+    // Gather match info
+    const match = {
+      date: new Date().toISOString(),
+      scoreA: this.scoreA,
+      scoreB: this.scoreB,
+      scorerA: this.scorerA,
+      scorerB: this.scorerB,
+      assistA: this.assistA,
+      assistB: this.assistB,
+      yellowA: this.yellowA,
+      yellowB: this.yellowB,
+      redA: this.redA,
+      redB: this.redB,
+      teamA: this.teamA.map(p => ({ ...p })),
+      teamB: this.teamB.map(p => ({ ...p })),
+    };
+    // Save to localStorage
+    const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
+    history.push(match);
+    localStorage.setItem('matchHistory', JSON.stringify(history));
+    this.matchSaveMessage = 'Đã lưu lịch sử trận!';
+    setTimeout(() => this.matchSaveMessage = '', 2000);
+  }
   // ...existing code...
   viewPlayer(p: any) {
     this.selectedPlayer = p;
