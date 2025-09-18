@@ -48,6 +48,7 @@ export class HeaderComponent {
       this.loggedIn = true;
       this.role = u.role;
       localStorage.setItem('thang_user', JSON.stringify({ username: this.username, role: this.role }));
+      localStorage.setItem('role', this.role); // Ensure 'role' is set for history delete
       this.loginChange.emit({ loggedIn: true, role: this.role });
       this.password = '';
     } else {

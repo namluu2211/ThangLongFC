@@ -20,7 +20,7 @@ import { StatsComponent } from './features/stats/stats.component';
     StatsComponent
   ],
   template: `
-    <div class="header">
+  <div class="header">
       <div class="title">Thăng Long - FC</div>
       <app-header (loginChange)="onLoginChange($event)"></app-header>
     </div>
@@ -35,9 +35,10 @@ import { StatsComponent } from './features/stats/stats.component';
       </div>
       <div style="margin-top:12px;">
   <app-players *ngIf="show==='auto'" [canEdit]="canEdit" mode="auto"></app-players>
-  <app-history *ngIf="show==='history'"></app-history>
-  <app-players *ngIf="show==='list'" mode="list"></app-players>
-  <app-fund *ngIf="show==='fund'"></app-fund>
+  <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
+  <app-players *ngIf="show==='list'" [canEdit]="canEdit" mode="list"></app-players>
+  <div *ngIf="show==='fund'" style="font-size:1.2em; margin-bottom:16px; color:#007bff; font-weight:bold;">Quỹ hiện tại: {{currentFund | number}}</div>
+  <app-fund *ngIf="show==='fund'" [canEdit]="canEdit"></app-fund>
   <app-stats *ngIf="show==='stats'"></app-stats>
       </div>
       <div *ngIf="!loggedIn" class="small">Bạn đang xem ở chế độ khách. Đăng nhập để chỉnh sửa hoặc lưu dữ liệu.</div>
@@ -54,5 +55,12 @@ export class AppComponent {
     this.loggedIn = event.loggedIn;
     this.role = event.role;
     this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
+  }
+
+  get currentFund(): number {
+    const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
+    const totalThu = history.reduce((sum: number, m: any) => sum + Number(m.thu || 0), 0);
+    const totalChi = history.reduce((sum: number, m: any) => sum + (Number(m.chi_trongtai || 0) + Number(m.chi_nuoc || 0) + Number(m.chi_san || 0)), 0);
+    return 2730 + totalThu - totalChi;
   }
 }
