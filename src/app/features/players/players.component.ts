@@ -1,4 +1,3 @@
-
 import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,8 +12,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
     <div class="container mt-4">
       <ng-container *ngIf="mode === 'auto'; else listMode">
         <div class="d-flex justify-content-center mb-4">
-          <button class="btn btn-primary" (click)="divideTeams()">Chia đội tự động</button>
-          <button class="btn btn-success ms-2" (click)="saveMatchInfo()">Lưu Thông Tin</button>
+          <button class="btn btn-primary" (click)="divideTeams()" [disabled]="!canEdit">Chia đội tự động</button>
+          <button class="btn btn-success ms-2" (click)="saveMatchInfo()" [disabled]="!canEdit">Lưu Thông Tin</button>
           <span *ngIf="matchSaveMessage" class="ms-2 text-success small">{{matchSaveMessage}}</span>
         </div>
         <div class="row gy-4">

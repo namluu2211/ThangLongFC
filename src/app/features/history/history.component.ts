@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div>
       <h3>Lịch sử trận đấu</h3>
@@ -18,7 +19,7 @@ import { CommonModule } from '@angular/common';
             <div><b>Thẻ đỏ:</b> <span style="color:#007bff">{{m.redA}}</span> - <span style="color:#ff9800">{{m.redB}}</span></div>
             <div><b>Đội hình A:</b> <span>{{getTeamNames(m.teamA)}}</span></div>
             <div><b>Đội hình B:</b> <span>{{getTeamNames(m.teamB)}}</span></div>
-            <button *ngIf="isAdmin()" class="btn btn-danger btn-sm" style="position:absolute;top:12px;right:12px;" (click)="confirmDelete(m)">Xóa</button>
+            <button *ngIf="isAdmin()" class="btn btn-danger btn-sm" style="position:absolute;top:12px;right:12px;" (click)="confirmDelete(m)" [disabled]="!canEdit">Xóa</button>
             <div *ngIf="deleteConfirm===m" class="modal-backdrop" style="z-index:2000;">
               <div class="modal-content" style="min-width:260px;max-width:90vw;">
                 <div class="modal-header fw-bold">Xác nhận xóa lịch sử</div>
@@ -30,14 +31,13 @@ import { CommonModule } from '@angular/common';
               </div>
             </div>
             <div><b>Thu:</b>
-              <input type="number" [(ngModel)]="m.thu" class="player-input" style="width:120px;" [readonly]="!isAdmin()" />
-              <button *ngIf="isAdmin()" class="btn btn-sm btn-info ms-2" (click)="calcThu(m)">Tính tự động</button>
+              <input type="number" [value]="m.thu" class="player-input" style="width:120px;" readonly />
             </div>
             <div><b>Chi:</b>
-              <span>Trọng tài</span> <input type="number" [(ngModel)]="m.chi_trongtai" (ngModelChange)="updateChi(m)" class="player-input" style="width:80px;" [readonly]="!isAdmin()" />
-              <span class="ms-2">Nước</span> <input type="number" [(ngModel)]="m.chi_nuoc" (ngModelChange)="updateChi(m)" class="player-input" style="width:80px;" [readonly]="!isAdmin()" />
-              <span class="ms-2">Sân</span> <input type="number" [(ngModel)]="m.chi_san" (ngModelChange)="updateChi(m)" class="player-input" style="width:80px;" [readonly]="!isAdmin()" />
-              <span class="ms-2 fw-bold">Tổng:</span> <span class="fw-bold" style="color:#007bff">{{m.chi_total ?? 0}}</span>
+              <span>Trọng tài</span> <input type="number" [(ngModel)]="m.chi_trongtai" (ngModelChange)="updateChi(m)" class="player-input" style="width:80px;" [readonly]="!canEdit" />
+              <span class="ms-2">Nước</span> <input type="number" [(ngModel)]="m.chi_nuoc" (ngModelChange)="updateChi(m)" class="player-input" style="width:80px;" [readonly]="!canEdit" />
+              <span class="ms-2">Sân</span> <input type="number" [(ngModel)]="m.chi_san" (ngModelChange)="updateChi(m)" class="player-input" style="width:80px;" [readonly]="!canEdit" />
+                      <span class="ms-2 fw-bold">Tổng:</span> <span class="fw-bold" style="color:#007bff">{{calcChi(m)}}</span>
             </div>
           </div>
         </div>
@@ -47,36 +47,35 @@ import { CommonModule } from '@angular/common';
   `
 })
 export class HistoryComponent implements OnInit {
+  @Input() canEdit: boolean = false;
+  toNumber(val: any): number {
+    return Number(val) || 0;
+  }
   updateChi(m: any) {
     m.chi_total = Number(m.chi_trongtai || 0) + Number(m.chi_nuoc || 0) + Number(m.chi_san || 0);
     localStorage.setItem('matchHistory', JSON.stringify(this.history));
   }
   calcThu(m: any) {
     // Winner/loser team
-    let winnerTeam = [], loserTeam = [];
+    // Thu = total players of winner team x 40 + loser team x 60 + yellow cards x 50 + red cards x 100
+    // Exclude 'Thủ môn' and 'Minh nhỏ' from Thu calculation
+    let winnerTeam: any[] = [], loserTeam: any[] = [];
     if (Number(m.scoreA) > Number(m.scoreB)) {
-      winnerTeam = m.teamA;
-      loserTeam = m.teamB;
+      winnerTeam = Array.isArray(m.teamA) ? m.teamA : [];
+      loserTeam = Array.isArray(m.teamB) ? m.teamB : [];
     } else if (Number(m.scoreB) > Number(m.scoreA)) {
-      winnerTeam = m.teamB;
-      loserTeam = m.teamA;
+      winnerTeam = Array.isArray(m.teamB) ? m.teamB : [];
+      loserTeam = Array.isArray(m.teamA) ? m.teamA : [];
     } else {
-      winnerTeam = [...m.teamA, ...m.teamB];
+      winnerTeam = [...(Array.isArray(m.teamA) ? m.teamA : []), ...(Array.isArray(m.teamB) ? m.teamB : [])];
       loserTeam = [];
     }
-    // Parse yellow/red card firstNames
-    const yellowNames = (typeof m.yellowA === 'string' ? m.yellowA.split(/[, ]+/) : []).concat(typeof m.yellowB === 'string' ? m.yellowB.split(/[, ]+/) : []).filter(x=>x);
-    const redNames = (typeof m.redA === 'string' ? m.redA.split(/[, ]+/) : []).concat(typeof m.redB === 'string' ? m.redB.split(/[, ]+/) : []).filter(x=>x);
-    let thuWinner = 0;
-    for (const p of winnerTeam) {
-      let add = 40;
-      if (yellowNames.includes(p.firstName)) add += 50;
-      if (redNames.includes(p.firstName)) add += 100;
-      thuWinner += add;
-    }
-    // Loser team: each player 60
-    let thuLoser = loserTeam.length * 60;
-    m.thu = thuWinner + thuLoser;
+    const isFree = (p: any) => p.position === 'Thủ môn' || p.firstName === 'Minh nhỏ';
+    const winnerCount = winnerTeam.filter(p => !isFree(p)).length;
+    const loserCount = loserTeam.filter(p => !isFree(p)).length;
+    const yellowCount = (typeof m.yellowA === 'string' ? m.yellowA.split(/[, ]+/).filter(x=>x).length : 0) + (typeof m.yellowB === 'string' ? m.yellowB.split(/[, ]+/).filter(x=>x).length : 0);
+    const redCount = (typeof m.redA === 'string' ? m.redA.split(/[, ]+/).filter(x=>x).length : 0) + (typeof m.redB === 'string' ? m.redB.split(/[, ]+/).filter(x=>x).length : 0);
+    m.thu = winnerCount * 40 + loserCount * 60 + yellowCount * 50 + redCount * 100;
     localStorage.setItem('matchHistory', JSON.stringify(this.history));
   }
   calcChi(m: any): number {
