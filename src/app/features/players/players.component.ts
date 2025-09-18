@@ -31,13 +31,16 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 <div *ngFor="let pos of allPositions" class="mb-3">
                   <div class="position-label mb-2">{{pos}}</div>
                   <div class="players-row">
-                    <ng-container *ngFor="let p of getPlayersByPosition(teamA, pos)">
-                      <div class="player-card position-relative">
-                        <img [src]="p.avatar" alt="avatar" class="player-avatar" />
-                        <input type="text" [(ngModel)]="p.firstName" class="player-input" />
-                        <button type="button" class="delete-btn" (click)="removePlayer(teamA, p)" title="Xóa khỏi trận này">✖</button>
-                      </div>
+                    <ng-container *ngIf="getPlayersByPosition(teamA, pos).length; else noPlayersA">
+                      <ng-container *ngFor="let p of getPlayersByPosition(teamA, pos)">
+                        <div class="player-card position-relative">
+                          <img [src]="p.avatar" alt="avatar" class="player-avatar" />
+                          <input type="text" [(ngModel)]="p.firstName" class="player-input" />
+                          <button type="button" class="delete-btn" (click)="removePlayer(teamA, p)" title="Xóa khỏi trận này">✖</button>
+                        </div>
+                      </ng-container>
                     </ng-container>
+                    <ng-template #noPlayersA><div class="text-muted" style="padding:8px 0;">Không có cầu thủ</div></ng-template>
                   </div>
                 </div>
               </div>
@@ -57,13 +60,16 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 <div *ngFor="let pos of allPositions" class="mb-3">
                   <div class="position-label mb-2">{{pos}}</div>
                   <div class="players-row">
-                    <ng-container *ngFor="let p of getPlayersByPosition(teamB, pos)">
-                      <div class="player-card position-relative">
-                        <img [src]="p.avatar" alt="avatar" class="player-avatar" />
-                        <input type="text" [(ngModel)]="p.firstName" class="player-input" />
-                        <button type="button" class="delete-btn" (click)="removePlayer(teamB, p)" title="Xóa khỏi trận này">✖</button>
-                      </div>
+                    <ng-container *ngIf="getPlayersByPosition(teamB, pos).length; else noPlayersB">
+                      <ng-container *ngFor="let p of getPlayersByPosition(teamB, pos)">
+                        <div class="player-card position-relative">
+                          <img [src]="p.avatar" alt="avatar" class="player-avatar" />
+                          <input type="text" [(ngModel)]="p.firstName" class="player-input" />
+                          <button type="button" class="delete-btn" (click)="removePlayer(teamB, p)" title="Xóa khỏi trận này">✖</button>
+                        </div>
+                      </ng-container>
                     </ng-container>
+                    <ng-template #noPlayersB><div class="text-muted" style="padding:8px 0;">Không có cầu thủ</div></ng-template>
                   </div>
                 </div>
               </div>
