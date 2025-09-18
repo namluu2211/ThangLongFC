@@ -177,14 +177,25 @@ export class PlayersComponent implements OnInit {
   selectedPlayer: any = null;
 
   ngOnInit() {
-    fetch('/assets/players.json').then(r=>r.json()).then(json => {
-      json.forEach((p: any) => {
-        p.scorer = '';
-        p.assist = '';
+    fetch('assets/players.json')
+      .then(r => {
+        if (!r.ok) throw new Error('Không thể tải danh sách cầu thủ');
+        return r.json();
+      })
+      .then(json => {
+        json.forEach((p: any) => {
+          p.scorer = '';
+          p.assist = '';
+        });
+        this.allPlayers = json;
+        this.divideTeams();
+      })
+      .catch(err => {
+        alert(err.message);
+        this.allPlayers = [];
+        this.teamA = [];
+        this.teamB = [];
       });
-      this.allPlayers = json;
-      this.divideTeams();
-    });
   }
 
   divideTeams() {
