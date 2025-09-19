@@ -17,17 +17,19 @@ import { dividePlayersByPosition, Player } from './player-utils';
             <!-- Only one set of buttons should be rendered -->
           <span *ngIf="matchSaveMessage" class="ms-2 text-success small">{{matchSaveMessage}}</span>
         </div>
-        <div class="row gy-4">
-          <div class="col-md-6">
+        <div class="teams-frame">
+          <div class="team-frame">
             <div class="card mb-4 shadow-sm rounded-4 border-0">
-              <div class="card-header bg-info text-white rounded-top-4"><h4 class="mb-0 fw-bold">Team A</h4></div>
+              <div class="card-header bg-info text-white rounded-top-4 d-flex align-items-center" style="gap:8px;">
+                <h4 class="mb-0 fw-bold">Team A</h4>
+                <input type="number" [(ngModel)]="scoreA" class="score-input form-control form-control-sm" min="0" max="99" maxlength="2" inputmode="numeric" pattern="[0-9]*" style="width:38px;" />
+              </div>
               <div class="card-body">
-                <div class="team-stats mb-3 d-flex align-items-center gap-3 justify-content-center">
-                  <span title="Tỷ số" class="d-flex align-items-center"><span class="fw-bold">Tỷ số</span> <input type="text" [(ngModel)]="scoreA" class="form-control form-control-sm ms-1" style="width:80px" /></span>
-                  <span title="Ghi Bàn" class="d-flex align-items-center"><span style="font-size:1.5em;">⚽</span> <input type="text" [(ngModel)]="scorerA" class="form-control form-control-sm ms-1" style="width:80px" /></span>
-                  <span title="Kiến Tạo" class="d-flex align-items-center"><span style="font-size:1.5em;">🎯</span> <input type="text" [(ngModel)]="assistA" class="form-control form-control-sm ms-1" style="width:80px" /></span>
-                  <span title="Thẻ Vàng" class="d-flex align-items-center"><span style="font-size:1.5em;">🟨</span> <input type="text" [(ngModel)]="yellowA" class="form-control form-control-sm ms-1" style="width:60px" /></span>
-                  <span title="Thẻ Đỏ" class="d-flex align-items-center"><span style="font-size:1.5em;">🟥</span> <input type="text" [(ngModel)]="redA" class="form-control form-control-sm ms-1" style="width:60px" /></span>
+                <div class="team-stats mb-3">
+                  <div class="d-flex align-items-center mb-2"><span style="font-size:1.5em;">⚽</span> <input type="text" [(ngModel)]="scorerA" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
+                  <div class="d-flex align-items-center mb-2"><span style="font-size:1.5em;">🎯</span> <input type="text" [(ngModel)]="assistA" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
+                  <div class="d-flex align-items-center mb-2"><span style="font-size:1.5em;">🟨</span> <input type="text" [(ngModel)]="yellowA" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
+                  <div class="d-flex align-items-center"><span style="font-size:1.5em;">🟥</span> <input type="text" [(ngModel)]="redA" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
                 </div>
                 <div *ngFor="let pos of allPositions" class="mb-3">
                   <div class="position-label mb-2">{{pos}}</div>
@@ -47,16 +49,18 @@ import { dividePlayersByPosition, Player } from './player-utils';
               </div>
             </div>
           </div>
-          <div class="col-md-6">
+          <div class="team-frame">
             <div class="card mb-4 shadow-sm rounded-4 border-0">
-              <div class="card-header bg-warning text-white rounded-top-4"><h4 class="mb-0 fw-bold">Team B</h4></div>
+              <div class="card-header bg-warning text-white rounded-top-4 d-flex align-items-center" style="gap:8px;">
+                <h4 class="mb-0 fw-bold">Team B</h4>
+                <input type="number" [(ngModel)]="scoreB" class="score-input form-control form-control-sm" min="0" max="99" maxlength="2" inputmode="numeric" pattern="[0-9]*" style="width:38px;" />
+              </div>
               <div class="card-body">
-                <div class="team-stats mb-3 d-flex align-items-center gap-3 justify-content-center">
-                  <span title="Tỷ số" class="d-flex align-items-center"><span class="fw-bold">Tỷ số</span> <input type="text" [(ngModel)]="scoreB" class="form-control form-control-sm ms-1" style="width:80px" /></span>
-                  <span title="Ghi Bàn" class="d-flex align-items-center"><span style="font-size:1.5em;">⚽</span> <input type="text" [(ngModel)]="scorerB" class="form-control form-control-sm ms-1" style="width:80px" /></span>
-                  <span title="Kiến Tạo" class="d-flex align-items-center"><span style="font-size:1.5em;">🎯</span> <input type="text" [(ngModel)]="assistB" class="form-control form-control-sm ms-1" style="width:80px" /></span>
-                  <span title="Thẻ Vàng" class="d-flex align-items-center"><span style="font-size:1.5em;">🟨</span> <input type="text" [(ngModel)]="yellowB" class="form-control form-control-sm ms-1" style="width:60px" /></span>
-                  <span title="Thẻ Đỏ" class="d-flex align-items-center"><span style="font-size:1.5em;">🟥</span> <input type="text" [(ngModel)]="redB" class="form-control form-control-sm ms-1" style="width:60px" /></span>
+                <div class="team-stats mb-3">
+                  <div class="d-flex align-items-center mb-2"><span style="font-size:1.5em;">⚽</span> <input type="text" [(ngModel)]="scorerB" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
+                  <div class="d-flex align-items-center mb-2"><span style="font-size:1.5em;">🎯</span> <input type="text" [(ngModel)]="assistB" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
+                  <div class="d-flex align-items-center mb-2"><span style="font-size:1.5em;">🟨</span> <input type="text" [(ngModel)]="yellowB" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
+                  <div class="d-flex align-items-center"><span style="font-size:1.5em;">🟥</span> <input type="text" [(ngModel)]="redB" class="stat-input form-control form-control-sm ms-1" maxlength="10" /></div>
                 </div>
                 <div *ngFor="let pos of allPositions" class="mb-3">
                   <div class="position-label mb-2">{{pos}}</div>

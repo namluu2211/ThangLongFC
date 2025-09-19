@@ -3,7 +3,7 @@
 		"id": 1,
 		"firstName": "Hậu",
     "position": "Hậu vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/1.jpg",
+		"avatar": "assets/images/avatar_players/Hau.png",
 		"age": 28,
 		"height": 175,
 		"weight": 70
@@ -57,7 +57,7 @@
 		"id": 7,
 		"firstName": "Nam",
     "position": "Trung vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/7.jpg",
+		"avatar": "assets/images/avatar_players/Nam.png",
 		"age": 28,
 		"height": 177,
 		"weight": 71
@@ -102,7 +102,7 @@
 		"id": 12,
 		"firstName": "Sỹ",
     "position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/12.jpg",
+		"avatar": "assets/images/avatar_players/Sy.png",
 		"age": 27,
 		"height": 174,
 		"weight": 70
@@ -118,9 +118,9 @@
 	},
 	{
 		"id": 14,
-		"firstName": "Duy",
+		"firstName": "Đ.Duy",
     "position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/14.jpg",
+		"avatar": "assets/images/avatar_players/Đ.Duy.png",
 		"age": 26,
 		"height": 173,
 		"weight": 69
@@ -147,7 +147,7 @@
 		"id": 17,
 		"firstName": "Hoà",
     "position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/17.jpg",
+		"avatar": "assets/images/avatar_players/Hoa.png",
 		"age": 28,
 		"height": 175,
 		"weight": 70
@@ -174,7 +174,7 @@
 		"id": 20,
 		"firstName": "Quý",
     "position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/20.jpg",
+		"avatar": "assets/images/avatar_players/Quy.png",
 		"age": 26,
 		"height": 174,
 		"weight": 69
@@ -192,7 +192,7 @@
 		"id": 22,
 		"firstName": "Tây",
     "position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/22.jpg",
+		"avatar": "assets/images/avatar_players/Tay.png",
 		"age": 25,
 		"height": 170,
 		"weight": 67
