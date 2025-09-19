@@ -12,8 +12,9 @@ import { dividePlayersByPosition, Player } from './player-utils';
     <div class="container mt-4">
       <ng-container *ngIf="mode === 'auto'; else listMode">
         <div class="d-flex justify-content-center mb-4">
-          <button class="btn btn-primary" (click)="divideTeams()" [disabled]="!canEdit">Chia đội tự động</button>
+          <button class="btn btn-primary" (click)="divideTeams()">Chia đội tự động</button>
           <button class="btn btn-success ms-2" (click)="saveMatchInfo()" [disabled]="!canEdit">Lưu Thông Tin</button>
+            <!-- Only one set of buttons should be rendered -->
           <span *ngIf="matchSaveMessage" class="ms-2 text-success small">{{matchSaveMessage}}</span>
         </div>
         <div class="row gy-4">
@@ -118,6 +119,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
   `,
 })
 export class PlayersComponent implements OnInit {
+  @Input() canEdit: boolean = false;
+  @Input() isAdmin: boolean = false;
   matchSaveMessage = '';
   saveMatchInfo() {
     // Gather match info
