@@ -1,18 +1,18 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DragDropModule, CdkDragDrop, transferArrayItem } from '@angular/cdk/drag-drop';
 import { dividePlayersByPosition, Player } from './player-utils';
 
 
 @Component({
   selector: 'app-players',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   template: `
     <div class="container mt-4">
       <ng-container *ngIf="mode === 'auto'; else listMode">
         <div class="d-flex justify-content-center mb-4" style="gap:12px;">
-          <button class="btn btn-primary" (click)="setUseRegistered(false)" [disabled]="canEdit">Chia đội từ tất cả</button>
           <button class="btn btn-primary" (click)="setUseRegistered(true)" [disabled]="canEdit">Chia đội từ đăng ký</button>   
           <button class="btn btn-success ms-2" (click)="saveMatchInfo()" [disabled]="!canEdit">Lưu Thông Tin</button>
             <!-- Only one set of buttons should be rendered -->
@@ -34,10 +34,10 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 </div>
                 <div *ngFor="let pos of allPositions" class="mb-3">
                   <div class="position-label mb-2">{{pos}}</div>
-                  <div class="players-row">
+                  <div class="players-row" cdkDropList [cdkDropListData]="getPlayersByPosition(teamA, pos)" (cdkDropListDropped)="onDrop($event, 'A', pos)">
                     <ng-container *ngIf="getPlayersByPosition(teamA, pos).length; else noPlayersA">
                       <ng-container *ngFor="let p of getPlayersByPosition(teamA, pos)">
-                        <div class="player-card position-relative">
+                        <div class="player-card position-relative" cdkDrag>
                           <img [src]="p.avatar" alt="avatar" class="player-avatar" />
                           <input type="text" [(ngModel)]="p.firstName" class="player-input" />
                           <button type="button" class="delete-btn" (click)="removePlayer(teamA, p)" title="Xóa khỏi trận này">✖</button>
@@ -65,10 +65,10 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 </div>
                 <div *ngFor="let pos of allPositions" class="mb-3">
                   <div class="position-label mb-2">{{pos}}</div>
-                  <div class="players-row">
+                  <div class="players-row" cdkDropList [cdkDropListData]="getPlayersByPosition(teamB, pos)" (cdkDropListDropped)="onDrop($event, 'B', pos)">
                     <ng-container *ngIf="getPlayersByPosition(teamB, pos).length; else noPlayersB">
                       <ng-container *ngFor="let p of getPlayersByPosition(teamB, pos)">
-                        <div class="player-card position-relative">
+                        <div class="player-card position-relative" cdkDrag>
                           <img [src]="p.avatar" alt="avatar" class="player-avatar" />
                           <input type="text" [(ngModel)]="p.firstName" class="player-input" />
                           <button type="button" class="delete-btn" (click)="removePlayer(teamB, p)" title="Xóa khỏi trận này">✖</button>
@@ -271,5 +271,38 @@ export class PlayersComponent implements OnInit {
     } else {
       this.registeredPlayers = this.registeredPlayers.filter(p => p.id !== player.id);
     }
+  }
+
+  onDrop(event: CdkDragDrop<Player[]>, team: 'A' | 'B', pos: string) {
+    // Get source and target arrays
+    const sourceTeam = event.previousContainer === event.container ? (team === 'A' ? this.teamA : this.teamB) : (team === 'A' ? this.teamB : this.teamA);
+    const targetTeam = team === 'A' ? this.teamA : this.teamB;
+    const sourcePlayers = sourceTeam.filter(p => p.position === pos);
+    const targetPlayers = targetTeam.filter(p => p.position === pos);
+
+    if (event.previousContainer === event.container) {
+      // Reorder within the same position and team
+      const movedPlayer = targetPlayers.splice(event.previousIndex, 1)[0];
+      targetPlayers.splice(event.currentIndex, 0, movedPlayer);
+    } else {
+      // Move between teams
+      transferArrayItem(
+        sourcePlayers,
+        targetPlayers,
+        event.previousIndex,
+        event.currentIndex
+      );
+      // Remove from source team and add to target team
+      const movedPlayer = sourcePlayers[event.currentIndex];
+      if (movedPlayer) {
+        // Update team arrays
+        const sourceIdx = sourceTeam.indexOf(movedPlayer);
+        if (sourceIdx > -1) sourceTeam.splice(sourceIdx, 1);
+        targetTeam.push(movedPlayer);
+      }
+    }
+    // Rebuild teams to update UI
+    this.teamA = [...this.teamA];
+    this.teamB = [...this.teamB];
   }
 }
