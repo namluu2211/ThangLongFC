@@ -31,9 +31,9 @@
 	},
 	{
 		"id": 4,
-		"firstName": "Thanh",
+		"firstName": "V.Thanh",
 		"position": "Hậu vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/4.jpg",
+		"avatar": "assets/images/avatar_players/V.Thanh.png",
 		"age": 26,
 		"height": 174,
 		"weight": 69,
@@ -310,9 +310,9 @@
 	},
 	{
 		"id": 32,
-		"firstName": "Thành",
+		"firstName": "H.Thanh",
 		"position": "Tiền đạo",
-		"avatar": "assets/images/avatar_players/Thành.png",
+		"avatar": "assets/images/avatar_players/H.Thanh.png",
 		"age": 26,
 		"height": 175,
 		"weight": 69
