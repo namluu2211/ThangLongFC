@@ -2,259 +2,287 @@
 	{
 		"id": 1,
 		"firstName": "Hậu",
-    "position": "Hậu vệ",
+		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Hau.png",
 		"age": 28,
 		"height": 175,
-		"weight": 70
+		"weight": 70,
+		"note": "Cánh phải - Cua trỏ thủ"
 	},
 	{
 		"id": 2,
 		"firstName": "Định",
-    "position": "Hậu vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/2.jpg",
+		"position": "Hậu vệ",
+		"avatar": "assets/images/avatar_players/Dinh.jpg",
 		"age": 27,
 		"height": 172,
-		"weight": 68
+		"weight": 68,
+		"note": "Cánh trái - hay lừa dễ mất banh"
 	},
 	{
 		"id": 3,
 		"firstName": "Hưng",
-    "position": "Hậu vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/3.jpg",
+		"position": "Hậu vệ",
+		"avatar": "assets/images/avatar_players/Hung.png",
 		"age": 29,
 		"height": 178,
-		"weight": 72
+		"weight": 72,
+		"note": "Cánh phải - lầm lì, lủi thủi"
 	},
 	{
 		"id": 4,
 		"firstName": "Thanh",
-    "position": "Hậu vệ",
+		"position": "Hậu vệ",
 		"avatar": "https://randomuser.me/api/portraits/men/4.jpg",
 		"age": 26,
 		"height": 174,
-		"weight": 69
+		"weight": 69,
+		"note": "Cánh trái - đầu 2 thứ tóc, mắt mờ, tranh chấp yếu"
 	},
 	{
 		"id": 5,
 		"firstName": "Galvin",
-    "position": "Hậu vệ",
+		"position": "Hậu vệ",
 		"avatar": "https://randomuser.me/api/portraits/men/5.jpg",
 		"age": 30,
 		"height": 180,
-		"weight": 75
+		"weight": 75,
+		"note": "Cánh phải - hay nói, mà nói chưa chắc đúng :D"
 	},
 	{
 		"id": 6,
 		"firstName": "Bình",
-    "position": "Hậu vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/6.jpg",
+		"position": "Hậu vệ",
+		"avatar": "assets/images/avatar_players/Binh.png",
 		"age": 25,
 		"height": 170,
-		"weight": 67
+		"weight": 67,
+		"note": "Cánh phải - Bụng hơi bự nên chạy hơi chậm"
 	},
 	{
 		"id": 7,
 		"firstName": "Nam",
-    "position": "Trung vệ",
+		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Nam.png",
-		"age": 28,
-		"height": 177,
-		"weight": 71
+		"age": 42,
+		"height": 172,
+		"weight": 62,
+		"note": "Ỡ giữa - Đầu bạc, chửi hơi nhiều, mấy thể loại hay múa thì coi chừng"
 	},
 	{
 		"id": 8,
 		"firstName": "Quang",
-    "position": "Trung vệ",
+		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Quang.png",
 		"age": 27,
 		"height": 176,
-		"weight": 70
+		"weight": 70,
+		"note" : "Cánh phải - Bạn đầu gấu, nhưng tính nai hơi"
 	},
 	{
 		"id": 9,
 		"firstName": "Hiếu",
-    "position": "Trung vệ",
+		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Hieu.png",
 		"age": 29,
 		"height": 179,
-		"weight": 73
+		"weight": 73,
+		"note": "Ở giữa - Đầu gấu, Trùm Muya Thái, mấy vua tốc độ thì cảnh giác :D"
 	},
 	{
 		"id": 10,
 		"firstName": "Lâm",
-    "position": "Trung vệ",
+		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Lam.png",
 		"age": 26,
 		"height": 175,
-		"weight": 69
+		"weight": 69,
+		"note": "Đa năng - Công thủ toàn diện, nhưng hay dễ bị xỏ háng"
 	},
 	{
 		"id": 11,
 		"firstName": "Hải",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "https://randomuser.me/api/portraits/men/11.jpg",
 		"age": 28,
 		"height": 172,
-		"weight": 68
+		"weight": 68,
+		"note": "Ở giữa - Cha của thằng Minh nhí, quán xuyến tốt, nhưng lười thủ"
 	},
 	{
 		"id": 12,
 		"firstName": "Sỹ",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/Sy.png",
 		"age": 27,
 		"height": 174,
-		"weight": 70
+		"weight": 70,
+		"note": "Ở giữa - Bầu"	
 	},
 	{
 		"id": 13,
 		"firstName": "K.Duy",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/K.Duy.png",
 		"age": 29,
 		"height": 176,
-		"weight": 72
+		"weight": 72,
+		"note": "Ở giữa - nghiệp đá banh, nhưng cứ nghĩ mình là họa sĩ => dễ mất banh"
 	},
 	{
 		"id": 14,
 		"firstName": "Đ.Duy",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/Đ.Duy.png",
 		"age": 26,
 		"height": 173,
-		"weight": 69
+		"weight": 69,
+		"note": "Cánh - phải, trái như nhau, nhưng thường bị gãy cánh"
 	},
 	{
 		"id": 15,
 		"firstName": "Hà",
-    "position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/Hà.png",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/Ha.png",
 		"age": 30,
 		"height": 178,
-		"weight": 74
+		"weight": 74,
+		"note": "Ở giữa - đâu cũng đá dc, nhưng đá hơi bậy :D"
 	},
 	{
 		"id": 16,
 		"firstName": "Hiển",
-    "position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/Hiển.png",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/Hien.png",
 		"age": 25,
 		"height": 171,
-		"weight": 67
+		"weight": 67,
+		"note": "Ở giữa - Bạn thằng họa sĩ kia, nhưng trâu hơn"
 	},
 	{
 		"id": 17,
 		"firstName": "Hoà",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/Hoa.png",
 		"age": 28,
 		"height": 175,
-		"weight": 70
+		"weight": 70,
+		"note": "Ở giữa - Zai trẻ, giò lại dzài, nhưng ít khi thấy mặt"
 	},
 	{
 		"id": 18,
 		"firstName": "Lê",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/Le.png",
 		"age": 27,
 		"height": 172,
-		"weight": 68
+		"weight": 68,
+		"note": "Ở giữa - Bền, cần cù, cắm mặt nên thường hok thấy đồng đội xung quanh"
 	},
 	{
 		"id": 19,
 		"firstName": "Lộc",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "https://randomuser.me/api/portraits/men/19.jpg",
 		"age": 29,
 		"height": 177,
-		"weight": 71
+		"weight": 71,
+		"note": "Ở giữa - Hôm nào nó hok nhậu, nó mới lên => chán ... :D"
 	},
 	{
 		"id": 20,
 		"firstName": "Quý",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/Quy.png",
 		"age": 26,
 		"height": 174,
-		"weight": 69
+		"weight": 69,
+		"note": "Cánh phãi - Bụng bự, cầm banh tốt, mỗi tội yếu đuối, lên dc 5'" 
 	},
 	{
 		"id": 21,
 		"firstName": "Q.Thanh",
-    "position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/21.jpg",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/Q.Thanh.png",
 		"age": 30,
 		"height": 179,
-		"weight": 73
+		"weight": 73,
+		"note": "Ở giữa - Bạn thằng Chán ở trên, nên cũng hiếm thấy"
 	},
 	{
 		"id": 22,
 		"firstName": "Tây",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "assets/images/avatar_players/Tay.png",
 		"age": 25,
 		"height": 170,
-		"weight": 67
+		"weight": 67,
+		"note": "Đa năng - Cân mọi vị trí và cân luôn suất 60k" 
 	},
 	{
 		"id": 23,
 		"firstName": "Thắng",
-    "position": "Tiền vệ",
+		"position": "Tiền vệ",
 		"avatar": "https://randomuser.me/api/portraits/men/23.jpg",
 		"age": 28,
 		"height": 176,
-		"weight": 72
+		"weight": 72,
+		"note": "Ở giữa - Bạn thằng zai trẻ ở trên"
 	},
 	{
 		"id": 24,
 		"firstName": "Minh củi",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Minh_cui.png",
 		"age": 27,
 		"height": 175,
-		"weight": 70
+		"weight": 70,
+		"note": "Ở giữa - Cái tên nói lên tất cả CỦI - nhưng hok có nó thì đội hok có kịch xem"
 	},
 	{
 		"id": 25,
 		"firstName": "Minh nhỏ",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Minh_nho.jpg",
 		"age": 29,
 		"height": 178,
-		"weight": 73
+		"weight": 73,
+		"note": "Ở giữa - Con thằng tiền vệ lười thủ, Siêng hơn cha, nhưng cần cải thiện nhiều"
 	},
 	{
 		"id": 26,
 		"firstName": "Cường",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Cuong.png",
 		"age": 26,
 		"height": 174,
-		"weight": 69
+		"weight": 69,
+		"note": "Cánh phải - Sợ đầu gấu như cọp, thà bỏ banh chứ hok theo :D " 
 	},
 	{
 		"id": 27,
 		"firstName": "Huy",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "https://randomuser.me/api/portraits/men/27.jpg",
 		"age": 30,
 		"height": 180,
-		"weight": 75
+		"weight": 75,
+		"note": "Ở giữa - Chịu khó, nhưng khó chịu chuyền ai"
 	},
 	{
 		"id": 28,
 		"firstName": "Trung",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Trung.png",
 		"age": 25,
 		"height": 170,
-		"weight": 67
+		"weight": 67,
+		"note": "Ở giữa - Chơi đầu cực tốt, Nhiệt huyết, chỉ tội hay vô trận hay xỉn"
 	},
 	{
 		"id": 29,
 		"firstName": "T.Hải",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "https://randomuser.me/api/portraits/men/29.jpg",
 		"age": 28,
 		"height": 177,
@@ -263,26 +291,28 @@
 	{
 		"id": 30,
 		"firstName": "Dương",
-    "position": "Tiền đạo",
+		"position": "Tiền đạo",
 		"avatar": "https://randomuser.me/api/portraits/men/30.jpg",
 		"age": 27,
 		"height": 176,
-		"weight": 70
+		"weight": 70,
+		"note": "Ở giữa - Suốt ngày chửi thằng đầu gấu, nhưng có ăn dc nó đâu :D "
 	},
 	{
 		"id": 31,
 		"firstName": "Thiện",
-    "position": "Tiền đạo",
-		"avatar": "https://randomuser.me/api/portraits/men/31.jpg",
+		"position": "Tiền đạo",
+		"avatar": "assets/images/avatar_players/Thien.png",
 		"age": 29,
 		"height": 179,
-		"weight": 73
+		"weight": 73,
+		"note": "Ở giữa - Em đầu gấu, và cũng hay ăn chửi từ thằng anh"
 	},
 	{
 		"id": 32,
 		"firstName": "Thành",
-    "position": "Tiền đạo",
-		"avatar": "https://randomuser.me/api/portraits/men/32.jpg",
+		"position": "Tiền đạo",
+		"avatar": "assets/images/avatar_players/Thành.png",
 		"age": 26,
 		"height": 175,
 		"weight": 69
@@ -290,37 +320,51 @@
 	{
 		"id": 33,
 		"firstName": "Hải Lu",
-    "position": "Thủ môn",
+		"position": "Thủ môn",
 		"avatar": "assets/images/avatar_players/Hai_lu.png",
 		"age": 30,
 		"height": 180,
-		"weight": 75
+		"weight": 75,
+		"note": "Ở giữa - Tranh chấp tốt, nhưng cảm quan vị trí chưa tốt"
 	},
 	{
 		"id": 34,
 		"firstName": "Trung Dybala",
-    "position": "Tiền đạo",
-		"avatar": "https://randomuser.me/api/portraits/men/34.jpg",
+		"position": "Tiền đạo",
+		"avatar": "assets/images/avatar_players/Dybala.jpg",
 		"age": 25,
 		"height": 170,
-		"weight": 67
+		"weight": 67,
+		"note": "Ở giữa - siêu tốc độ, mỗi tội hay lắng quắng"
 	},
 	{
 		"id": 35,
 		"firstName": "Công Drogba",
-    "position": "Thủ môn",
+		"position": "Thủ môn",
 		"avatar": "assets/images/avatar_players/Cong.png",
 		"age": 28,
 		"height": 177,
-		"weight": 71
+		"weight": 71,
+		"note": "Ở giữa - Vua lì đòn, thằng nào ngon thì cứ thử :D" 
 	},
-  	{
+	{
 		"id": 36,
 		"firstName": "Nhân",
-    "position": "Hậu vệ",
+		"position": "Hậu vệ",
 		"avatar": "https://randomuser.me/api/portraits/men/35.jpg",
 		"age": 28,
 		"height": 177,
-		"weight": 71
+		"weight": 71,
+		"note": "Cánh phải - Tốc độ, kỹ thuật nhưng hơi mỏng cơm"
+	},
+		{
+		"id": 37,
+		"firstName": "Phú",
+		"position": "Hậu vệ",
+		"avatar": "assets/images/avatar_players/Phu.png",
+		"age": 28,
+		"height": 177,
+		"weight": 71,
+		"note": "Cánh trái - Đứa con của thần gió, gió thì thổi lên, nên chả bao giờ về thủ"
 	}
 ]
