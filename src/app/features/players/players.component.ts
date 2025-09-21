@@ -1,18 +1,18 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { dividePlayersByPosition, Player } from './player-utils';
 
 
 @Component({
   selector: 'app-players',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   template: `
     <div class="container mt-4">
       <ng-container *ngIf="mode === 'auto'; else listMode">
         <div class="d-flex justify-content-center mb-4" style="gap:12px;">
-          <button class="btn btn-primary" (click)="setUseRegistered(false)" [disabled]="canEdit">Chia đội từ tất cả</button>
           <button class="btn btn-primary" (click)="setUseRegistered(true)" [disabled]="canEdit">Chia đội từ đăng ký</button>   
           <button class="btn btn-success ms-2" (click)="saveMatchInfo()" [disabled]="!canEdit">Lưu Thông Tin</button>
             <!-- Only one set of buttons should be rendered -->
