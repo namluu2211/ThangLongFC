@@ -112,11 +112,12 @@ import { dividePlayersByPosition, Player } from './player-utils';
                   <div class="modal-header fw-bold">Chi tiết cầu thủ</div>
                   <div class="modal-body">
                     <img [src]="selectedPlayer.avatar" alt="avatar" class="player-avatar mb-2" />
-                    <div><b>Tên:</b> {{selectedPlayer.firstName}} {{selectedPlayer.lastName}}</div>
+                    <div><b>Tên:</b> {{selectedPlayer.firstName}} {{selectedPlayer.lastName || ''}}</div>
                     <div><b>Vị trí:</b> {{selectedPlayer.position}}</div>
-                    <div><b>Tuổi:</b> {{selectedPlayer.age}}</div>
+                    <div><b>DOB:</b> {{selectedPlayer.DOB || 'Chưa có thông tin'}}</div>
                     <div><b>Chiều cao:</b> {{selectedPlayer.height}} cm</div>
                     <div><b>Cân nặng:</b> {{selectedPlayer.weight}} kg</div>
+                    <div *ngIf="selectedPlayer.note"><b>Ghi chú:</b> {{selectedPlayer.note}}</div>
                   </div>
                   <div class="modal-footer"><button class="btn btn-secondary" (click)="closePlayerModal()">Đóng</button></div>
                 </div>

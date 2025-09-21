@@ -133,7 +133,7 @@
 		"id": 14,
 		"firstName": "Đ.Duy",
 		"position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/Đ.Duy.png",
+		"avatar": "assets/images/avatar_players/D.Duy.png",
 		"DOB": 26,
 		"height": 173,
 		"weight": 69,
@@ -223,7 +223,7 @@
 		"id": 23,
 		"firstName": "Thắng",
 		"position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/23.jpg",
+		"avatar": "assets/images/avatar_players/Thang.png",
 		"DOB": "13/05/1999",
 		"height": 176,
 		"weight": 72,
@@ -286,7 +286,8 @@
 		"avatar": "https://randomuser.me/api/portraits/men/29.jpg",
 		"DOB": "22/03/1977",
 		"height": 177,
-		"weight": 71
+		"weight": 71,
+		"note": "Ở giữa - Anh cả của đội, kinh nghiệm nhiều"
 	},
 	{
 		"id": 30,
@@ -315,7 +316,8 @@
 		"avatar": "assets/images/avatar_players/H.Thanh.png",
 		"DOB": "20/08/1991",
 		"height": 175,
-		"weight": 69
+		"weight": 69,
+		"note": "Ở giữa - Khá toàn diện, chơi ổn định"
 	},
 	{
 		"id": 33,

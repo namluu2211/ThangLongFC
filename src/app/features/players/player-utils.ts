@@ -3,12 +3,13 @@
 export interface Player {
   id: number;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   position: string;
   avatar?: string;
-  age?: number;
+  DOB?: number | string;  // Can be age number or date string
   height?: number;
   weight?: number;
+  note?: string;
   scorer?: string;
   assist?: string;
 }

@@ -7,7 +7,7 @@
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint",
-    "build:prod": "ng build --configuration production --base-href=https://namluu2211.github.io/ThangLongFC/ --output-path dist/browser",
+    "build:prod": "ng build --configuration production --base-href=https://namluu2211.github.io/ThangLongFC/",
     "deploy": "npm run build:prod && npx angular-cli-ghpages --dir=dist/browser --branch=gh-pages --no-silent"
   },
   "dependencies": {
