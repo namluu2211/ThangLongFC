@@ -43,10 +43,10 @@
 		"id": 5,
 		"firstName": "Galvin",
 		"position": "Hậu vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/5.jpg",
+		"avatar": "assets/images/avatar_players/Galvin.png",
 		"DOB": 30,
-		"height": 180,
-		"weight": 75,
+		"height": 165,
+		"weight": 65,
 		"note": "Cánh phải - hay nói, mà nói chưa chắc đúng :D"
 	},
 	{
@@ -183,7 +183,7 @@
 		"id": 19,
 		"firstName": "Lộc",
 		"position": "Tiền vệ",
-		"avatar": "https://randomuser.me/api/portraits/men/19.jpg",
+		"avatar": "assets/images/default-avatar.svg",
 		"DOB": "10/12/1989",
 		"height": 177,
 		"weight": 71,
@@ -277,17 +277,17 @@
 		"DOB": 25,
 		"height": 170,
 		"weight": 67,
-		"note": "Ở giữa - Chơi đầu cực tốt, Nhiệt huyết, chỉ tội hay vô trận hay xỉn"
+		"note": "Ở giữa - Chơi đầu cực tốt, Nhiệt huyết, chỉ tội vô trận hay xỉn"
 	},
 	{
 		"id": 29,
 		"firstName": "T.Hải",
 		"position": "Tiền đạo",
-		"avatar": "https://randomuser.me/api/portraits/men/29.jpg",
+		"avatar": "assets/images/default-avatar.svg",
 		"DOB": "22/03/1977",
 		"height": 177,
 		"weight": 71,
-		"note": "Ở giữa - Anh cả của đội, kinh nghiệm nhiều"
+		"note": "Ở giữa - Tinh tế nhưng yếu => xìu"
 	},
 	{
 		"id": 30,
@@ -324,10 +324,10 @@
 		"firstName": "Hải Lu",
 		"position": "Thủ môn",
 		"avatar": "assets/images/avatar_players/Hai_lu.png",
-		"DOB": 30,
+		"DOB": 43,
 		"height": 180,
 		"weight": 75,
-		"note": "Ở giữa - Tranh chấp tốt, nhưng cảm quan vị trí chưa tốt"
+		"note": "Chụp tốt"
 	},
 	{
 		"id": 34,
