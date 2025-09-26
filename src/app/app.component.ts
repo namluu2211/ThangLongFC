@@ -27,7 +27,6 @@ import { StatsComponent } from './features/stats/stats.component';
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn" (click)="show='auto'">Chia đội</button>
         <button class="btn" (click)="show='history'">Xem Lịch Sử</button>
-        <button class="btn" (click)="show='list'">Danh sách</button>
         <button class="btn" (click)="show='fund'">Quỹ hiện tại</button>
         <button class="btn" (click)="show='stats'">Thống kê</button>
       </div>
