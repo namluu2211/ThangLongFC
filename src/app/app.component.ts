@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,17 +18,40 @@ import { StatsComponent } from './features/stats/stats.component';
     StatsComponent
   ],
   template: `
-  <div class="header">
-      <div class="title">Thăng Long - FC</div>
+  <div class="app-header">
       <app-header (loginChange)="onLoginChange($event)"></app-header>
     </div>
     <div class="container">
       <div class="hline"></div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn" (click)="show='auto'">Chia đội</button>
-        <button class="btn" (click)="show='history'">Xem Lịch Sử</button>
-        <button class="btn" (click)="show='fund'">Quỹ hiện tại</button>
-        <button class="btn" (click)="show='stats'">Thống kê</button>
+      <div class="navigation-buttons">
+        <button 
+          class="nav-btn" 
+          [class.active]="show === 'auto'"
+          (click)="show='auto'">
+          <i class="fas fa-users"></i>
+          <span>Chia đội</span>
+        </button>
+        <button 
+          class="nav-btn" 
+          [class.active]="show === 'history'"
+          (click)="show='history'">
+          <i class="fas fa-history"></i>
+          <span>Xem Lịch Sử</span>
+        </button>
+        <button 
+          class="nav-btn" 
+          [class.active]="show === 'fund'"
+          (click)="show='fund'">
+          <i class="fas fa-wallet"></i>
+          <span>Quỹ hiện tại</span>
+        </button>
+        <button 
+          class="nav-btn" 
+          [class.active]="show === 'stats'"
+          (click)="show='stats'">
+          <i class="fas fa-chart-bar"></i>
+          <span>Thống kê</span>
+        </button>
       </div>
       <div style="margin-top:12px;">
   <app-players *ngIf="show==='auto'" [canEdit]="canEdit" mode="auto"></app-players>
@@ -42,13 +65,19 @@ import { StatsComponent } from './features/stats/stats.component';
     </div>
   `
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   loggedIn = false;
   role = '';
   show = 'auto'; // default to 'Chia đội tự động' for better UX
   canEdit = false;
 
+  ngOnInit() {
+    // Initialize app state - the header component will emit the initial login state
+    console.log('App component initialized');
+  }
+
   onLoginChange(event: { loggedIn: boolean; role: string }) {
+    console.log('Login change received:', event);
     this.loggedIn = event.loggedIn;
     this.role = event.role;
     this.canEdit = (this.role === 'admin' || this.role === 'superadmin');

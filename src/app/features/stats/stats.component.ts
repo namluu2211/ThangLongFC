@@ -1036,23 +1036,43 @@ export class StatsComponent implements OnInit {
     // Handle comma-separated names with counts
     const parts = statField.split(',');
     for (const part of parts) {
-      const trimmed = part.trim();
+      let trimmed = part.trim();
       
-      // Check if this part contains the player name
-      if (trimmed.includes(playerName) || trimmed === playerName) {
+      // Extract the name part (without count in parentheses)
+      const nameWithoutCount = trimmed.replace(/\s*\(\d+\)$/, '').trim();
+      
+      // Check for exact match first (most precise)
+      if (this.isExactNameMatch(nameWithoutCount, playerName)) {
         // Extract number if any (e.g., "PlayerName (2)" -> 2)
-        const match = trimmed.match(/\((\d+)\)/);
-        return match ? parseInt(match[1]) : 1;
-      }
-      
-      // Also check for first name matches
-      const firstName = playerName.split(' ')[0];
-      if (firstName && (trimmed.includes(firstName) || trimmed === firstName)) {
-        const match = trimmed.match(/\((\d+)\)/);
+        const match = trimmed.match(/\((\d+)\)$/);
         return match ? parseInt(match[1]) : 1;
       }
     }
     return 0;
+  }
+
+  private isExactNameMatch(fieldName: string, playerName: string): boolean {
+    // Normalize names (trim and handle case)
+    const normalizedFieldName = fieldName.trim();
+    const normalizedPlayerName = playerName.trim();
+    
+    // Debug logging (can be removed in production)
+    // console.log(`Comparing: "${normalizedFieldName}" with "${normalizedPlayerName}"`);
+    
+    // Exact match (case insensitive)
+    if (normalizedFieldName.toLowerCase() === normalizedPlayerName.toLowerCase()) {
+      return true;
+    }
+    
+    // Check if field name matches the first name exactly (for cases where only first name is used)
+    const playerFirstName = normalizedPlayerName.split(' ')[0];
+    if (normalizedFieldName.toLowerCase() === playerFirstName.toLowerCase()) {
+      // Additional check: make sure this isn't a partial match of a longer name
+      // This should only match if the field literally contains just the first name
+      return normalizedFieldName.length === playerFirstName.length;
+    }
+    
+    return false;
   }
 
   private countStatOccurrences(statField: string): number {
