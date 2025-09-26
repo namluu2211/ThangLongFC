@@ -2,12 +2,12 @@
 
 This repository is a minimal Angular app skeleton that implements:
 - Login (superadmin/admin)
-- Thông tin trận đấu (editable by admin/superadmin)
+- Chia đội 
 - Lưu trận đấu vào lịch sử (localStorage)
-- Xem Lịch Sử
+- Xem Lịch Sử (editable by admin/superadmin)
 - Danh sách cầu thủ (players.json)
 - Quỹ hiện tại (calculated and stored in localStorage)
-- Thống kê đơn giản theo tháng
+- Thống kê đơn giản theo tháng/năm
 
 ## Users
 - NamLuu (superadmin)

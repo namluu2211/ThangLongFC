@@ -485,7 +485,6 @@ import { dividePlayersByPosition, Player } from './player-utils';
     }
 
     .player-avatar:not([src]), .player-avatar[src=""] {
-      background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIzMCIgZmlsbD0iIzAwN2JmZiIvPgogIDxjaXJjbGUgY3g9IjMwIiBjeT0iMjIiIHI9IjgiIGZpbGw9IndoaXRlIi8+CiAgPHBhdGggZD0iTTE1IDQ1IEMxNSAzNSwgMjIgMzIsIDMwIDMyIFM0NSAzNSwgNDUgNDUiIGZpbGw9IndoaXRlIi8+CiAgPHRleHQgeD0iMzAiIHk9IjUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iOCIgZmlsbD0iIzAwN2JmZiI+RkM8L3RleHQ+Cjwvc3ZnPg==');
       background-size: cover;
     }
   `]
