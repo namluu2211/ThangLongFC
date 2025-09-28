@@ -1,5 +1,6 @@
-// SECURE ENVIRONMENT CONFIGURATION 
-// All values are loaded from .env.local at build time
+// DEVELOPMENT ENVIRONMENT CONFIGURATION 
+// Firebase config loaded from environment variables
+// Values are injected during build process from .env.local
 
 export const environment = {
   production: false,

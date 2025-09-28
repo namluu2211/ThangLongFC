@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,8 +10,13 @@ import { FirebaseService } from './services/firebase.service';
 import { AdminPanelComponent } from './components/admin-panel.component';
 import { AdminSetupComponent } from './components/admin-setup.component';
 import { FooterComponent } from './shared/footer.component';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { MatchData, FundData } from './models/types';
+
 @Component({
   selector: 'app-root',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -66,14 +71,6 @@ import { FooterComponent } from './shared/footer.component';
           <i class="fas fa-chart-bar"></i>
           <span>Thống kê</span>
         </button>
-        <button 
-          *ngIf="role === 'superadmin'"
-          class="nav-btn setup-btn" 
-          [class.active]="show === 'setup'"
-          (click)="show='setup'">
-          <i class="fas fa-cog"></i>
-          <span>Cài đặt Firebase</span>
-        </button>
       </div>
       <!-- Professional Content Area -->
       <div class="content-area fade-in">
@@ -109,13 +106,20 @@ import { FooterComponent } from './shared/footer.component';
     <app-footer></app-footer>
   `
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  private fundCache: { value: number; timestamp: number } | null = null;
+  private readonly CACHE_DURATION = 30000; // 30 seconds
+  
   loggedIn = false;
   role = '';
   show = 'auto'; // default to 'Chia đội tự động' for better UX
   canEdit = false;
 
-  constructor(private firebaseService: FirebaseService) {}
+  constructor(
+    private firebaseService: FirebaseService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     console.log('🚀 App component ngOnInit started');
@@ -148,57 +152,123 @@ export class AppComponent implements OnInit {
   }
 
   private initializeFirebaseListeners() {
-    // Use setTimeout to not block the main thread
-    setTimeout(() => {
+    // Use requestIdleCallback for better performance
+    const initListeners = () => {
       try {
         console.log('🔥 Initializing Firebase listeners...');
         
-        // Subscribe to real-time data updates with error handling
-        this.firebaseService.matchResults$.subscribe({
-          next: (matchResults) => {
-            console.log('Real-time match results update:', matchResults?.length || 0, 'items');
-          },
-          error: (error) => {
-            console.warn('Firebase match results not available:', error.message);
-          }
-        });
+        // Combine Firebase subscriptions with takeUntil for proper cleanup
+        this.firebaseService.matchResults$
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: (matchResults) => {
+              console.log('Real-time match results update:', matchResults?.length || 0, 'items');
+              this.invalidateFundCache();
+              this.cdr.markForCheck();
+            },
+            error: (error) => {
+              console.warn('Firebase match results not available:', error.message);
+            }
+          });
 
-        this.firebaseService.playerStats$.subscribe({
-          next: (playerStats) => {
-            console.log('Real-time player stats update:', Object.keys(playerStats || {}).length, 'players');
-          },
-          error: (error) => {
-            console.warn('Firebase player stats not available:', error.message);
-          }
-        });
+        this.firebaseService.playerStats$
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: (playerStats) => {
+              console.log('Real-time player stats update:', Object.keys(playerStats || {}).length, 'players');
+              this.cdr.markForCheck();
+            },
+            error: (error) => {
+              console.warn('Firebase player stats not available:', error.message);
+            }
+          });
 
-        this.firebaseService.history$.subscribe({
-          next: (history) => {
-            console.log('Real-time history update:', history?.length || 0, 'matches');
-          },
-          error: (error) => {
-            console.warn('Firebase history not available:', error.message);
-          }
-        });
+        this.firebaseService.history$
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: (history) => {
+              console.log('Real-time history update:', history?.length || 0, 'matches');
+              this.invalidateFundCache();
+              this.cdr.markForCheck();
+            },
+            error: (error) => {
+              console.warn('Firebase history not available:', error.message);
+            }
+          });
       } catch (error) {
         console.warn('⚠️ Firebase listeners not available:', error.message);
-        // App continues to work with localStorage only
       }
-    }, 1000); // Delay Firebase initialization to not block UI
+    };
+
+    // Use requestIdleCallback for better performance, fallback to setTimeout
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(initListeners);
+    } else {
+      setTimeout(initListeners, 1000);
+    }
   }
 
   onLoginChange(event: { loggedIn: boolean; role: string }) {
     console.log('Login change received:', event);
-    this.loggedIn = event.loggedIn;
-    this.role = event.role;
-    this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
+    
+    // Only update if values actually changed
+    if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
+      this.loggedIn = event.loggedIn;
+      this.role = event.role;
+      this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
+      
+      // Store role in localStorage for history component
+      if (this.role) {
+        localStorage.setItem('role', this.role);
+        console.log('✅ Role stored in localStorage:', this.role);
+      } else {
+        localStorage.removeItem('role');
+        console.log('🗑️ Role removed from localStorage');
+      }
+      
+      // Trigger change detection
+      this.cdr.markForCheck();
+    }
   }
 
   get currentFund(): number {
-    const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
-    const totalThu = history.reduce((sum: number, m: any) => sum + Number(m.thu || 0), 0);
-    const totalChi = history.reduce((sum: number, m: any) => sum + (Number(m.chi_trongtai || 0) + Number(m.chi_nuoc || 0) + Number(m.chi_san || 0)), 0);
-    return 2730 + totalThu - totalChi;
+    // Use cache if available and not expired
+    if (this.fundCache && (Date.now() - this.fundCache.timestamp) < this.CACHE_DURATION) {
+      return this.fundCache.value;
+    }
+    
+    // Calculate fund value
+    const fund = this.calculateCurrentFund();
+    
+    // Update cache
+    this.fundCache = {
+      value: fund,
+      timestamp: Date.now()
+    };
+    
+    return fund;
+  }
+  
+  private calculateCurrentFund(): number {
+    try {
+      const historyData = localStorage.getItem('matchHistory');
+      if (!historyData) return 2795000;
+      
+      const history = JSON.parse(historyData) as MatchData[];
+      const totalThu = history.reduce((sum, m) => sum + Number(m.thu || 0), 0);
+      const totalChi = history.reduce((sum, m) => {
+        return sum + (Number(m.chi_trongtai || 0) + Number(m.chi_nuoc || 0) + Number(m.chi_san || 0));
+      }, 0);
+      
+      return 2795000 + totalThu - totalChi;
+    } catch (error) {
+      console.error('Error calculating fund:', error);
+      return 2795000;
+    }
+  }
+  
+  private invalidateFundCache(): void {
+    this.fundCache = null;
   }
 
   getCurrentUsername(): string {
@@ -225,5 +295,16 @@ export class AppComponent implements OnInit {
     } else {
       return 'Cần bổ sung quỹ';
     }
+  }
+  
+  ngOnDestroy(): void {
+    // Complete all subscriptions
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    // Clear cache
+    this.fundCache = null;
+    
+    console.log('🧹 App component cleanup completed');
   }
 }

@@ -29,6 +29,8 @@ jobs:
 
     - name: Build application 
       env:
+        # API Configuration
+        NG_APP_API_URL: ${{ secrets.NG_APP_API_URL }}
         # Firebase configuration from GitHub secrets
         NG_APP_FIREBASE_API_KEY: ${{ secrets.APIKEY }}
         NG_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.AUTHDOMAIN }}
@@ -42,6 +44,8 @@ jobs:
 
     - name: Run tests (if available)
       env:
+        # API Configuration
+        NG_APP_API_URL: ${{ secrets.NG_APP_API_URL }}
         NG_APP_FIREBASE_API_KEY: ${{ secrets.APIKEY }}
         NG_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.AUTHDOMAIN }}
         NG_APP_FIREBASE_PROJECT_ID: ${{ secrets.PROJECTID }}
@@ -80,6 +84,8 @@ jobs:
 
     - name: Build for production
       env:
+        # API Configuration
+        NG_APP_API_URL: ${{ secrets.NG_APP_API_URL }}
         # Firebase configuration from GitHub secrets
         NG_APP_FIREBASE_API_KEY: ${{ secrets.APIKEY }}
         NG_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.AUTHDOMAIN }}

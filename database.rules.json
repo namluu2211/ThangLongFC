@@ -1,0 +1,20 @@
+{
+  "rules": {
+    ".read": true,
+    "matchResults": {
+      ".write": "auth != null && (auth.token.email == 'bktientu@gmail.com' || auth.token.email == 'nguyenthuysy@gmail.com' || auth.token.email == 'hanguyen@thanglongfc.com' || auth.token.email == 'hieunguyen@thanglongfc.com')"
+    },
+    "playerStats": {
+      ".write": "auth != null && (auth.token.email == 'bktientu@gmail.com' || auth.token.email == 'nguyenthuysy@gmail.com' || auth.token.email == 'hanguyen@thanglongfc.com' || auth.token.email == 'hieunguyen@thanglongfc.com')"
+    },
+    "history": {
+      ".write": "auth != null && (auth.token.email == 'bktientu@gmail.com' || auth.token.email == 'nguyenthuysy@gmail.com' || auth.token.email == 'hanguyen@thanglongfc.com' || auth.token.email == 'hieunguyen@thanglongfc.com')"
+    },
+    "players": {
+      ".write": "auth != null && (auth.token.email == 'bktientu@gmail.com' || auth.token.email == 'nguyenthuysy@gmail.com' || auth.token.email == 'hanguyen@thanglongfc.com' || auth.token.email == 'hieunguyen@thanglongfc.com')"
+    },
+    "fund": {
+      ".write": "auth != null && (auth.token.email == 'bktientu@gmail.com' || auth.token.email == 'nguyenthuysy@gmail.com' || auth.token.email == 'hanguyen@thanglongfc.com' || auth.token.email == 'hieunguyen@thanglongfc.com')"
+    }
+  }
+}

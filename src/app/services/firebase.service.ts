@@ -43,12 +43,43 @@ export interface PlayerStats {
 export interface HistoryEntry {
   id?: string;
   date: string;
-  description: string;
+  description?: string;
+  
+  // Team data
+  teamA?: any[];
+  teamB?: any[];
+  scoreA?: number;
+  scoreB?: number;
+  scorerA?: string;
+  scorerB?: string;
+  assistA?: string;
+  assistB?: string;
+  yellowA?: string;
+  yellowB?: string;
+  redA?: string;
+  redB?: string;
+  
+  // Financial data - Revenue (Thu)
   thu?: number;
+  thuMode?: 'auto' | 'manual';
+  thu_main?: number;
+  thu_penalties?: number;
+  thu_other?: number;
+  
+  // Financial data - Expenses (Chi)
   chi_trongtai?: number;
   chi_nuoc?: number;
   chi_san?: number;
+  chi_dilai?: number;
+  chi_anuong?: number;
+  chi_khac?: number;
+  chi_total?: number;
+  
+  // Metadata
   createdAt?: any;
+  updatedAt?: any;
+  updatedBy?: string;
+  lastSaved?: string;
   createdBy?: string;
 }
 
@@ -409,10 +440,143 @@ export class FirebaseService {
     });
   }
 
+  // Match Financial Data Management
+  async saveMatchFinances(matchData: HistoryEntry): Promise<string> {
+    return this.executeBatchOperation(async () => {
+      let historyRef;
+      
+      if (matchData.id) {
+        // Update existing match
+        historyRef = ref(this.database, `history/${matchData.id}`);
+        const updateData = {
+          ...matchData,
+          updatedAt: serverTimestamp(),
+          updatedBy: this.getCurrentUserEmail()
+        };
+        await set(historyRef, updateData);
+        
+        // Update cache
+        const currentHistory = this.historySubject.value;
+        const updatedHistory = currentHistory.map(entry => 
+          entry.id === matchData.id ? { ...entry, ...updateData } : entry
+        );
+        this.historySubject.next(updatedHistory);
+        
+        console.log('💾 Match financial data updated:', matchData.id);
+        return matchData.id;
+      } else {
+        // Create new match
+        historyRef = ref(this.database, 'history');
+        const newHistoryRef = push(historyRef);
+        
+        const newMatchData = {
+          ...matchData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: this.getCurrentUserEmail()
+        };
+        
+        await set(newHistoryRef, newMatchData);
+        
+        // Update cache
+        const currentHistory = this.historySubject.value;
+        const newEntry = { id: newHistoryRef.key!, ...newMatchData };
+        this.historySubject.next([...currentHistory, newEntry]);
+        
+        console.log('💾 New match financial data created:', newHistoryRef.key);
+        return newHistoryRef.key!;
+      }
+    });
+  }
+
+  async updateMatchFinancialField(matchId: string, field: string, value: any): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      const fieldRef = ref(this.database, `history/${matchId}/${field}`);
+      await set(fieldRef, value);
+      
+      // Also update metadata
+      const metaRef = ref(this.database, `history/${matchId}/updatedAt`);
+      await set(metaRef, serverTimestamp());
+      
+      // Update cache
+      const currentHistory = this.historySubject.value;
+      const updatedHistory = currentHistory.map(entry => 
+        entry.id === matchId ? { ...entry, [field]: value, updatedAt: new Date().toISOString() } : entry
+      );
+      this.historySubject.next(updatedHistory);
+      
+      console.log(`💾 Match ${matchId} field ${field} updated:`, value);
+    });
+  }
+
+  async batchUpdateMatchFinances(matchId: string, updates: Partial<HistoryEntry>): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      const matchRef = ref(this.database, `history/${matchId}`);
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+        updatedBy: this.getCurrentUserEmail()
+      };
+      
+      // Use Firebase's update method for partial updates
+      const updatePromises = Object.entries(updateData).map(([key, value]) => {
+        const fieldRef = ref(this.database, `history/${matchId}/${key}`);
+        return set(fieldRef, value);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Update cache
+      const currentHistory = this.historySubject.value;
+      const updatedHistory = currentHistory.map(entry => 
+        entry.id === matchId ? { ...entry, ...updateData } : entry
+      );
+      this.historySubject.next(updatedHistory);
+      
+      console.log(`💾 Match ${matchId} batch updated:`, Object.keys(updates));
+    });
+  }
+
+  async syncLocalHistoryToFirebase(localHistory: HistoryEntry[]): Promise<void> {
+    console.log('🔄 Starting local history sync to Firebase...');
+    
+    try {
+      for (const match of localHistory) {
+        if (!match.id) {
+          // Generate ID based on date and content
+          match.id = `match_${match.date.replace(/[^0-9]/g, '')}_${Date.now()}`;
+        }
+        
+        await this.saveMatchFinances(match);
+        console.log(`✅ Synced match: ${match.id}`);
+      }
+      
+      console.log(`🎉 Successfully synced ${localHistory.length} matches to Firebase`);
+    } catch (error) {
+      console.error('❌ Error syncing to Firebase:', error);
+      throw error;
+    }
+  }
+
+  async exportAllMatchFinances(): Promise<HistoryEntry[]> {
+    const history = this.historySubject.value;
+    console.log(`📊 Exporting ${history.length} match financial records`);
+    return history;
+  }
+
   // Utility methods
   private getCurrentUserEmail(): string | null {
     // This should integrate with your Firebase Auth service
-    return 'system@thanglong.fc'; // Placeholder
+    try {
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user.email || 'system@thanglong.fc';
+      }
+    } catch (error) {
+      console.warn('Could not get current user email:', error);
+    }
+    return 'system@thanglong.fc';
   }
 
   // Cleanup method
