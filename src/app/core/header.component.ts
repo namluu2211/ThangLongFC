@@ -1,11 +1,14 @@
-import { Component, EventEmitter, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Output, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AdminConfig } from '../config/admin.config';
+import { FirebaseAuthService } from '../services/firebase-auth.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="header-container">
       <!-- Logo Section -->
@@ -24,32 +27,39 @@ import { FormsModule } from '@angular/forms';
         <!-- Modal Backdrop -->
         <div *ngIf="!loggedIn && showLoginForm" class="modal-backdrop" (click)="closeLoginForm()"></div>
         
-        <!-- Modern Login Form -->
+        <!-- Firebase Login Form -->
         <div *ngIf="!loggedIn && showLoginForm" class="login-form expanded">
           <div class="form-header">
-            <h4>🚀 ThangLong FC</h4>
+            <h4>🔥 Firebase Login</h4>
             <button class="close-btn" (click)="closeLoginForm()">×</button>
           </div>
-          <form class="form-content">
+          <form class="form-content" (submit)="login(); $event.preventDefault()">
             <div class="input-group">
               <input 
-                type="text" 
-                [(ngModel)]="username" 
-                placeholder="👤 Tên đăng nhập"
-                autocomplete="username">
+                type="email" 
+                [(ngModel)]="email" 
+                placeholder="📧 Email đăng nhập"
+                autocomplete="email"
+                required>
             </div>
             <div class="input-group">
               <input 
                 type="password" 
                 [(ngModel)]="password" 
                 placeholder="🔒 Mật khẩu"
-                autocomplete="current-password">
+                autocomplete="current-password"
+                required>
             </div>
-            <button type="button" class="login-btn" (click)="login()">
+            <button type="submit" class="login-btn" [disabled]="isLoading || !email || !password">
               <i class="fas fa-sign-in-alt"></i>
-              Đăng nhập
+              {{isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}}
             </button>
           </form>
+          
+          <!-- Firebase Setup Hint -->
+          <div class="firebase-hint">
+            <small>💡 Sử dụng email và mật khẩu Firebase Authentication</small>
+          </div>
         </div>
 
         <!-- Login Button -->
@@ -60,23 +70,13 @@ import { FormsModule } from '@angular/forms';
           </button>
         </div>
 
-
-
         <!-- User Profile Section -->
         <div *ngIf="loggedIn" class="user-profile">
           <div class="user-info" (click)="toggleUserMenu()">
             <div class="user-avatar">
-              <img 
-                *ngIf="getUserAvatarUrl(); else defaultAvatar"
-                [src]="getUserAvatarUrl()" 
-                [alt]="getDisplayName()"
-                class="avatar-image"
-                (error)="onAvatarError($event)">
-              <ng-template #defaultAvatar>
-                <div class="avatar-placeholder">
-                  {{getInitials()}}
-                </div>
-              </ng-template>
+              <div class="avatar-placeholder">
+                {{getInitials()}}
+              </div>
             </div>
             <div class="user-details">
               <span class="user-name">{{getDisplayName()}}</span>
@@ -89,21 +89,14 @@ import { FormsModule } from '@angular/forms';
           <div class="user-dropdown" *ngIf="showUserMenu">
             <div class="dropdown-header">
               <div class="dropdown-avatar">
-                <img 
-                  *ngIf="getUserAvatarUrl(); else dropdownDefaultAvatar"
-                  [src]="getUserAvatarUrl()" 
-                  [alt]="getDisplayName()"
-                  class="dropdown-avatar-image"
-                  (error)="onAvatarError($event)">
-                <ng-template #dropdownDefaultAvatar>
-                  <div class="dropdown-avatar-placeholder">
-                    {{getInitials()}}
-                  </div>
-                </ng-template>
+                <div class="dropdown-avatar-placeholder">
+                  {{getInitials()}}
+                </div>
               </div>
               <div class="dropdown-info">
                 <div class="dropdown-name">{{getDisplayName()}}</div>
                 <div class="dropdown-role">{{getRoleDisplayName()}}</div>
+                <div class="dropdown-email">{{getCurrentUserEmail()}}</div>
               </div>
             </div>
             <div class="dropdown-divider"></div>
@@ -195,11 +188,7 @@ import { FormsModule } from '@angular/forms';
       align-items: center;
     }
 
-    /* Login Container */
-    .login-container {
-      position: relative;
-    }
-
+    /* Login Form */
     .login-form {
       position: fixed;
       top: 50%;
@@ -218,10 +207,6 @@ import { FormsModule } from '@angular/forms';
       z-index: 1000;
       animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       backdrop-filter: blur(20px);
-    }
-
-    .login-form.expanded {
-      padding: 0;
     }
 
     @keyframes modalSlideIn {
@@ -343,12 +328,6 @@ import { FormsModule } from '@angular/forms';
       border-radius: 0 0 20px 20px;
     }
 
-    .login-inputs {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
     .input-group {
       position: relative;
       margin-bottom: 20px;
@@ -380,30 +359,6 @@ import { FormsModule } from '@angular/forms';
       font-weight: 400;
     }
 
-    .input-group input:focus::placeholder {
-      color: #adb5bd;
-    }
-
-    .input-group i {
-      color: #6c757d;
-      font-size: 14px;
-    }
-
-    .login-input {
-      border: none;
-      outline: none;
-      padding: 12px 0;
-      font-size: 14px;
-      flex: 1;
-      background: transparent;
-    }
-
-    .login-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
     .login-btn {
       background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
       color: white;
@@ -426,51 +381,30 @@ import { FormsModule } from '@angular/forms';
       letter-spacing: 0.5px;
     }
 
-    .login-btn::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-      transition: left 0.5s;
-    }
-
-    .login-btn:hover::before {
-      left: 100%;
-    }
-
     .login-btn:hover:not(:disabled) {
       transform: translateY(-3px) scale(1.02);
       box-shadow: 0 12px 30px rgba(0, 123, 255, 0.4);
-      box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
     }
 
     .login-btn:disabled {
       background: #6c757d;
       cursor: not-allowed;
       opacity: 0.6;
+      transform: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .cancel-btn {
-      background: #6c757d;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      font-size: 16px;
+    .firebase-hint {
+      padding: 16px 32px 24px;
+      background: white;
+      border-radius: 0 0 20px 20px;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
     }
 
-    .cancel-btn:hover {
-      background: #c82333;
-      transform: translateY(-2px);
+    .firebase-hint small {
+      color: #6c757d;
+      font-size: 0.85rem;
     }
 
     /* User Profile */
@@ -503,14 +437,6 @@ import { FormsModule } from '@angular/forms';
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-
-    .avatar-image {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
     .avatar-placeholder {
@@ -563,7 +489,7 @@ import { FormsModule } from '@angular/forms';
       border-radius: 12px;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
       border: 1px solid #e9ecef;
-      min-width: 220px;
+      min-width: 250px;
       z-index: 1000;
       animation: dropdownSlide 0.3s ease;
       overflow: hidden;
@@ -606,14 +532,6 @@ import { FormsModule } from '@angular/forms';
       justify-content: center;
     }
 
-    .dropdown-avatar-image {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #007bff;
-    }
-
     .dropdown-avatar-placeholder {
       width: 100%;
       height: 100%;
@@ -640,6 +558,12 @@ import { FormsModule } from '@angular/forms';
     .dropdown-role {
       color: #6c757d;
       font-size: 12px;
+    }
+
+    .dropdown-email {
+      color: #007bff;
+      font-size: 11px;
+      font-weight: 500;
     }
 
     .dropdown-divider {
@@ -685,143 +609,6 @@ import { FormsModule } from '@angular/forms';
       color: #dc3545;
     }
 
-    /* Clean Login Form */
-    .clean-login-form {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      z-index: 10000;
-      min-width: 320px;
-      max-width: 400px;
-      overflow: hidden;
-      animation: loginFormSlide 0.3s ease;
-    }
-
-    @keyframes loginFormSlide {
-      from {
-        opacity: 0;
-        transform: translate(-50%, -60%);
-      }
-      to {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-      }
-    }
-
-    .login-header {
-      background: linear-gradient(135deg, #007bff 0%, #00c6ff 100%);
-      color: white;
-      padding: 20px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .login-header h3 {
-      margin: 0;
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
-
-    .close-btn {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: white;
-      padding: 8px;
-      border-radius: 50%;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .close-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-      transform: rotate(90deg);
-    }
-
-    .login-body {
-      padding: 24px;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 600;
-      color: #495057;
-      font-size: 14px;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 12px 16px;
-      border: 2px solid #e9ecef;
-      border-radius: 8px;
-      font-size: 14px;
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
-      box-sizing: border-box;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    }
-
-    .login-submit-btn {
-      width: 100%;
-      background: linear-gradient(135deg, #007bff 0%, #00c6ff 100%);
-      color: white;
-      border: none;
-      padding: 14px 20px;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 14px;
-    }
-
-    .login-submit-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
-    }
-
-    /* Debug Button */
-    .debug-btn {
-      background: #ffc107;
-      color: #212529;
-      border: none;
-      padding: 8px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-    }
-
-    .debug-btn:hover {
-      background: #e0a800;
-      transform: translateY(-1px);
-    }
-
     /* Responsive Design */
     @media (max-width: 768px) {
       .header-container {
@@ -846,8 +633,8 @@ import { FormsModule } from '@angular/forms';
         display: none;
       }
 
-      .login-form.expanded {
-        min-width: 240px;
+      .login-form {
+        width: 90vw;
         padding: 16px;
       }
 
@@ -860,220 +647,124 @@ import { FormsModule } from '@angular/forms';
         min-width: 200px;
       }
     }
-
-    @media (max-width: 480px) {
-      .logo-text .logo-main {
-        font-size: 1rem;
-      }
-
-      .login-form.expanded {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 1001;
-        min-width: 280px;
-        max-width: 90vw;
-      }
-
-      .user-dropdown {
-        position: fixed;
-        top: 60px;
-        right: 8px;
-        left: 8px;
-        min-width: auto;
-      }
-    }
-
-    /* Clean Login Modal */
-    .clean-login-form {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 16px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-      z-index: 10000;
-      width: 400px;
-      max-width: 90vw;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .modal-hidden {
-      display: none !important;
-    }
-
-    .modal-visible {
-      display: block !important;
-    }
-
-    .login-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 24px 24px 16px 24px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    }
-
-    .login-header h3 {
-      margin: 0;
-      color: #333;
-      font-weight: 600;
-      font-size: 18px;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      color: #666;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-    }
-
-    .close-btn:hover {
-      background: rgba(0, 0, 0, 0.1);
-      color: #333;
-    }
-
-    .login-body {
-      padding: 24px;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translate(-50%, -60%);
-      }
-      to {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-      }
-    }
   `]
 })
 export class HeaderComponent implements OnInit {
   @Output() loginChange = new EventEmitter<any>();
-  username = '';
+  
+  // Firebase Authentication properties
+  email = '';
   password = '';
   loggedIn = false;
   role = '';
   showLoginForm = false;
   showUserMenu = false;
+  isLoading = false;
+  
+  // Current user info from Firebase
+  currentUserEmail = '';
+  currentUserDisplayName = '';
 
-  // hardcoded hashed passwords (sha256)
-  users = [
-    { username: 'NamLuu', hash: '351974bb956e55ba2ee5df0be3f502abbec6cc8fdba1d1fb92932ce8a7016c49', role: 'superadmin', displayName: 'Nam Lưu' },
-    { username: 'SyNguyen', hash: 'b9fab45c74254cdbd9e234a1fb5a8db2cf2d5a22ccf9d37bf3659a4b8f402fc3', role: 'admin', displayName: 'Sy Nguyễn' }
-  ];
+  constructor(private firebaseAuthService: FirebaseAuthService) {}
 
   ngOnInit() {
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('thang_user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        this.username = userData.username;
-        this.role = userData.role;
+    // Subscribe to Firebase auth state changes
+    this.firebaseAuthService.currentUser$.subscribe(firebaseUser => {
+      if (firebaseUser) {
+        // User is logged in via Firebase
         this.loggedIn = true;
-        setTimeout(() => {
-          this.loginChange.emit({ loggedIn: true, role: this.role });
-        }, 0);
-      } catch (e) {
-        localStorage.removeItem('thang_user');
-        localStorage.removeItem('role');
-        setTimeout(() => {
-          this.loginChange.emit({ loggedIn: false, role: '' });
-        }, 0);
-      }
-    } else {
-      setTimeout(() => {
+        this.currentUserEmail = firebaseUser.email;
+        this.currentUserDisplayName = firebaseUser.displayName;
+        this.role = firebaseUser.isSuperAdmin ? 'superadmin' : 'admin';
+        
+        // Emit login state
+        this.loginChange.emit({ loggedIn: true, role: this.role });
+        
+        console.log('🔥 Firebase user logged in:', {
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          role: this.role
+        });
+      } else {
+        // No user logged in
+        this.loggedIn = false;
+        this.currentUserEmail = '';
+        this.currentUserDisplayName = '';
+        this.role = '';
+        
+        // Emit logout state
         this.loginChange.emit({ loggedIn: false, role: '' });
-      }, 0);
-    }
-  }
-
-  async sha256(str: string) {
-    const buf = new TextEncoder().encode(str);
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
-    const hashArray = Array.from(new Uint8Array(hashBuf));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        console.log('🔥 No Firebase user logged in');
+      }
+    });
   }
 
   async login() {
-    if (!this.username || !this.password) {
-      this.showError('Vui lòng nhập đầy đủ thông tin đăng nhập');
+    if (!this.email || !this.password) {
+      this.showError('Vui lòng nhập đầy đủ email và mật khẩu');
       return;
     }
 
-    const h = await this.sha256(this.password || '');
-    const u = this.users.find(x => x.username === this.username && x.hash === h);
-    
-    if (u) {
-      this.loggedIn = true;
-      this.role = u.role;
-      this.showLoginForm = false;
+    // Validate email format
+    if (!this.isValidEmail(this.email)) {
+      this.showError('Vui lòng nhập email hợp lệ');
+      return;
+    }
+
+    // Check if email is in admin configuration
+    if (!AdminConfig.isAdminEmail(this.email)) {
+      this.showError('Email này không có quyền admin. Liên hệ quản trị viên để được cấp quyền.');
+      return;
+    }
+
+    this.isLoading = true;
+
+    try {
+      console.log('🔥 Attempting Firebase login:', this.email);
       
-      localStorage.setItem('thang_user', JSON.stringify({ 
-        username: this.username, 
-        role: this.role,
-        displayName: u.displayName,
-        loginTime: new Date().toISOString()
-      }));
-      localStorage.setItem('role', this.role);
+      const firebaseUser = await this.firebaseAuthService.signInWithEmail(this.email, this.password);
       
-      this.loginChange.emit({ loggedIn: true, role: this.role });
-      this.password = '';
-      this.showSuccess(`Đăng nhập thành công! Chào mừng ${u.displayName}`);
+      if (firebaseUser) {
+        // Login successful - Firebase auth service will handle state updates
+        this.showLoginForm = false;
+        this.password = ''; // Clear password for security
+        this.showSuccess(`🔥 Đăng nhập thành công! Chào mừng ${firebaseUser.displayName}`);
+        
+        console.log('🔥 Firebase login successful:', firebaseUser);
+      }
       
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      this.showError('Tên đăng nhập hoặc mật khẩu không chính xác');
+    } catch (error: any) {
+      console.error('❌ Firebase login failed:', error);
+      
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      
+      if (error.message.includes('user-not-found')) {
+        errorMessage = `Không tìm thấy tài khoản Firebase cho email ${this.email}. Vui lòng tạo tài khoản trước.`;
+      } else if (error.message.includes('wrong-password')) {
+        errorMessage = 'Mật khẩu không chính xác.';
+      } else if (error.message.includes('invalid-email')) {
+        errorMessage = 'Email không hợp lệ.';
+      } else if (error.message.includes('Unauthorized')) {
+        errorMessage = 'Email này không có quyền admin.';
+      }
+      
+      this.showError(errorMessage);
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  logout() {
-    this.loggedIn = false;
-    this.username = '';
-    this.role = '';
-    this.showUserMenu = false;
-    localStorage.removeItem('thang_user');
-    localStorage.removeItem('role');
-    this.loginChange.emit({ loggedIn: false, role: '' });
-    this.showSuccess('Đã đăng xuất thành công!');
-  }
-
-  forceLogout() {
-    console.log('Force logout triggered');
-    localStorage.clear(); // Clear all localStorage for debugging
-    this.loggedIn = false;
-    this.username = '';
-    this.role = '';
-    this.showUserMenu = false;
-    this.showLoginForm = false;
-    this.loginChange.emit({ loggedIn: false, role: '' });
-    this.showSuccess('Đã xóa tất cả dữ liệu đăng nhập!');
-    // Force page reload to ensure clean state
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
-  }
-
-  forceShowLogin() {
-    console.log('Force show login triggered');
-    this.loggedIn = false;
-    this.showLoginForm = true;
-    this.showSuccess('Forced login form to show!');
+  async logout() {
+    try {
+      await this.firebaseAuthService.signOut();
+      this.showUserMenu = false;
+      this.showSuccess('Đã đăng xuất thành công!');
+      console.log('🔥 Firebase logout successful');
+    } catch (error) {
+      console.error('❌ Firebase logout failed:', error);
+      this.showError('Lỗi đăng xuất. Vui lòng thử lại.');
+    }
   }
 
   toggleUserMenu() {
@@ -1085,31 +776,19 @@ export class HeaderComponent implements OnInit {
   }
 
   closeLoginForm() {
-    console.log('Closing login form');
     this.showLoginForm = false;
-    this.username = '';
+    this.email = '';
     this.password = '';
   }
 
-  onUsernameChange(event: any) {
-    console.log('Username input event triggered!');
-    console.log('Event type:', event.type);
-    console.log('Event target value:', event.target.value);
-    this.username = event.target.value;
-  }
-
-  onPasswordChange(event: any) {
-    console.log('Password input event triggered!');
-    console.log('Event type:', event.type);
-    console.log('Event target value:', event.target.value);
-    this.password = event.target.value;
-  }
-
-
-
   getDisplayName(): string {
-    const user = this.users.find(u => u.username === this.username);
-    return user?.displayName || this.username;
+    if (this.currentUserDisplayName) {
+      return this.currentUserDisplayName;
+    }
+    
+    // Try to get display name from admin config
+    const adminUser = AdminConfig.getAdminByEmail(this.currentUserEmail);
+    return adminUser ? adminUser.displayName : this.currentUserEmail.split('@')[0];
   }
 
   getRoleDisplayName(): string {
@@ -1120,54 +799,8 @@ export class HeaderComponent implements OnInit {
     }
   }
 
-  openProfile() {
-    this.showUserMenu = false;
-    // TODO: Implement profile modal/page
-    this.showInfo('Tính năng đang được phát triển');
-  }
-
-  openSettings() {
-    this.showUserMenu = false;
-    // TODO: Implement settings modal/page
-    this.showInfo('Tính năng đang được phát triển');
-  }
-
-  private showSuccess(message: string) {
-    // Simple success notification - could be enhanced with a proper toast system
-    const notification = this.createNotification(message, 'success');
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 3000);
-  }
-
-  private showError(message: string) {
-    // Simple error notification - could be enhanced with a proper toast system
-    const notification = this.createNotification(message, 'error');
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 4000);
-  }
-
-  private showInfo(message: string) {
-    // Simple info notification - could be enhanced with a proper toast system
-    const notification = this.createNotification(message, 'info');
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 3000);
-  }
-
-  getUserAvatarUrl(): string | null {
-    // Map usernames to avatar file names
-    const avatarMap: { [key: string]: string } = {
-      'NamLuu': 'Nam.png',
-      'SyNguyen': 'Sy.png'
-    };
-    
-    const avatarFile = avatarMap[this.username];
-    return avatarFile ? `/assets/images/avatar_players/${avatarFile}` : null;
+  getCurrentUserEmail(): string {
+    return this.currentUserEmail;
   }
 
   getInitials(): string {
@@ -1179,12 +812,35 @@ export class HeaderComponent implements OnInit {
       .substring(0, 2);
   }
 
-  onAvatarError(event: any): void {
-    // Hide the broken image and show placeholder instead
-    event.target.style.display = 'none';
+  openProfile() {
+    this.showUserMenu = false;
+    this.showInfo('Tính năng đang được phát triển');
   }
 
-  private createNotification(message: string, type: 'success' | 'error' | 'info'): HTMLElement {
+  openSettings() {
+    this.showUserMenu = false;
+    this.showInfo('Tính năng đang được phát triển');
+  }
+
+  // Helper methods
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  private showSuccess(message: string) {
+    this.createNotification(message, 'success');
+  }
+
+  private showError(message: string) {
+    this.createNotification(message, 'error');
+  }
+
+  private showInfo(message: string) {
+    this.createNotification(message, 'info');
+  }
+
+  private createNotification(message: string, type: 'success' | 'error' | 'info'): void {
     const notification = document.createElement('div');
     notification.style.cssText = `
       position: fixed;
@@ -1219,6 +875,15 @@ export class HeaderComponent implements OnInit {
     };
     notification.appendChild(closeBtn);
 
+    document.body.appendChild(notification);
+    
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        document.body.removeChild(notification);
+      }
+    }, 4000);
+
     // Add slide in animation
     const style = document.createElement('style');
     style.textContent = `
@@ -1233,19 +898,9 @@ export class HeaderComponent implements OnInit {
         }
       }
     `;
-    document.head.appendChild(style);
-
-    return notification;
+    if (!document.head.querySelector('style[data-notifications]')) {
+      style.setAttribute('data-notifications', 'true');
+      document.head.appendChild(style);
+    }
   }
-
-  private async hashPassword(password: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hash))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-
-
 }

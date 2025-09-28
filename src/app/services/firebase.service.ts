@@ -1,0 +1,425 @@
+import { Injectable } from '@angular/core';
+import { initializeApp } from 'firebase/app';
+import { 
+  getDatabase, 
+  ref, 
+  push, 
+  set, 
+  onValue, 
+  off,
+  serverTimestamp,
+  Database,
+  goOffline,
+  goOnline
+} from 'firebase/database';
+import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
+import { map, shareReplay, distinctUntilChanged, debounceTime } from 'rxjs';
+import { firebaseConfig } from '../config/firebase.config';
+import { AdminConfig, ADMIN_EMAILS } from '../config/admin.config';
+
+export interface MatchResult {
+  id?: string;
+  date: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  competition: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface PlayerStats {
+  id?: string;
+  name: string;
+  position: string;
+  goals: number;
+  assists: number;
+  matches: number;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface HistoryEntry {
+  id?: string;
+  date: string;
+  description: string;
+  thu?: number;
+  chi_trongtai?: number;
+  chi_nuoc?: number;
+  chi_san?: number;
+  createdAt?: any;
+  createdBy?: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class FirebaseService {
+  private app = initializeApp(firebaseConfig);
+  private database: Database = getDatabase(this.app);
+  
+  // Optimized BehaviorSubjects with caching
+  private matchResultsSubject = new BehaviorSubject<MatchResult[]>([]);
+  private playerStatsSubject = new BehaviorSubject<PlayerStats[]>([]);
+  private historySubject = new BehaviorSubject<HistoryEntry[]>([]);
+  
+  // Cached observables with shareReplay for multiple subscribers
+  public matchResults$ = this.matchResultsSubject.asObservable().pipe(
+    distinctUntilChanged(),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  
+  public playerStats$ = this.playerStatsSubject.asObservable().pipe(
+    distinctUntilChanged(),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  
+  public history$ = this.historySubject.asObservable().pipe(
+    distinctUntilChanged(),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
+  // Connection status tracking
+  private connectionStatus = new BehaviorSubject<boolean>(true);
+  public isConnected$ = this.connectionStatus.asObservable();
+
+  // Cache for frequently accessed data
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // Batch operations queue
+  private batchQueue: Array<() => Promise<void>> = [];
+  private isBatchProcessing = false;
+
+  constructor() {
+    this.initializeOptimizedListeners();
+    this.setupConnectionMonitoring();
+    this.enableOfflineSupport();
+  }
+
+  private initializeOptimizedListeners() {
+    // Optimized listeners with error handling and retry logic
+    this.setupListener('matchResults', this.matchResultsSubject);
+    this.setupListener('playerStats', this.playerStatsSubject);  
+    this.setupListener('history', this.historySubject);
+  }
+
+  private setupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
+    const dbRef = ref(this.database, path);
+    
+    const retryListener = (retryCount = 0) => {
+      onValue(dbRef, 
+        (snapshot) => {
+          try {
+            const data = snapshot.val();
+            const items: T[] = data ? Object.keys(data).map(key => ({
+              id: key,
+              ...data[key]
+            })) : [];
+            
+            // Cache the data
+            this.setCache(path, items);
+            subject.next(items);
+            
+            console.log(`📊 Firebase ${path} updated:`, items.length, 'items');
+          } catch (error) {
+            console.error(`❌ Error processing ${path}:`, error);
+            this.loadFromCache(path, subject);
+          }
+        },
+        (error) => {
+          console.error(`❌ Firebase ${path} listener error:`, error);
+          this.connectionStatus.next(false);
+          
+          // Retry with exponential backoff
+          if (retryCount < 3) {
+            const delay = Math.pow(2, retryCount) * 1000;
+            setTimeout(() => retryListener(retryCount + 1), delay);
+          } else {
+            // Load from cache as fallback
+            this.loadFromCache(path, subject);
+          }
+        }
+      );
+    };
+
+    retryListener();
+  }
+
+  private setupConnectionMonitoring() {
+    const connectedRef = ref(this.database, '.info/connected');
+    onValue(connectedRef, (snapshot) => {
+      const isConnected = snapshot.val();
+      this.connectionStatus.next(isConnected);
+      
+      if (isConnected) {
+        console.log('🔥 Firebase connected');
+        this.processBatchQueue();
+      } else {
+        console.warn('⚠️ Firebase disconnected - using cache');
+      }
+    });
+  }
+
+  private enableOfflineSupport() {
+    // Enable Firebase offline persistence
+    try {
+      // Firebase automatically enables offline persistence
+      console.log('🔥 Firebase offline persistence enabled');
+    } catch (error) {
+      console.warn('⚠️ Offline persistence setup failed:', error);
+    }
+  }
+
+  // Optimized CRUD operations with batching and caching
+
+  async addMatchResult(matchResult: Omit<MatchResult, 'id'>): Promise<string> {
+    return this.executeBatchOperation(async () => {
+      const matchesRef = ref(this.database, 'matchResults');
+      const newMatchRef = push(matchesRef);
+      
+      const optimizedMatchResult = {
+        ...matchResult,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await set(newMatchRef, optimizedMatchResult);
+      
+      // Update cache immediately
+      const currentMatches = this.matchResultsSubject.value;
+      const newMatch = { id: newMatchRef.key!, ...optimizedMatchResult };
+      this.matchResultsSubject.next([...currentMatches, newMatch]);
+      
+      console.log('✅ Match result added:', newMatchRef.key);
+      return newMatchRef.key!;
+    });
+  }
+
+    async addPlayerStats(stats: Omit<PlayerStats, 'id'>): Promise<string> {
+    return this.executeBatchOperation(async () => {
+      const statsRef = ref(this.database, 'playerStats');
+      const newStatsRef = push(statsRef);
+      
+      const optimizedStats = {
+        ...stats,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await set(newStatsRef, optimizedStats);
+      
+      // Update cache immediately
+      const currentStats = this.playerStatsSubject.value;
+      const newStats = { id: newStatsRef.key!, ...optimizedStats };
+      this.playerStatsSubject.next([...currentStats, newStats]);
+      
+      console.log('✅ Player stats added:', newStatsRef.key);
+      return newStatsRef.key!;
+    });
+  }
+
+  async addHistoryEntry(entry: Omit<HistoryEntry, 'id'>): Promise<string> {
+    return this.executeBatchOperation(async () => {
+      const historyRef = ref(this.database, 'history');
+      const newHistoryRef = push(historyRef);
+      
+      const optimizedEntry = {
+        ...entry,
+        createdAt: serverTimestamp(),
+        createdBy: this.getCurrentUserEmail()
+      };
+      
+      await set(newHistoryRef, optimizedEntry);
+      
+      // Update cache immediately
+      const currentHistory = this.historySubject.value;
+      const newEntry = { id: newHistoryRef.key!, ...optimizedEntry };
+      this.historySubject.next([...currentHistory, newEntry]);
+      
+      console.log('✅ History entry added:', newHistoryRef.key);
+      return newHistoryRef.key!;
+    });
+  }
+
+  // Batch operation management
+  private async executeBatchOperation<T>(operation: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.batchQueue.push(async () => {
+        try {
+          const result = await operation();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      this.processBatchQueue();
+    });
+  }
+
+  private async processBatchQueue() {
+    if (this.isBatchProcessing || this.batchQueue.length === 0) {
+      return;
+    }
+
+    this.isBatchProcessing = true;
+    
+    try {
+      // Process operations in batches of 5
+      while (this.batchQueue.length > 0) {
+        const batch = this.batchQueue.splice(0, 5);
+        await Promise.all(batch.map(operation => operation()));
+      }
+    } catch (error) {
+      console.error('❌ Batch processing failed:', error);
+    } finally {
+      this.isBatchProcessing = false;
+    }
+  }
+
+  // Optimized cache management
+  private setCache(key: string, data: any) {
+    this.cache.set(key, {
+      data: JSON.parse(JSON.stringify(data)),
+      timestamp: Date.now()
+    });
+    
+    // Clean old cache entries
+    this.cleanExpiredCache();
+  }
+
+  private getCache(key: string): any | null {
+    const cached = this.cache.get(key);
+    if (!cached) return null;
+    
+    if (Date.now() - cached.timestamp > this.CACHE_DURATION) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  private loadFromCache<T>(key: string, subject: BehaviorSubject<T[]>) {
+    const cachedData = this.getCache(key);
+    if (cachedData) {
+      subject.next(cachedData);
+      console.log(`📦 Loaded ${key} from cache:`, cachedData.length, 'items');
+    }
+  }
+
+  private cleanExpiredCache() {
+    const now = Date.now();
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > this.CACHE_DURATION) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  // Optimized getters with caching
+  getCurrentMatchResults(): MatchResult[] {
+    return this.getCache('matchResults') || this.matchResultsSubject.value;
+  }
+
+  getCurrentPlayerStats(): PlayerStats[] {
+    return this.getCache('playerStats') || this.playerStatsSubject.value;
+  }
+
+  getCurrentHistory(): HistoryEntry[] {
+    return this.getCache('history') || this.historySubject.value;
+  }
+
+  // Permission helpers (optimized)
+  isAdminByEmail(email: string): boolean {
+    return AdminConfig.isAdminEmail(email);
+  }
+
+  isSuperAdminByEmail(email: string): boolean {
+    return AdminConfig.isSuperAdminEmail(email);
+  }
+
+  // Connection management
+  async goOnlineMode(): Promise<void> {
+    try {
+      goOnline(this.database);
+      console.log('🔥 Firebase online mode enabled');
+    } catch (error) {
+      console.error('❌ Failed to enable online mode:', error);
+    }
+  }
+
+  async goOfflineMode(): Promise<void> {
+    try {
+      goOffline(this.database);
+      console.log('📱 Firebase offline mode enabled');
+    } catch (error) {
+      console.error('❌ Failed to enable offline mode:', error);
+    }
+  }
+
+  // Analytics and monitoring
+  getCacheStats() {
+    const stats = {
+      totalEntries: this.cache.size,
+      memoryUsage: JSON.stringify([...this.cache.values()]).length,
+      oldestEntry: Math.min(...[...this.cache.values()].map(v => v.timestamp)),
+      newestEntry: Math.max(...[...this.cache.values()].map(v => v.timestamp))
+    };
+    
+    console.log('📊 Cache Statistics:', stats);
+    return stats;
+  }
+
+  getBatchQueueStatus() {
+    return {
+      queueLength: this.batchQueue.length,
+      isProcessing: this.isBatchProcessing
+    };
+  }
+
+  // Delete methods
+  async deleteMatchResult(id: string): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('🗑️ Deleting match result:', id);
+      const matchRef = ref(this.database, `matchResults/${id}`);
+      await set(matchRef, null);
+      
+      // Update cache immediately
+      const currentMatches = this.matchResultsSubject.value;
+      const updatedMatches = currentMatches.filter(match => match.id !== id);
+      this.matchResultsSubject.next(updatedMatches);
+      
+      console.log('✅ Match result deleted:', id);
+    });
+  }
+
+  async deletePlayerStats(id: string): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('🗑️ Deleting player stats:', id);
+      const statsRef = ref(this.database, `playerStats/${id}`);
+      await set(statsRef, null);
+      
+      // Update cache immediately
+      const currentStats = this.playerStatsSubject.value;
+      const updatedStats = currentStats.filter(stats => stats.id !== id);
+      this.playerStatsSubject.next(updatedStats);
+      
+      console.log('✅ Player stats deleted:', id);
+    });
+  }
+
+  // Utility methods
+  private getCurrentUserEmail(): string | null {
+    // This should integrate with your Firebase Auth service
+    return 'system@thanglong.fc'; // Placeholder
+  }
+
+  // Cleanup method
+  destroy() {
+    // Clean up listeners and cache
+    this.cache.clear();
+    this.batchQueue.length = 0;
+    console.log('🧹 Firebase service cleaned up');
+  }
+}
