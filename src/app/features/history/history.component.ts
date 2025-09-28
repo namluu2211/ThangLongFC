@@ -1,10 +1,12 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FirebaseService } from '../../services/firebase.service';
+import { FirebaseAuthService } from '../../services/firebase-auth.service';
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   template: `
     <div class="modern-container">
       <!-- Header Section -->
@@ -35,6 +37,13 @@ import { FormsModule } from '@angular/forms';
             </div>
             <div class="match-actions" *ngIf="isAdmin()">
               <button 
+                class="edit-btn"
+                (click)="toggleEditMode(m)" 
+                [disabled]="!canEdit"
+                [title]="isEditing(m) ? 'Hủy chỉnh sửa' : 'Chỉnh sửa trận đấu'">
+                <i [class]="isEditing(m) ? 'fas fa-times' : 'fas fa-edit'"></i>
+              </button>
+              <button 
                 class="delete-btn"
                 (click)="confirmDelete(m)" 
                 [disabled]="!canEdit"
@@ -45,7 +54,7 @@ import { FormsModule } from '@angular/forms';
           </div>
 
           <!-- Score Section -->
-          <div class="score-section">
+          <div class="score-section" *ngIf="!isEditing(m)">
             <div class="team-score team-a">
               <div class="team-label">Đội Xanh</div>
               <div class="score">{{m.scoreA || 0}}</div>
@@ -57,6 +66,38 @@ import { FormsModule } from '@angular/forms';
               <div class="team-label">Đội Cam</div>
               <div class="score">{{m.scoreB || 0}}</div>
             </div>
+          </div>
+
+          <!-- Edit Score Section -->
+          <div class="edit-score-section" *ngIf="isEditing(m)">
+            <div class="edit-form-header">
+              <i class="fas fa-edit me-2"></i>
+              <span>Chỉnh sửa thông tin trận đấu</span>
+            </div>
+            <form [formGroup]="getEditForm(m)" (ngSubmit)="saveMatch(m)">
+              <div class="edit-score-grid">
+                <div class="team-edit team-a">
+                  <label class="team-label">Đội Xanh</label>
+                  <input type="number" formControlName="scoreA" class="score-input" min="0" placeholder="Tỷ số">
+                </div>
+                <div class="vs-separator-edit">
+                  <span>VS</span>
+                </div>
+                <div class="team-edit team-b">
+                  <label class="team-label">Đội Cam</label>
+                  <input type="number" formControlName="scoreB" class="score-input" min="0" placeholder="Tỷ số">
+                </div>
+              </div>
+              
+              <div class="edit-actions">
+                <button type="button" class="btn-cancel" (click)="cancelEdit(m)">
+                  <i class="fas fa-times me-1"></i>Hủy
+                </button>
+                <button type="submit" class="btn-save" [disabled]="getEditForm(m).invalid">
+                  <i class="fas fa-save me-1"></i>Lưu
+                </button>
+              </div>
+            </form>
           </div>
 
           <!-- Match Stats Grid -->
