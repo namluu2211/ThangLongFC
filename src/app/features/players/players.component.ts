@@ -77,6 +77,34 @@ import { dividePlayersByPosition, Player } from './player-utils';
             </div>
           </div>
           
+          <!-- Available Players Drop Zone -->
+          <div class="available-players-section">
+            <h5 class="section-title">
+              <i class="fas fa-users me-2"></i>
+              Cầu thủ có sẵn ({{ filteredPlayers.length }} người) - Kéo vào đội
+            </h5>
+            <div 
+              class="players-row available-players"
+              cdkDropList="availablePlayersList"
+              [cdkDropListData]="filteredPlayers"
+              [cdkDropListConnectedTo]="['teamAList', 'teamBList']"
+              (cdkDropListDropped)="onDrop($event)">
+              
+              <div *ngFor="let player of filteredPlayers; trackBy: trackByPlayerId"
+                   class="player-card available"
+                   cdkDrag
+                   [cdkDragData]="player"
+                   (cdkDragStarted)="onDragStarted(player)"
+                   (cdkDragEnded)="onDragEnded()">
+                <img [src]="player.avatar" 
+                     [alt]="player.firstName"
+                     class="player-avatar"
+                     (error)="onAvatarError($event, player)">
+                <span class="player-name">{{ player.firstName }}</span>
+              </div>
+            </div>
+          </div>
+
           <div class="players-grid">
             <div *ngFor="let player of allPlayers; trackBy: trackByPlayerId" 
                  class="player-item"
@@ -187,12 +215,13 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 class="players-row team-players"
                 cdkDropList="teamAList"
                 [cdkDropListData]="teamA"
-                [cdkDropListConnectedTo]="['cdk-drop-list-0', 'teamBList']"
+                [cdkDropListConnectedTo]="['availablePlayersList', 'teamBList']"
                 (cdkDropListDropped)="onDrop($event)">
                 
                 <div *ngFor="let player of teamA; trackBy: trackByPlayerId; let i = index"
                      class="player-card team-member"
                      cdkDrag
+                     [cdkDragData]="player"
                      (cdkDragStarted)="onDragStarted(player)"
                      (cdkDragEnded)="onDragEnded()">
                   <img [src]="player.avatar" 
@@ -249,12 +278,13 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 class="players-row team-players"
                 cdkDropList="teamBList"
                 [cdkDropListData]="teamB"
-                [cdkDropListConnectedTo]="['cdk-drop-list-0', 'teamAList']"
+                [cdkDropListConnectedTo]="['availablePlayersList', 'teamAList']"
                 (cdkDropListDropped)="onDrop($event)">
                 
                 <div *ngFor="let player of teamB; trackBy: trackByPlayerId; let i = index"
                      class="player-card team-member"
                      cdkDrag
+                     [cdkDragData]="player"
                      (cdkDragStarted)="onDragStarted(player)"
                      (cdkDragEnded)="onDragEnded()">
                   <img [src]="player.avatar" 
@@ -476,15 +506,16 @@ import { dividePlayersByPosition, Player } from './player-utils';
     }
 
     .players-row {
-      min-height: 80px;
-      padding: 15px;
-      border: 2px dashed #bdc3c7;
+      min-height: 120px;
+      padding: 20px;
+      border: 3px dashed #bdc3c7;
       border-radius: 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       transition: all 0.3s ease;
       background: rgba(236, 240, 241, 0.3);
+      position: relative;
     }
 
     .players-row.available-players {
@@ -509,8 +540,17 @@ import { dividePlayersByPosition, Player } from './player-utils';
     }
 
     .players-row.cdk-drop-list-dragging {
-      border-color: #e74c3c;
-      background: rgba(231, 76, 60, 0.1);
+      border-color: #e74c3c !important;
+      background: rgba(231, 76, 60, 0.2) !important;
+      transform: scale(1.02);
+      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
+    }
+
+    .players-row.cdk-drop-list-receiving {
+      border-color: #27ae60 !important;
+      background: rgba(39, 174, 96, 0.2) !important;
+      transform: scale(1.02);
+      box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
     }
 
     .player-card {
@@ -649,6 +689,14 @@ import { dividePlayersByPosition, Player } from './player-utils';
     /* Player List Section */
     .player-list-section {
       margin-bottom: 30px;
+    }
+
+    .available-players-section {
+      margin-bottom: 25px;
+      padding: 20px;
+      background: rgba(52, 152, 219, 0.05);
+      border-radius: 12px;
+      border: 2px solid rgba(52, 152, 219, 0.2);
     }
 
     .player-list-card {
@@ -1101,20 +1149,41 @@ export class PlayersComponent implements OnInit {
   }
 
   onDrop(event: CdkDragDrop<Player[]>) {
+    console.log('🎯 Drop event:', {
+      previousContainer: event.previousContainer.id,
+      currentContainer: event.container.id,
+      previousIndex: event.previousIndex,
+      currentIndex: event.currentIndex,
+      dragData: event.item.data
+    });
+
     if (event.previousContainer === event.container) {
-      // Moving within the same list - do nothing for now
+      // Moving within the same list - reorder if needed
+      console.log('📝 Reordering within same container');
       return;
     } else {
       // Moving between lists
-      transferArrayItem(
-        event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex
-      );
+      console.log('🔄 Moving between containers');
+      try {
+        transferArrayItem(
+          event.previousContainer.data,
+          event.container.data,
+          event.previousIndex,
+          event.currentIndex
+        );
+        console.log('✅ Transfer successful');
+      } catch (error) {
+        console.error('❌ Transfer failed:', error);
+        return;
+      }
     }
     
     this.updateFilteredPlayers();
+    console.log('📊 Updated arrays:', {
+      filteredPlayers: this.filteredPlayers.length,
+      teamA: this.teamA.length,
+      teamB: this.teamB.length
+    });
   }
 
   removeFromTeam(player: Player, team: 'A' | 'B') {
