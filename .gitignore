@@ -1,5 +1,6 @@
 node_modules
 .angular
+.firebase
 package-lock.json
 /dist
 

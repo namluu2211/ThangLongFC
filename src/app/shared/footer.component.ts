@@ -16,7 +16,7 @@ import { CommonModule } from '@angular/common';
               <span class="logo-text">ThangLong FC</span>
             </div>
             <p class="brand-description">
-              Team Management System
+              Mia Football ClubManagement System
             </p>
           </div>
 
@@ -39,10 +39,8 @@ import { CommonModule } from '@angular/common';
               <span>bktientu@gmail.com</span>
             </div>
             <div class="contact-item">
-              <i class="fab fa-github"></i>
-              <a href="https://github.com/namluu2211/ThangLongFC" target="_blank" rel="noopener">
-                GitHub Repository
-              </a>
+              <i class="fab fa-phone"></i>
+                +84.913.933.835
             </div>
           </div>
 
