@@ -75,14 +75,32 @@ import { FooterComponent } from './shared/footer.component';
           <span>Cài đặt Firebase</span>
         </button>
       </div>
-      <div style="margin-top:12px;">
-  <app-players *ngIf="show==='auto'" [canEdit]="canEdit" mode="auto"></app-players>
-  <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
-  <app-players *ngIf="show==='list'" [canEdit]="canEdit" mode="list"></app-players>
-  <div *ngIf="show==='fund'" style="font-size:1.2em; margin-bottom:16px; color:#007bff; font-weight:bold;">Quỹ hiện tại: {{currentFund | number}}</div>
-  <app-fund *ngIf="show==='fund'" [canEdit]="canEdit"></app-fund>
-  <app-stats *ngIf="show==='stats'"></app-stats>
-  <app-admin-setup *ngIf="show==='setup' && role === 'superadmin'"></app-admin-setup>
+      <!-- Professional Content Area -->
+      <div class="content-area fade-in">
+        <app-players *ngIf="show==='auto'" [canEdit]="canEdit" mode="auto"></app-players>
+        <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
+        <app-players *ngIf="show==='list'" [canEdit]="canEdit" mode="list"></app-players>
+        
+        <!-- Professional Fund Display -->
+        <div *ngIf="show==='fund'" class="fund-header-card glass interactive slide-up">
+          <div class="fund-info">
+            <div class="fund-icon">
+              <i class="fas fa-coins"></i>
+            </div>
+            <div class="fund-details">
+              <h2 class="fund-title">Quỹ Hiện Tại</h2>
+              <div class="fund-amount">{{currentFund | number}} VNĐ</div>
+              <div class="fund-status">
+                <span class="status-indicator" [class.positive]="currentFund > 0" [class.negative]="currentFund <= 0"></span>
+                <span class="status-text">{{getFundStatus()}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <app-fund *ngIf="show==='fund'" [canEdit]="canEdit"></app-fund>
+        <app-stats *ngIf="show==='stats'"></app-stats>
+        <app-admin-setup *ngIf="show==='setup' && role === 'superadmin'"></app-admin-setup>
       </div>
       <div *ngIf="!loggedIn" class="small">Bạn đang xem ở chế độ khách. Đăng nhập để chỉnh sửa hoặc lưu dữ liệu.</div>
     </div>
@@ -189,10 +207,23 @@ export class AppComponent implements OnInit {
       try {
         const userData = JSON.parse(savedUser);
         return userData.username || '';
-      } catch (e) {
+      } catch {
         return '';
       }
     }
     return '';
+  }
+
+  getFundStatus(): string {
+    const fund = this.currentFund;
+    if (fund > 5000) {
+      return 'Tình hình tài chính tốt';
+    } else if (fund > 2000) {
+      return 'Tình hình tài chính ổn định';
+    } else if (fund > 0) {
+      return 'Cần tiết kiệm chi tiêu';
+    } else {
+      return 'Cần bổ sung quỹ';
+    }
   }
 }
