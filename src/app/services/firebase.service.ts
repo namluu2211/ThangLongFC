@@ -449,13 +449,18 @@ export class FirebaseService {
   // Match Financial Data Management
   async saveMatchFinances(matchData: HistoryEntry): Promise<string> {
     return this.executeBatchOperation(async () => {
+      console.log('💾 Saving match finances:', { id: matchData.id, hasData: !!matchData });
       let historyRef;
       
       if (matchData.id) {
         // Update existing match
         historyRef = ref(this.database, `history/${matchData.id}`);
+        // Filter out undefined values for Firebase compatibility
+        const cleanMatchData = Object.fromEntries(
+          Object.entries(matchData).filter(entry => entry[1] !== undefined)
+        );
         const updateData = {
-          ...matchData,
+          ...cleanMatchData,
           updatedAt: serverTimestamp(),
           updatedBy: this.getCurrentUserEmail()
         };
@@ -475,8 +480,12 @@ export class FirebaseService {
         historyRef = ref(this.database, 'history');
         const newHistoryRef = push(historyRef);
         
+        // Filter out undefined values and exclude id for new entries
+        const matchDataWithoutId = Object.fromEntries(
+          Object.entries(matchData).filter(([key, value]) => key !== 'id' && value !== undefined)
+        );
         const newMatchData = {
-          ...matchData,
+          ...matchDataWithoutId,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           createdBy: this.getCurrentUserEmail()
@@ -486,7 +495,7 @@ export class FirebaseService {
         
         // Update cache
         const currentHistory = this.historySubject.value;
-        const newEntry = { id: newHistoryRef.key!, ...newMatchData };
+        const newEntry: HistoryEntry = { id: newHistoryRef.key!, ...newMatchData } as HistoryEntry;
         this.historySubject.next([...currentHistory, newEntry]);
         
         console.log('💾 New match financial data created:', newHistoryRef.key);

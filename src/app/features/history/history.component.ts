@@ -34,7 +34,7 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
             <!-- Admin Firebase Actions -->
             <div class="admin-firebase-actions" *ngIf="isAdmin()">
               <button 
-                class="btn btn-sm btn-primary me-2" 
+                class="btn btn-sm btn-primary" 
                 (click)="syncAllToFirebase()"
                 [disabled]="saveStatus.get('sync') === 'saving'"
                 title="Đồng bộ toàn bộ dữ liệu lên Firebase">
@@ -712,14 +712,23 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
           </div>
 
           <!-- Delete Confirmation Modal -->
-          <div *ngIf="deleteConfirm === m" class="modal-overlay" (click)="deleteConfirm = null">
-            <div class="delete-modal" (click)="$event.stopPropagation()">
+          <div *ngIf="deleteConfirm === m" class="modal-overlay"
+               tabindex="0"
+               (click)="deleteConfirm = null"
+               (keydown)="handleDeleteConfirmKey($event)">
+            <div class="delete-modal"
+                 tabindex="0"
+                 (click)="$event.stopPropagation()"
+                 (keydown)="onDeleteModalKeydown($event)">
               <div class="modal-header">
                 <h4>
                   <i class="fas fa-exclamation-triangle me-2"></i>
                   Xác nhận xóa
                 </h4>
-                <button class="close-btn" (click)="deleteConfirm = null">×</button>
+                <button class="close-btn"
+                        (click)="deleteConfirm = null"
+                        tabindex="0"
+                        (keydown)="onDeleteModalKeydown($event)">×</button>
               </div>
               <div class="modal-content">
                 <p>Bạn có chắc chắn muốn xóa trận đấu này?</p>
@@ -728,11 +737,17 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
                 </p>
               </div>
               <div class="modal-footer">
-                <button class="btn-secondary" (click)="deleteConfirm = null">
+                <button class="btn-secondary"
+                        (click)="deleteConfirm = null"
+                        tabindex="0"
+                        (keydown)="onDeleteModalKeydown($event)">
                   <i class="fas fa-times me-1"></i>
                   Hủy
                 </button>
-                <button class="btn-danger" (click)="deleteMatch(m)">
+                <button class="btn-danger"
+                        (click)="deleteMatch(m)"
+                        tabindex="0"
+                        (keydown)="onConfirmDeleteKeydown($event, m)">
                   <i class="fas fa-trash me-1"></i>
                   Xóa
                 </button>
@@ -796,9 +811,9 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
 
     .header-badges {
       display: flex;
+      flex-direction: column;
+      align-items: center;
       gap: 15px;
-      justify-content: center;
-      flex-wrap: wrap;
     }
 
     .stats-badge .badge, 
@@ -1289,10 +1304,10 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
     /* Admin Firebase Actions */
     .admin-firebase-actions {
       display: flex;
-      gap: 10px;
+      align-items: center;
       justify-content: center;
+      gap: 12px;
       flex-wrap: wrap;
-      margin-top: 15px;
     }
 
     .admin-firebase-actions .btn {
@@ -1300,6 +1315,10 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
       border-radius: 20px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
       transition: all 0.3s ease;
+      min-width: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .admin-firebase-actions .btn:hover {
@@ -3101,6 +3120,12 @@ export class HistoryComponent implements OnInit, OnDestroy {
   confirmDelete(m: MatchData): void {
     this.deleteConfirm = m;
   }
+
+  handleDeleteConfirmKey(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      this.deleteConfirm = null;
+    }
+  }
   
   deleteMatch(m: MatchData): void {
     const idx = this.history.indexOf(m);
@@ -3110,6 +3135,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
     }
     this.deleteConfirm = null;
   }
+
+  onDeleteModalKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.stopPropagation();
+    }
+  }
+
   getTeamNames(team: Player[]): string {
     return team.map(p => p.firstName || '').filter(x => x).join(', ');
   }
@@ -3380,6 +3412,12 @@ export class HistoryComponent implements OnInit, OnDestroy {
         teamB
       } as HistoryEntry;
     });
+  }
+
+  onConfirmDeleteKeydown(event: KeyboardEvent, match: MatchData): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      this.deleteMatch(match);
+    }
   }
 
   formatCurrency(amount: number): string {
