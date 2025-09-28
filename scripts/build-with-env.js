@@ -24,7 +24,13 @@ function loadEnvFile() {
         if (trimmed && !trimmed.startsWith('#')) {
           const [key, ...valueParts] = trimmed.split('=');
           if (key && valueParts.length > 0) {
-            envVars[key.trim()] = valueParts.join('=').trim();
+            let value = valueParts.join('=').trim();
+            // Remove surrounding quotes if present
+            if ((value.startsWith('"') && value.endsWith('"')) || 
+                (value.startsWith("'") && value.endsWith("'"))) {
+              value = value.slice(1, -1);
+            }
+            envVars[key.trim()] = value;
           }
         }
       });
@@ -92,11 +98,21 @@ function replaceEnvironmentPlaceholders(envVars) {
 // Run Angular build with environment variables
 function runBuild() {
   const buildType = process.argv[2] || 'development';
-  const command = buildType === 'production' ? 'build:prod' : 'build';
   
   console.log(`🚀 Running Angular build (${buildType})...`);
   
-  const child = spawn('npm', ['run', command], {
+  let buildCommand;
+  let buildArgs;
+  
+  if (buildType === 'production') {
+    buildCommand = 'ng';
+    buildArgs = ['build', '--configuration', 'production', '--base-href=https://namluu2211.github.io/ThangLongFC/'];
+  } else {
+    buildCommand = 'ng';
+    buildArgs = ['build', '--configuration', 'development'];
+  }
+  
+  const child = spawn(buildCommand, buildArgs, {
     stdio: 'inherit',
     shell: true,
     env: process.env

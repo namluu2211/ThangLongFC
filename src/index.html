@@ -2,12 +2,179 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <title>Thăng Long - FC</title>
+  <title>Thăng Long FC - Team Management System</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta name="description" content="ThangLong FC Team Management System - Football team management application">
+  <meta name="keywords" content="football, team management, ThangLong FC, soccer">
+  <meta name="author" content="Nam Luu">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mia-fc-management.web.app/">
+  <meta property="og:title" content="ThangLong FC - Team Management System">
+  <meta property="og:description" content="Professional football team management application">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mia-fc-management.web.app/">
+  <meta property="twitter:title" content="ThangLong FC - Mia Football Club Management System">
+  <meta property="twitter:description" content="Professional football team management application">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
+  <!-- DNS prefetch for faster loading -->
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  
+  <!-- Preload critical resources -->
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></noscript>
+  
+  <!-- Preconnect to Firebase -->
+  <link rel="preconnect" href="https://mia-fc-management.web.app">
+  <link rel="preconnect" href="https://mia-fcm-d8555.firebaseapp.com">
+  <link rel="preconnect" href="https://mia-fcm-d8555-default-rtdb.asia-southeast1.firebasedatabase.app">
+  
+  <!-- Loading fallback -->
+  <style>
+    .app-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 18px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .loading-subtitle {
+      font-size: 14px;
+      opacity: 0.8;
+      text-align: center;
+      max-width: 300px;
+    }
+    /* Hide loading when Angular app is ready */
+    app-root:not(:empty) + script + .app-loading,
+    body.app-loaded .app-loading {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-  <app-root></app-root>
+  <app-root>
+    <!-- Loading fallback -->
+    <div class="app-loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Thăng Long FC</div>
+      <div class="loading-subtitle">Đang tải ứng dụng...</div>
+    </div>
+  </app-root>
+  
+  <!-- Error handling script -->
+  <script>
+    // Debug Firebase configuration
+    console.log('🔥 Firebase environment check:', {
+      hasFirebaseConfig: typeof window !== 'undefined',
+      userAgent: navigator.userAgent,
+      location: window.location.href
+    });
+    
+    window.addEventListener('error', function(e) {
+      console.error('Application Error:', e.error);
+      
+      // Check if it's a Firebase-related error
+      if (e.error && e.error.message && e.error.message.includes('enableLCCloudDomainCheckFix')) {
+        console.warn('Firebase configuration issue detected, falling back to localStorage mode');
+      }
+      document.body.innerHTML = `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          text-align: center;
+          padding: 20px;
+        ">
+          <h1>Ứng dụng gặp sự cố</h1>
+          <p>Vui lòng thử tải lại trang hoặc liên hệ quản trị viên.</p>
+          <button onclick="location.reload()" style="
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+          ">Tải lại trang</button>
+        </div>
+      `;
+    });
+    
+    // Check if app loaded after 5 seconds
+    setTimeout(function() {
+      var loadingElement = document.querySelector('.app-loading');
+      if (loadingElement) {
+        console.warn('App took too long to load');
+        loadingElement.innerHTML = `
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Ứng dụng đang gặp sự cố</div>
+          <div class="loading-subtitle">Vui lòng thử tải lại trang</div>
+          <button onclick="location.reload()" style="
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+          ">Tải lại</button>
+        `;
+      }
+    }, 5000);
+    
+    // Remove loading screen when Angular app starts
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        var loadingElement = document.querySelector('.app-loading');
+        if (loadingElement && document.querySelector('app-header')) {
+          loadingElement.remove();
+        }
+      }, 1000);
+    });
+  </script>
 </body>
 </html>

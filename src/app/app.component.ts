@@ -9,6 +9,7 @@ import { StatsComponent } from './features/stats/stats.component';
 import { FirebaseService } from './services/firebase.service';
 import { AdminPanelComponent } from './components/admin-panel.component';
 import { AdminSetupComponent } from './components/admin-setup.component';
+import { FooterComponent } from './shared/footer.component';
 @Component({
   selector: 'app-root',
   imports: [
@@ -20,7 +21,8 @@ import { AdminSetupComponent } from './components/admin-setup.component';
     FundComponent,
     StatsComponent,
     AdminPanelComponent,
-    AdminSetupComponent
+    AdminSetupComponent,
+    FooterComponent
   ],
   template: `
   <div class="app-header">
@@ -84,6 +86,9 @@ import { AdminSetupComponent } from './components/admin-setup.component';
       </div>
       <div *ngIf="!loggedIn" class="small">Bạn đang xem ở chế độ khách. Đăng nhập để chỉnh sửa hoặc lưu dữ liệu.</div>
     </div>
+    
+    <!-- Footer -->
+    <app-footer></app-footer>
   `
 })
 export class AppComponent implements OnInit {
@@ -98,52 +103,70 @@ export class AppComponent implements OnInit {
     console.log('🚀 App component ngOnInit started');
     console.log('🔥 Firebase service available:', !!this.firebaseService);
     
+    // Remove loading screen immediately when app component initializes
+    setTimeout(() => {
+      const loadingElement = document.querySelector('.app-loading');
+      if (loadingElement) {
+        loadingElement.remove();
+      }
+      document.body.classList.add('app-loaded');
+    }, 100);
+    
     try {
       // Initialize app state - the header component will emit the initial login state
       console.log('App component initialized with Firebase service');
       
-      // Initialize Firebase real-time listeners
+      // Initialize Firebase real-time listeners with error handling
       this.initializeFirebaseListeners();
       console.log('✅ Firebase listeners initialized successfully');
     } catch (error) {
       console.error('❌ Error in ngOnInit:', error);
+      // Still remove loading screen even if there's an error
+      const loadingElement = document.querySelector('.app-loading');
+      if (loadingElement) {
+        loadingElement.remove();
+      }
     }
   }
 
   private initializeFirebaseListeners() {
-    try {
-      console.log('🔥 Initializing Firebase listeners...');
-      
-      // Subscribe to real-time data updates
-      this.firebaseService.matchResults$.subscribe({
-        next: (matchResults) => {
-          console.log('Real-time match results update:', matchResults);
-        },
-        error: (error) => {
-          console.error('Error in match results subscription:', error);
-        }
-      });
+    // Use setTimeout to not block the main thread
+    setTimeout(() => {
+      try {
+        console.log('🔥 Initializing Firebase listeners...');
+        
+        // Subscribe to real-time data updates with error handling
+        this.firebaseService.matchResults$.subscribe({
+          next: (matchResults) => {
+            console.log('Real-time match results update:', matchResults?.length || 0, 'items');
+          },
+          error: (error) => {
+            console.warn('Firebase match results not available:', error.message);
+          }
+        });
 
-      this.firebaseService.playerStats$.subscribe({
-        next: (playerStats) => {
-          console.log('Real-time player stats update:', playerStats);
-        },
-        error: (error) => {
-          console.error('Error in player stats subscription:', error);
-        }
-      });
+        this.firebaseService.playerStats$.subscribe({
+          next: (playerStats) => {
+            console.log('Real-time player stats update:', Object.keys(playerStats || {}).length, 'players');
+          },
+          error: (error) => {
+            console.warn('Firebase player stats not available:', error.message);
+          }
+        });
 
-      this.firebaseService.history$.subscribe({
-        next: (history) => {
-          console.log('Real-time history update:', history);
-        },
-        error: (error) => {
-          console.error('Error in history subscription:', error);
-        }
-      });
-    } catch (error) {
-      console.error('❌ Error initializing Firebase listeners:', error);
-    }
+        this.firebaseService.history$.subscribe({
+          next: (history) => {
+            console.log('Real-time history update:', history?.length || 0, 'matches');
+          },
+          error: (error) => {
+            console.warn('Firebase history not available:', error.message);
+          }
+        });
+      } catch (error) {
+        console.warn('⚠️ Firebase listeners not available:', error.message);
+        // App continues to work with localStorage only
+      }
+    }, 1000); // Delay Firebase initialization to not block UI
   }
 
   onLoginChange(event: { loggedIn: boolean; role: string }) {

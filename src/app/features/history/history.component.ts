@@ -47,14 +47,14 @@ import { FormsModule } from '@angular/forms';
           <!-- Score Section -->
           <div class="score-section">
             <div class="team-score team-a">
-              <div class="team-label">Đội A</div>
+              <div class="team-label">Đội Xanh</div>
               <div class="score">{{m.scoreA || 0}}</div>
             </div>
             <div class="vs-separator">
               <span>VS</span>
             </div>
             <div class="team-score team-b">
-              <div class="team-label">Đội B</div>
+              <div class="team-label">Đội Cam</div>
               <div class="score">{{m.scoreB || 0}}</div>
             </div>
           </div>
@@ -397,13 +397,13 @@ import { FormsModule } from '@angular/forms';
     }
 
     .team-score.team-a .team-label {
-      color: #e74c3c;
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+      color: white;
+      background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
     }
 
     .team-score.team-b .team-label {
-      color: #f39c12;
-      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+      color: white;
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
     }
 
     .team-label {
@@ -501,11 +501,11 @@ import { FormsModule } from '@angular/forms';
     }
 
     .team-stat.team-a {
-      border-left: 4px solid #e74c3c;
+      border-left: 4px solid #00bcd4;
     }
 
     .team-stat.team-b {
-      border-left: 4px solid #f39c12;
+      border-left: 4px solid #ff9800;
     }
 
     .team-stat .value {

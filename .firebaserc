@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "mia-fcm-d8555",
+    "production": "mia-fcm-d8555"
+  },
+  "targets": {
+    "mia-fcm-d8555": {
+      "hosting": {
+        "mia-fc-management": [
+          "mia-fc-management"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
