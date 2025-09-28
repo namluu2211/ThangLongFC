@@ -2,3 +2,13 @@ node_modules
 .angular
 package-lock.json
 /dist
+
+# Generated Firebase rules
+scripts/firebase-rules.json
+
+# Environment files (never commit these!)
+.env
+.env.local
+.env.development
+.env.staging
+.env.production

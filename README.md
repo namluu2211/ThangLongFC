@@ -15,14 +15,15 @@ This repository is a minimal Angular app skeleton that implements:
 
 Passwords are stored as SHA-256 hashes in the header component.
 
-## How to run
+## 🛠️ **Available Build Commands**
 
-1. Make sure you have Node.js and Angular CLI installed.
-2. Extract the project and run:
-```bash
-npm install
-ng serve
-```
+| Command | Description | Uses .env? |
+|---------|-------------|------------|
+| `npm run build` | Standard Angular build | ❌ Uses fallbacks |
+| `npm run build:env` | Build with .env (development) | ✅ Loads from .env |
+| `npm run build:env:prod` | Build with .env (production) | ✅ Loads from .env |
+| `npm run start` | Serve development server | ✅ Uses environment |
+
 3. Open http://localhost:4200
 
 ## How to deploy Prod

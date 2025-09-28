@@ -5,10 +5,14 @@
   "scripts": {
     "start": "ng serve --open",
     "build": "ng build",
+    "build:dev": "ng build --configuration development",
+    "build:secure": "node scripts/build-with-env.js development",
+    "build:secure:prod": "node scripts/build-with-env.js production",
     "test": "ng test",
     "lint": "ng lint",
     "build:prod": "ng build --configuration production --base-href=https://namluu2211.github.io/ThangLongFC/",
-    "deploy": "npm run build:prod && npx angular-cli-ghpages --dir=dist/browser --branch=gh-pages --no-silent"    
+    "deploy": "npm run build:secure:prod && npx angular-cli-ghpages --dir=dist/browser --branch=gh-pages --no-silent",
+    "firebase:rules": "node scripts/generate-firebase-rules.js"
   },
   "dependencies": {
     "@angular/animations": "^20.3.1",
@@ -16,20 +20,25 @@
     "@angular/common": "^20.3.1",
     "@angular/compiler": "^20.3.1",
     "@angular/core": "^20.3.1",
+    "@angular/fire": "^20.0.1",
     "@angular/forms": "^20.3.1",
     "@angular/platform-browser": "^20.3.1",
     "@angular/platform-browser-dynamic": "^20.3.1",
     "@angular/router": "^20.3.1",
     "chart.js": "^4.4.0",
+    "firebase": "^12.3.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
+    "@angular-builders/custom-webpack": "^20.0.0",
     "@angular/build": "^20.3.2",
     "@angular/cli": "^20.3.2",
     "@angular/compiler-cli": "^20.3.1",
     "angular-cli-ghpages": "^2.0.3",
+    "cross-env": "^10.0.0",
+    "dotenv-webpack": "^8.1.1",
     "typescript": ">=5.5.0 <5.9.0"
   }
 }
