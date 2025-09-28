@@ -495,7 +495,7 @@ export class FirebaseService {
     });
   }
 
-  async updateMatchFinancialField(matchId: string, field: string, value: any): Promise<void> {
+  async updateMatchFinancialField(matchId: string, field: string, value: string | number | boolean | null | undefined): Promise<void> {
     return this.executeBatchOperation(async () => {
       const fieldRef = ref(this.database, `history/${matchId}/${field}`);
       await set(fieldRef, value);
