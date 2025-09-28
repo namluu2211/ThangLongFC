@@ -538,20 +538,61 @@ export class FirebaseService {
   }
 
   async syncLocalHistoryToFirebase(localHistory: HistoryEntry[]): Promise<void> {
-    console.log('🔄 Starting local history sync to Firebase...');
+    console.log(`🔄 Starting local history sync to Firebase (${localHistory.length} matches)...`);
+    
+    if (!localHistory || localHistory.length === 0) {
+      console.log('📝 No matches to sync');
+      return;
+    }
     
     try {
-      for (const match of localHistory) {
-        if (!match.id) {
-          // Generate ID based on date and content
-          match.id = `match_${match.date.replace(/[^0-9]/g, '')}_${Date.now()}`;
-        }
+      const batchSize = 5; // Process in smaller batches to avoid timeouts
+      let synced = 0;
+      
+      for (let i = 0; i < localHistory.length; i += batchSize) {
+        const batch = localHistory.slice(i, i + batchSize);
         
-        await this.saveMatchFinances(match);
-        console.log(`✅ Synced match: ${match.id}`);
+        // Process batch with Promise.all for better performance
+        const batchPromises = batch.map(async (match) => {
+          if (!match.id) {
+            // Generate ID based on date and content
+            match.id = `match_${match.date.replace(/[^0-9]/g, '')}_${Date.now() + Math.random()}`;
+          }
+          
+          // Retry logic for individual match saves
+          let retryCount = 0;
+          const maxRetries = 3;
+          
+          while (retryCount < maxRetries) {
+            try {
+              await this.saveMatchFinances(match);
+              synced++;
+              console.log(`✅ Synced match ${synced}/${localHistory.length}: ${match.id}`);
+              break;
+            } catch (error) {
+              retryCount++;
+              console.warn(`⚠️ Retry ${retryCount}/${maxRetries} for match ${match.id}:`, error);
+              
+              if (retryCount === maxRetries) {
+                throw new Error(`Failed to sync match ${match.id} after ${maxRetries} attempts`);
+              }
+              
+              // Wait before retry with exponential backoff
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            }
+          }
+        });
+        
+        // Wait for current batch to complete before starting next
+        await Promise.all(batchPromises);
+        
+        // Small delay between batches to prevent rate limiting
+        if (i + batchSize < localHistory.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
       
-      console.log(`🎉 Successfully synced ${localHistory.length} matches to Firebase`);
+      console.log(`🎉 Successfully synced all ${localHistory.length} matches to Firebase`);
     } catch (error) {
       console.error('❌ Error syncing to Firebase:', error);
       throw error;

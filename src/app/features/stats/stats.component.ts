@@ -1035,41 +1035,58 @@ export class StatsComponent implements OnInit {
     
     // Handle comma-separated names with counts
     const parts = statField.split(',');
+    let totalCount = 0;
+    
     for (const part of parts) {
-      let trimmed = part.trim();
+      const trimmed = part.trim();
+      if (!trimmed) continue;
       
       // Extract the name part (without count in parentheses)
       const nameWithoutCount = trimmed.replace(/\s*\(\d+\)$/, '').trim();
       
-      // Check for exact match first (most precise)
+      // Check for exact match
       if (this.isExactNameMatch(nameWithoutCount, playerName)) {
         // Extract number if any (e.g., "PlayerName (2)" -> 2)
-        const match = trimmed.match(/\((\d+)\)$/);
-        return match ? parseInt(match[1]) : 1;
+        const countMatch = trimmed.match(/\((\d+)\)$/);
+        const count = countMatch ? parseInt(countMatch[1]) : 1;
+        totalCount += count;
       }
     }
-    return 0;
+    
+    return totalCount;
   }
 
   private isExactNameMatch(fieldName: string, playerName: string): boolean {
     // Normalize names (trim and handle case)
-    const normalizedFieldName = fieldName.trim();
-    const normalizedPlayerName = playerName.trim();
+    const normalizedFieldName = fieldName.trim().toLowerCase();
+    const normalizedPlayerName = playerName.trim().toLowerCase();
     
-    // Debug logging (can be removed in production)
-    // console.log(`Comparing: "${normalizedFieldName}" with "${normalizedPlayerName}"`);
-    
-    // Exact match (case insensitive)
-    if (normalizedFieldName.toLowerCase() === normalizedPlayerName.toLowerCase()) {
+    // 1. First try exact full name match
+    if (normalizedFieldName === normalizedPlayerName) {
       return true;
     }
     
-    // Check if field name matches the first name exactly (for cases where only first name is used)
+    // 2. Try matching with first name only, but with strict boundary checking
     const playerFirstName = normalizedPlayerName.split(' ')[0];
-    if (normalizedFieldName.toLowerCase() === playerFirstName.toLowerCase()) {
-      // Additional check: make sure this isn't a partial match of a longer name
-      // This should only match if the field literally contains just the first name
-      return normalizedFieldName.length === playerFirstName.length;
+    const fieldIsJustFirstName = !normalizedFieldName.includes(' ');
+    
+    // Only match first name if:
+    // - The field contains exactly the first name (no spaces)
+    // - AND the field name is exactly the same length as the first name
+    // This prevents "Trung" from matching "Trung Dybala"
+    if (fieldIsJustFirstName && normalizedFieldName === playerFirstName) {
+      return true;
+    }
+    
+    // 3. Handle cases where field might have partial name but we want exact match
+    // Split both names and compare each part
+    const fieldParts = normalizedFieldName.split(/\s+/);
+    const playerParts = normalizedPlayerName.split(/\s+/);
+    
+    // For exact matching, all parts of the field name must match parts of the player name
+    // and the field should not be a subset unless it's exactly the first name
+    if (fieldParts.length === playerParts.length) {
+      return fieldParts.every((part, index) => part === playerParts[index]);
     }
     
     return false;

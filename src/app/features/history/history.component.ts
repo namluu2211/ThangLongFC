@@ -2754,10 +2754,16 @@ export class HistoryComponent implements OnInit, OnDestroy {
       this.saveStatus.set('sync', 'saving');
       this.cdr.markForCheck();
       
-      // Set a timeout to prevent infinite sync
+      // Check Firebase connectivity first
+      const isConnected = await this.checkFirebaseConnection();
+      if (!isConnected) {
+        throw new Error('Firebase connection failed');
+      }
+      
+      // Increase timeout to 30 seconds for large datasets
       const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(this.history);
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Sync timeout after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000);
       });
       
       await Promise.race([syncPromise, timeoutPromise]);
@@ -2777,9 +2783,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
       this.saveStatus.set('sync', 'error');
       this.cdr.markForCheck();
       
-      const errorMessage = error.message.includes('timeout') 
-        ? '❌ Đồng bộ quá lâu - vui lòng thử lại!' 
-        : '❌ Lỗi khi đồng bộ dữ liệu!';
+      let errorMessage = '❌ Lỗi khi đồng bộ dữ liệu!';
+      if (error.message.includes('timeout')) {
+        errorMessage = '❌ Đồng bộ quá lâu - kiểm tra kết nối mạng!';
+      } else if (error.message.includes('connection failed')) {
+        errorMessage = '❌ Không thể kết nối Firebase - kiểm tra cấu hình!';
+      }
+      
       alert(errorMessage);
       
       setTimeout(() => {
@@ -2788,6 +2798,19 @@ export class HistoryComponent implements OnInit, OnDestroy {
       }, 3000);
     } finally {
       this.isSyncingToFirebase = false;
+    }
+  }
+
+  // Helper method to check Firebase connection
+  private async checkFirebaseConnection(): Promise<boolean> {
+    try {
+      // Try a simple read operation to test connectivity - get current history
+      await this.firebaseService.getCurrentHistory();
+      console.log('🔌 Firebase connection verified');
+      return true;
+    } catch (error) {
+      console.error('🔌 Firebase connectivity check failed:', error);
+      return false;
     }
   }
 
