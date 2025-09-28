@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [20.x]
 
     steps:
     - name: Checkout repository
@@ -51,12 +51,11 @@ jobs:
       run: npm test --if-present
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: dist-${{ matrix.node-version }}
         path: dist/
         retention-days: 5
-        if-no-files-found: warn
 
   deploy:
     needs: build
@@ -86,12 +85,12 @@ jobs:
         NG_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.MESSAGINGSENDERID }}
         NG_APP_FIREBASE_APP_ID: ${{ secrets.APPID }}
         NG_APP_FIREBASE_MEASUREMENT_ID: ${{ secrets.MEASUREMENTID }}
-      run: npm run build:prod
+      run: npm run build
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      if: github.ref == 'refs/heads/main'
+    - name: Deploy to Firebase Hosting
+      uses: FirebaseExtended/action-hosting-deploy@v0
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist/browser
-        force_orphan: true
+        repoToken: ${{ secrets.GITHUB_TOKEN }}
+        firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        projectId: ${{ secrets.PROJECT_ID }}
+        channelId: live
