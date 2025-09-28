@@ -2742,28 +2742,52 @@ export class HistoryComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.isSyncingToFirebase) {
+      alert('Đồng bộ đang diễn ra, vui lòng chờ...');
+      return;
+    }
+
+    this.isSyncingToFirebase = true;
+
     try {
       console.log('🔄 Starting full Firebase sync...');
       this.saveStatus.set('sync', 'saving');
+      this.cdr.markForCheck();
       
-      await this.firebaseService.syncLocalHistoryToFirebase(this.history);
+      // Set a timeout to prevent infinite sync
+      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(this.history);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Sync timeout after 15 seconds')), 15000);
+      });
+      
+      await Promise.race([syncPromise, timeoutPromise]);
       
       this.saveStatus.set('sync', 'saved');
+      this.cdr.markForCheck();
       console.log('✅ Full sync completed');
       alert('✅ Đã đồng bộ toàn bộ dữ liệu lên Firebase!');
       
       setTimeout(() => {
         this.saveStatus.delete('sync');
+        this.cdr.markForCheck();
       }, 2000);
       
     } catch (error) {
       console.error('❌ Sync error:', error);
       this.saveStatus.set('sync', 'error');
-      alert('❌ Lỗi khi đồng bộ dữ liệu!');
+      this.cdr.markForCheck();
+      
+      const errorMessage = error.message.includes('timeout') 
+        ? '❌ Đồng bộ quá lâu - vui lòng thử lại!' 
+        : '❌ Lỗi khi đồng bộ dữ liệu!';
+      alert(errorMessage);
       
       setTimeout(() => {
         this.saveStatus.delete('sync');
+        this.cdr.markForCheck();
       }, 3000);
+    } finally {
+      this.isSyncingToFirebase = false;
     }
   }
 
@@ -3032,6 +3056,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
   saveStatus = new Map<MatchData | string, 'saving' | 'saved' | 'error'>();
   saveTimeouts = new Map<MatchData, NodeJS.Timeout>();
   
+  // Sync protection flag
+  private isSyncingToFirebase = false;
+  
   isEditing(match: MatchData): boolean {
     return this.editingMatches.has(match);
   }
@@ -3172,9 +3199,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
     
     this.processHistoryData();
     
-    // Try to sync localStorage data to Firebase
+    // Try to sync localStorage data to Firebase (with delay to avoid blocking UI)
     if (this.history.length > 0 && this.isAdmin()) {
-      this.syncLocalToFirebase();
+      // Add a delay to prevent blocking the UI and avoid sync conflicts
+      setTimeout(() => {
+        console.log('🔄 Attempting delayed sync to Firebase...');
+        this.syncLocalToFirebase();
+      }, 2000);
     }
   }
 
@@ -3205,14 +3236,26 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   private async syncLocalToFirebase() {
-    if (!this.isAdmin()) return;
+    if (!this.isAdmin() || this.isSyncingToFirebase) return;
+    
+    this.isSyncingToFirebase = true;
     
     try {
       console.log('🔄 Syncing localStorage data to Firebase...');
-      await this.firebaseService.syncLocalHistoryToFirebase(this.history);
+      
+      // Set a timeout to prevent infinite sync
+      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(this.history);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Sync timeout')), 10000); // 10 second timeout
+      });
+      
+      await Promise.race([syncPromise, timeoutPromise]);
       console.log('✅ Successfully synced to Firebase');
     } catch (error) {
-      console.error('❌ Failed to sync to Firebase:', error);
+      console.warn('⚠️ Failed to sync to Firebase (using localStorage only):', error.message);
+      // Don't throw the error - just continue with localStorage data
+    } finally {
+      this.isSyncingToFirebase = false;
     }
   }
   
