@@ -1,8 +1,10 @@
-// SECURE PRODUCTION ENVIRONMENT CONFIGURATION
+// PRODUCTION ENVIRONMENT CONFIGURATION
+// Firebase config loaded from environment variables
+// Values are injected during build process from GitHub Secrets or .env.local
 
 export const environment = {
   production: true,
-  apiUrl: 'https://api.myapp.com',
+  apiUrl: '{{NG_APP_API_URL}}',
   firebase: {
     apiKey: '{{NG_APP_FIREBASE_API_KEY}}',
     authDomain: '{{NG_APP_FIREBASE_AUTH_DOMAIN}}',

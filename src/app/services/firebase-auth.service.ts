@@ -67,18 +67,30 @@ export class FirebaseAuthService {
 
   async signInWithEmail(email: string, password: string): Promise<AuthUser | null> {
     try {
+      console.log('🔍 Attempting login with email:', email);
+      console.log('📧 Admin emails list:', this.adminEmails);
+      console.log('🔐 Is admin email?', this.isAdminEmail(email));
+      
       const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
       const authUser = this.createAuthUser(userCredential.user);
       
+      console.log('✅ Firebase auth successful for:', email);
+      console.log('👤 Auth user created:', authUser);
+      
       // Only allow admin users to sign in
       if (!authUser.isAdmin) {
+        console.error('❌ User is not admin:', email);
+        console.log('📧 Available admin emails:', this.adminEmails);
         await this.signOut();
-        throw new Error('Unauthorized: Only admin users can access this application');
+        throw new Error(`Unauthorized: ${email} is not in the admin list. Contact administrator to add your email to the system.`);
       }
       
+      console.log('🎉 Login successful for admin user:', authUser.displayName);
       return authUser;
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      console.error('🚨 Sign in error for', email, ':', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
