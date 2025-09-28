@@ -2,6 +2,23 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+interface MatchData {
+  id?: string;
+  date: string;
+  teamA: any[];
+  teamB: any[];
+  scoreA: number;
+  scoreB: number;
+  scorerA?: string;
+  scorerB?: string;
+  assistA?: string;
+  assistB?: string;
+  yellowA?: string;
+  yellowB?: string;
+  redA?: string;
+  redB?: string;
+}
+
 interface PlayerStats {
   name: string;
   goals: number;
@@ -221,7 +238,7 @@ interface MonthlyStats {
                 <i class="fas fa-users me-2"></i>
                 👥 Bảng xếp hạng cầu thủ
               </h4>
-              <div class="table-badge">
+              <div class="table-badge" *ngIf="selectedMonth !== 'all'">
                 <span class="badge bg-primary fs-6 px-3 py-2">{{getDisplayTitle()}}</span>
               </div>
             </div>
@@ -279,7 +296,10 @@ interface MonthlyStats {
                     <td class="player-cell">
                       <div class="player-info">
                         <div class="player-avatar">
-                          <i class="fas fa-user-circle"></i>
+                          <img [src]="getPlayerAvatar(player.name)" 
+                               [alt]="player.name"
+                               class="avatar-img"
+                               (error)="onImageError($event)">
                         </div>
                         <div class="player-name">{{player.name}}</div>
                       </div>
@@ -318,38 +338,104 @@ interface MonthlyStats {
         </div>
 
         <!-- Monthly Comparison (All Time View) -->
-        <div *ngIf="viewMode === 'all'" class="card mt-4">
-          <div class="card-header">
-            <h5 class="mb-0">📈 So sánh theo tháng</h5>
+        <div *ngIf="viewMode === 'all'" class="modern-table-card mt-4">
+          <div class="table-header">
+            <div class="d-flex justify-content-between align-items-center">
+              <h4 class="mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>
+                📈 So sánh theo tháng
+              </h4>
+              <div class="table-badge">
+                <span class="badge bg-info fs-6 px-3 py-2">{{availableMonths.length}} tháng</span>
+              </div>
+            </div>
           </div>
-          <div class="card-body">
+          <div class="table-body">
             <div class="table-responsive">
-              <table class="table table-bordered">
-                <thead class="table-secondary">
+              <table class="modern-monthly-table">
+                <thead>
                   <tr>
-                    <th>📅 Tháng</th>
-                    <th class="text-center">🏟️ Trận đấu</th>
-                    <th class="text-center">⚽ Bàn thắng</th>
-                    <th class="text-center">🎯 Kiến tạo</th>
-                    <th class="text-center">🟨 Thẻ vàng</th>
-                    <th class="text-center">🟥 Thẻ đỏ</th>
-                    <th>🏆 Vua phá lưới</th>
-                    <th>🎯 Vua kiến tạo</th>
+                    <th class="month-col">
+                      <i class="fas fa-calendar me-1"></i>
+                      Tháng
+                    </th>
+                    <th class="stat-col">
+                      <i class="fas fa-trophy me-1"></i>
+                      Trận đấu
+                    </th>
+                    <th class="stat-col">
+                      <i class="fas fa-futbol me-1"></i>
+                      Bàn thắng
+                    </th>
+                    <th class="stat-col">
+                      <i class="fas fa-crosshairs me-1"></i>
+                      Kiến tạo
+                    </th>
+                    <th class="stat-col">
+                      <i class="fas fa-square text-warning me-1"></i>
+                      Thẻ vàng
+                    </th>
+                    <th class="stat-col">
+                      <i class="fas fa-square text-danger me-1"></i>
+                      Thẻ đỏ
+                    </th>
+                    <th class="player-col">
+                      <i class="fas fa-crown me-1"></i>
+                      Vua phá lưới
+                    </th>
+                    <th class="player-col">
+                      <i class="fas fa-star me-1"></i>
+                      Vua kiến tạo
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let month of availableMonths">
-                    <td class="fw-bold">{{formatMonth(month)}}</td>
-                    <td class="text-center">{{monthlyStats[month]?.totalMatches || 0}}</td>
-                    <td class="text-center">{{monthlyStats[month]?.totalGoals || 0}}</td>
-                    <td class="text-center">{{monthlyStats[month]?.totalAssists || 0}}</td>
-                    <td class="text-center">{{monthlyStats[month]?.totalYellowCards || 0}}</td>
-                    <td class="text-center">{{monthlyStats[month]?.totalRedCards || 0}}</td>
-                    <td>{{monthlyStats[month]?.topScorer?.name || 'N/A'}} 
-                        <small class="text-muted" *ngIf="monthlyStats[month]?.topScorer">({{monthlyStats[month]?.topScorer?.goals}})</small>
+                  <tr *ngFor="let month of availableMonths; let i = index" 
+                      class="monthly-row"
+                      [class.highlight-row]="i === 0">
+                    <td class="month-cell">
+                      <div class="month-info">
+                        <div class="month-name">{{formatMonth(month)}}</div>
+                        <div class="month-year">{{getMonthYear(month)}}</div>
+                      </div>
                     </td>
-                    <td>{{monthlyStats[month]?.topAssist?.name || 'N/A'}}
-                        <small class="text-muted" *ngIf="monthlyStats[month]?.topAssist">({{monthlyStats[month]?.topAssist?.assists}})</small>
+                    <td class="stat-cell">
+                      <div class="stat-value">{{monthlyStats[month]?.totalMatches || 0}}</div>
+                      <div class="stat-label">trận</div>
+                    </td>
+                    <td class="stat-cell">
+                      <div class="stat-value goals">{{monthlyStats[month]?.totalGoals || 0}}</div>
+                      <div class="stat-label">bàn</div>
+                    </td>
+                    <td class="stat-cell">
+                      <div class="stat-value assists">{{monthlyStats[month]?.totalAssists || 0}}</div>
+                      <div class="stat-label">kiến tạo</div>
+                    </td>
+                    <td class="stat-cell">
+                      <div class="stat-value yellow">{{monthlyStats[month]?.totalYellowCards || 0}}</div>
+                      <div class="stat-label">thẻ vàng</div>
+                    </td>
+                    <td class="stat-cell">
+                      <div class="stat-value red">{{monthlyStats[month]?.totalRedCards || 0}}</div>
+                      <div class="stat-label">thẻ đỏ</div>
+                    </td>
+                    <td class="player-cell">
+                      <div class="player-achievement" *ngIf="monthlyStats[month]?.topScorer; else noPlayer">
+                        <div class="player-name">{{monthlyStats[month]?.topScorer?.name}}</div>
+                        <div class="achievement-value">{{monthlyStats[month]?.topScorer?.goals}} bàn</div>
+                      </div>
+                      <ng-template #noPlayer>
+                        <div class="no-data">Chưa có</div>
+                      </ng-template>
+                    </td>
+                    <td class="player-cell">
+                      <div class="player-achievement" *ngIf="monthlyStats[month]?.topAssist; else noPlayer2">
+                        <div class="player-name">{{monthlyStats[month]?.topAssist?.name}}</div>
+                        <div class="achievement-value">{{monthlyStats[month]?.topAssist?.assists}} kiến tạo</div>
+                      </div>
+                      <ng-template #noPlayer2>
+                        <div class="no-data">Chưa có</div>
+                      </ng-template>
                     </td>
                   </tr>
                 </tbody>
@@ -705,6 +791,22 @@ interface MonthlyStats {
       justify-content: center;
       color: white;
       font-size: 1.2rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .fallback-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
     }
 
     .player-name {
@@ -852,11 +954,239 @@ interface MonthlyStats {
         height: 30px;
         font-size: 1rem;
       }
+      
+      .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+      }
+    }
+
+    /* Modern Monthly Table Styles */
+    .modern-monthly-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .modern-monthly-table thead th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 12px;
+      font-weight: 600;
+      text-align: center;
+      border: none;
+      font-size: 0.9rem;
+    }
+
+    .modern-monthly-table thead th:first-child {
+      text-align: left;
+      border-top-left-radius: 12px;
+    }
+
+    .modern-monthly-table thead th:last-child {
+      border-top-right-radius: 12px;
+    }
+
+    .monthly-row {
+      transition: all 0.3s ease;
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    .monthly-row:hover {
+      background: #f8f9ff;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+    }
+
+    .monthly-row.highlight-row {
+      background: linear-gradient(135deg, #fff7e6 0%, #fffbf0 100%);
+    }
+
+    .monthly-row:last-child {
+      border-bottom: none;
+    }
+
+    .month-cell {
+      padding: 16px;
+      border-right: 1px solid #f1f3f4;
+    }
+
+    .month-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .month-name {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+
+    .month-year {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+
+    .stat-cell {
+      padding: 16px 12px;
+      text-align: center;
+      border-right: 1px solid #f1f3f4;
+      min-width: 80px;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .stat-value.goals {
+      color: #27ae60;
+    }
+
+    .stat-value.assists {
+      color: #3498db;
+    }
+
+    .stat-value.yellow {
+      color: #f39c12;
+    }
+
+    .stat-value.red {
+      color: #e74c3c;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .player-cell {
+      padding: 16px 12px;
+      border-right: 1px solid #f1f3f4;
+      min-width: 140px;
+    }
+
+    .player-cell:last-child {
+      border-right: none;
+    }
+
+    .player-achievement {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      text-align: center;
+    }
+
+    .player-name {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 0.9rem;
+    }
+
+    .achievement-value {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+
+    .no-data {
+      color: #bdc3c7;
+      font-style: italic;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    /* Responsive Monthly Table */
+    @media (max-width: 1200px) {
+      .modern-monthly-table {
+        font-size: 0.85rem;
+      }
+
+      .month-cell, .stat-cell, .player-cell {
+        padding: 12px 8px;
+      }
+
+      .stat-value {
+        font-size: 1rem;
+      }
+
+      .player-cell {
+        min-width: 120px;
+      }
+    }
+
+    @media (max-width: 992px) {
+      .modern-monthly-table thead th,
+      .stat-cell, .player-cell {
+        padding: 10px 6px;
+      }
+
+      .stat-value {
+        font-size: 0.95rem;
+      }
+
+      .player-name {
+        font-size: 0.8rem;
+      }
+
+      .achievement-value {
+        font-size: 0.7rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .modern-monthly-table {
+        border-radius: 8px;
+      }
+
+      .modern-monthly-table thead th {
+        padding: 8px 4px;
+        font-size: 0.8rem;
+      }
+
+      .month-cell, .stat-cell, .player-cell {
+        padding: 8px 4px;
+      }
+
+      .month-name {
+        font-size: 0.85rem;
+      }
+
+      .month-year {
+        font-size: 0.7rem;
+      }
+
+      .stat-value {
+        font-size: 0.9rem;
+      }
+
+      .stat-label {
+        font-size: 0.65rem;
+      }
+
+      .player-name {
+        font-size: 0.75rem;
+      }
+
+      .achievement-value {
+        font-size: 0.65rem;
+      }
     }
   `]
 })
 export class StatsComponent implements OnInit {
-  history: any[] = [];
+  history: MatchData[] = [];
   availableMonths: string[] = [];
   monthlyStats: Record<string, MonthlyStats> = {};
   overallStats = {
@@ -1181,7 +1511,76 @@ export class StatsComponent implements OnInit {
   formatMonth(monthKey: string): string {
     const [year, month] = monthKey.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+    return date.toLocaleDateString('vi-VN', { month: 'long' });
+  }
+
+  getMonthYear(monthKey: string): string {
+    const [year] = monthKey.split('-');
+    return year;
+  }
+
+  getPlayerAvatar(playerName: string): string {
+    // Map player names to their avatar files
+    const nameMap: Record<string, string> = {
+      'Sy': 'Sy.png',
+      'Trung': 'Trung.png',
+      'Bình': 'Binh.png',
+      'Công': 'Cong.png',
+      'Cường': 'Cuong.png',
+      'Đ.Duy': 'D.Duy.png',
+      'Duy': 'D.Duy.png',
+      'Định': 'Dinh.jpg',
+      'Dương': 'Duong.png',
+      'Dybala': 'Dybala.jpg',
+      'Galvin': 'Galvin.png',
+      'H.Thành': 'H.Thanh.png',
+      'Hà': 'Ha.png',
+      'Hải': 'Hai.png',
+      'Hải Lưu': 'Hai_lu.png',
+      'Hậu': 'Hau.png',
+      'Hiền': 'Hien.png',
+      'Hiếu': 'Hieu.png',
+      'Hòa': 'Hoa.png',
+      'Hùng': 'Hung.png',
+      'Huy': 'Huy.png',
+      'K.Duy': 'K.Duy.png',
+      'Lâm': 'Lam.png',
+      'Lê': 'Le.png',
+      'Minh Cui': 'Minh_cui.png',
+      'Minh Nhỏ': 'Minh_nho.jpg',
+      'Nam': 'Nam.png',
+      'Nhân': 'Nhan.png',
+      'Phú': 'Phu.png',
+      'Q.Thành': 'Q.Thanh.png',
+      'Quang': 'Quang.png',
+      'Quý': 'Quy.png',
+      'Tây': 'Tay.png',
+      'Thắng': 'Thang.png',
+      'Thiện': 'Thien.png',
+      'V.Thành': 'V.Thanh.png'
+    };
+
+    const fileName = nameMap[playerName];
+    if (fileName) {
+      return `assets/images/avatar_players/${fileName}`;
+    }
+    
+    // Default fallback avatar
+    return 'assets/images/avatar_players/default.png';
+  }
+
+  onImageError(event: Event): void {
+    // Fallback to a default icon if image fails to load
+    const target = event.target as HTMLImageElement;
+    target.style.display = 'none';
+    const parent = target.parentNode;
+    if (parent && !parent.querySelector('.fallback-icon')) {
+      const fallbackIcon = document.createElement('i');
+      fallbackIcon.className = 'fas fa-user-circle fallback-icon';
+      fallbackIcon.style.fontSize = '40px';
+      fallbackIcon.style.color = '#6c757d';
+      parent.appendChild(fallbackIcon);
+    }
   }
 
   getDisplayTitle(): string {
