@@ -40,6 +40,33 @@ interface MonthlyStats {
   playerStats: PlayerStats[];
 }
 
+interface AIAnalysisResult {
+  xanhWinProb: number;
+  camWinProb: number;
+  confidence: number;
+  avgGoalsDiff: string;
+  matchesAnalyzed: number;
+  keyFactors: {
+    name: string;
+    impact: number;
+  }[];
+  historicalStats: {
+    xanhWins: number;
+    camWins: number;
+    draws: number;
+    totalMatches: number;
+  };
+}
+
+interface TeamMetrics {
+  avgGoalsPerMatch: number;
+  avgAssistsPerMatch: number;
+  disciplineIndex: number;
+  totalMatches: number;
+  attackStrength: number;
+  consistency: number;
+}
+
 @Component({
   selector: 'app-stats',
   standalone: true,
@@ -421,8 +448,14 @@ interface MonthlyStats {
                     </td>
                     <td class="player-cell">
                       <div class="player-achievement" *ngIf="monthlyStats[month]?.topScorer; else noPlayer">
-                        <div class="player-name">{{monthlyStats[month]?.topScorer?.name}}</div>
-                        <div class="achievement-value">{{monthlyStats[month]?.topScorer?.goals}} bàn</div>
+                        <div class="player-avatar-wrapper">
+                          <img [src]="getPlayerAvatar(monthlyStats[month]?.topScorer?.name!)" 
+                               [alt]="monthlyStats[month]?.topScorer?.name"
+                               class="monthly-avatar"
+                               (error)="onImageError($event)">
+                          <div class="achievement-badge goals-badge">{{monthlyStats[month]?.topScorer?.goals}}</div>
+                        </div>
+                        <div class="player-name-small">{{monthlyStats[month]?.topScorer?.name}}</div>
                       </div>
                       <ng-template #noPlayer>
                         <div class="no-data">Chưa có</div>
@@ -430,8 +463,14 @@ interface MonthlyStats {
                     </td>
                     <td class="player-cell">
                       <div class="player-achievement" *ngIf="monthlyStats[month]?.topAssist; else noPlayer2">
-                        <div class="player-name">{{monthlyStats[month]?.topAssist?.name}}</div>
-                        <div class="achievement-value">{{monthlyStats[month]?.topAssist?.assists}} kiến tạo</div>
+                        <div class="player-avatar-wrapper">
+                          <img [src]="getPlayerAvatar(monthlyStats[month]?.topAssist?.name!)" 
+                               [alt]="monthlyStats[month]?.topAssist?.name"
+                               class="monthly-avatar"
+                               (error)="onImageError($event)">
+                          <div class="achievement-badge assists-badge">{{monthlyStats[month]?.topAssist?.assists}}</div>
+                        </div>
+                        <div class="player-name-small">{{monthlyStats[month]?.topAssist?.name}}</div>
                       </div>
                       <ng-template #noPlayer2>
                         <div class="no-data">Chưa có</div>
@@ -440,6 +479,194 @@ interface MonthlyStats {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI/ML Analysis Section -->
+        <div class="ai-analysis-card mt-4">
+          <div class="ai-header">
+            <div class="d-flex justify-content-between align-items-center">
+              <h4 class="mb-0">
+                <i class="fas fa-brain me-2"></i>
+                🤖 AI Phân Tích Dự Đoán
+              </h4>
+              <div class="ai-badge">
+                <span class="badge bg-gradient-ai fs-6 px-3 py-2">
+                  <i class="fas fa-robot me-1"></i>
+                  Machine Learning
+                </span>
+              </div>
+            </div>
+            <p class="ai-subtitle mt-2 mb-0">Dự đoán tỷ lệ thắng/thua giữa đội Xanh và Cam dựa trên dữ liệu lịch sử</p>
+          </div>
+
+          <div class="ai-body">
+            <!-- Team Selection and Analysis Controls -->
+            <div class="analysis-controls mb-4">
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="team-selector xanh-team">
+                    <h5 class="team-title">🔵 Đội Xanh</h5>
+                    <div class="player-selection">
+                      <label class="form-label" for="xanh-players">Chọn cầu thủ đội Xanh:</label>
+                      <select multiple class="form-select" id="xanh-players" [(ngModel)]="selectedXanhPlayers" (change)="runAIAnalysis()">
+                        <option *ngFor="let player of allPlayers" [value]="player">{{player}}</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="vs-section">
+                    <div class="vs-icon">⚔️</div>
+                    <div class="prediction-trigger">
+                      <button class="btn btn-ai" (click)="runAIAnalysis()" [disabled]="isAnalyzing">
+                        <i [class]="isAnalyzing ? 'fas fa-spinner fa-spin' : 'fas fa-magic'" class="me-2"></i>
+                        {{isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI'}}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="team-selector cam-team">
+                    <h5 class="team-title">🟠 Đội Cam</h5>
+                    <div class="player-selection">
+                      <label class="form-label" for="cam-players">Chọn cầu thủ đội Cam:</label>
+                      <select multiple class="form-select" id="cam-players" [(ngModel)]="selectedCamPlayers" (change)="runAIAnalysis()">
+                        <option *ngFor="let player of allPlayers" [value]="player">{{player}}</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Analysis Results -->
+            <div *ngIf="aiAnalysisResults" class="analysis-results">
+              <div class="row">
+                <!-- Win Probability -->
+                <div class="col-lg-6">
+                  <div class="prediction-card">
+                    <h5 class="prediction-title">📊 Tỷ Lệ Thắng Dự Đoán</h5>
+                    <div class="probability-bars">
+                      <div class="prob-item xanh-prob">
+                        <div class="prob-header">
+                          <span class="team-name">🔵 Đội Xanh</span>
+                          <span class="prob-value">{{aiAnalysisResults.xanhWinProb}}%</span>
+                        </div>
+                        <div class="progress">
+                          <div class="progress-bar bg-primary" 
+                               [style.width.%]="aiAnalysisResults.xanhWinProb"></div>
+                        </div>
+                      </div>
+                      <div class="prob-item cam-prob">
+                        <div class="prob-header">
+                          <span class="team-name">🟠 Đội Cam</span>
+                          <span class="prob-value">{{aiAnalysisResults.camWinProb}}%</span>
+                        </div>
+                        <div class="progress">
+                          <div class="progress-bar bg-warning" 
+                               [style.width.%]="aiAnalysisResults.camWinProb"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Key Factors -->
+                <div class="col-lg-6">
+                  <div class="factors-card">
+                    <h5 class="factors-title">🎯 Yếu Tố Quyết Định</h5>
+                    <div class="factor-list">
+                      <div *ngFor="let factor of aiAnalysisResults.keyFactors" 
+                           class="factor-item"
+                           [class.positive]="factor.impact > 0"
+                           [class.negative]="factor.impact < 0">
+                        <div class="factor-name">{{factor.name}}</div>
+                        <div class="factor-impact">
+                          <span class="impact-value">{{factor.impact > 0 ? '+' : ''}}{{factor.impact}}%</span>
+                          <i [class]="factor.impact > 0 ? 'fas fa-arrow-up text-success' : 'fas fa-arrow-down text-danger'"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detailed Analytics -->
+              <div class="detailed-analytics mt-4">
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="metric-card">
+                      <div class="metric-icon">⚽</div>
+                      <div class="metric-content">
+                        <div class="metric-value">{{aiAnalysisResults.avgGoalsDiff}}</div>
+                        <div class="metric-label">Chênh lệch bàn thắng trung bình</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="metric-card">
+                      <div class="metric-icon">📈</div>
+                      <div class="metric-content">
+                        <div class="metric-value">{{aiAnalysisResults.confidence}}%</div>
+                        <div class="metric-label">Độ tin cậy dự đoán</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="metric-card">
+                      <div class="metric-icon">🎲</div>
+                      <div class="metric-content">
+                        <div class="metric-value">{{aiAnalysisResults.matchesAnalyzed}}</div>
+                        <div class="metric-label">Trận đã phân tích</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Historical Performance -->
+              <div class="historical-performance mt-4">
+                <h5 class="history-title">📚 Lịch Sử Đối Đầu</h5>
+                <div class="history-stats">
+                  <div class="row">
+                    <div class="col-md-3">
+                      <div class="history-stat xanh-wins">
+                        <div class="stat-number">{{aiAnalysisResults.historicalStats.xanhWins}}</div>
+                        <div class="stat-label">Đội Xanh thắng</div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="history-stat cam-wins">
+                        <div class="stat-number">{{aiAnalysisResults.historicalStats.camWins}}</div>
+                        <div class="stat-label">Đội Cam thắng</div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="history-stat draws">
+                        <div class="stat-number">{{aiAnalysisResults.historicalStats.draws}}</div>
+                        <div class="stat-label">Hòa</div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="history-stat total">
+                        <div class="stat-number">{{aiAnalysisResults.historicalStats.totalMatches}}</div>
+                        <div class="stat-label">Tổng trận</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- No Analysis Message -->
+            <div *ngIf="!aiAnalysisResults && !isAnalyzing" class="no-analysis">
+              <div class="no-analysis-icon">🤖</div>
+              <div class="no-analysis-title">Chọn cầu thủ để bắt đầu phân tích AI</div>
+              <div class="no-analysis-text">
+                Hãy chọn cầu thủ cho mỗi đội và nhấn "Phân tích AI" để xem dự đoán dựa trên machine learning
+              </div>
             </div>
           </div>
         </div>
@@ -1084,8 +1311,63 @@ interface MonthlyStats {
     .player-achievement {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 8px;
+      align-items: center;
       text-align: center;
+    }
+
+    .player-avatar-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .monthly-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #fff;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease;
+    }
+
+    .monthly-avatar:hover {
+      transform: scale(1.1);
+    }
+
+    .achievement-badge {
+      position: absolute;
+      bottom: -5px;
+      right: -5px;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: white;
+      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .goals-badge {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    }
+
+    .assists-badge {
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    }
+
+    .player-name-small {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 0.75rem;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .player-name {
@@ -1183,6 +1465,370 @@ interface MonthlyStats {
         font-size: 0.65rem;
       }
     }
+
+    /* AI Analysis Styles */
+    .ai-analysis-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      border: 2px solid transparent;
+      background-image: linear-gradient(white, white), 
+                        linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-origin: border-box;
+      background-clip: content-box, border-box;
+    }
+
+    .ai-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem;
+    }
+
+    .ai-subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.95rem;
+    }
+
+    .bg-gradient-ai {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      border: none;
+    }
+
+    .ai-body {
+      padding: 2rem;
+    }
+
+    .analysis-controls {
+      background: #f8f9ff;
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .team-selector {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .xanh-team {
+      border-left: 4px solid #3498db;
+    }
+
+    .cam-team {
+      border-left: 4px solid #f39c12;
+    }
+
+    .team-title {
+      color: #2c3e50;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .vs-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .vs-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn-ai {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-ai:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      color: white;
+    }
+
+    .btn-ai:disabled {
+      opacity: 0.7;
+      transform: none;
+    }
+
+    .analysis-results {
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .prediction-card,
+    .factors-card {
+      background: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      height: 100%;
+    }
+
+    .prediction-title,
+    .factors-title {
+      color: #2c3e50;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+
+    .prob-item {
+      margin-bottom: 1rem;
+    }
+
+    .prob-header {
+      display: flex;
+      justify-content: between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .team-name {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .prob-value {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #27ae60;
+    }
+
+    .progress {
+      height: 8px;
+      border-radius: 4px;
+      background: #f1f3f4;
+    }
+
+    .progress-bar {
+      border-radius: 4px;
+      transition: width 1s ease-in-out;
+    }
+
+    .factor-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: #f8f9ff;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .factor-item.positive {
+      background: #e8f5e8;
+      border-left: 3px solid #27ae60;
+    }
+
+    .factor-item.negative {
+      background: #fef2f2;
+      border-left: 3px solid #e74c3c;
+    }
+
+    .factor-name {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .factor-impact {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .impact-value {
+      font-weight: 700;
+    }
+
+    .metric-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .metric-icon {
+      font-size: 2rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .metric-content {
+      flex: 1;
+      text-align: left;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+
+    .metric-label {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+    }
+
+    .history-title {
+      color: #2c3e50;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+
+    .history-stats {
+      background: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .history-stat {
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .xanh-wins .stat-number {
+      color: #3498db;
+    }
+
+    .cam-wins .stat-number {
+      color: #f39c12;
+    }
+
+    .draws .stat-number {
+      color: #95a5a6;
+    }
+
+    .total .stat-number {
+      color: #2c3e50;
+    }
+
+    .stat-label {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .no-analysis {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: #7f8c8d;
+    }
+
+    .no-analysis-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .no-analysis-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+
+    .no-analysis-text {
+      font-size: 0.95rem;
+    }
+
+    /* Responsive AI Styles */
+    @media (max-width: 768px) {
+      .ai-header,
+      .ai-body {
+        padding: 1.5rem;
+      }
+
+      .analysis-controls {
+        padding: 1rem;
+      }
+
+      .team-selector {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .vs-section {
+        margin: 1rem 0;
+      }
+
+      .metric-card {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .metric-content {
+        text-align: center;
+      }
+
+      .prob-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+      }
+
+      .monthly-avatar {
+        width: 40px;
+        height: 40px;
+      }
+
+      .achievement-badge {
+        min-width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+        bottom: -3px;
+        right: -3px;
+      }
+
+      .player-name-small {
+        font-size: 0.7rem;
+        max-width: 60px;
+      }
+
+      .player-achievement {
+        gap: 6px;
+      }
+
+      .comparison-table {
+        font-size: 0.85rem;
+      }
+    }
   `]
 })
 export class StatsComponent implements OnInit {
@@ -1202,6 +1848,13 @@ export class StatsComponent implements OnInit {
   selectedMonth = '';
   sortBy: 'goals' | 'assists' | 'yellowCards' | 'redCards' | 'matches' = 'goals';
 
+  // AI/ML Analysis Properties
+  allPlayers: string[] = [];
+  selectedXanhPlayers: string[] = [];
+  selectedCamPlayers: string[] = [];
+  isAnalyzing = false;
+  aiAnalysisResults: AIAnalysisResult | null = null;
+
   ngOnInit() {
     this.loadHistory();
     this.calculateStats();
@@ -1210,6 +1863,7 @@ export class StatsComponent implements OnInit {
   private loadHistory() {
     // Use the same data source as history component
     this.history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
+    this.initializeAI(); // Initialize AI data after loading history
   }
 
   private calculateStats() {
@@ -1522,56 +2176,132 @@ export class StatsComponent implements OnInit {
   getPlayerAvatar(playerName: string): string {
     // Map player names to their avatar files
     const nameMap: Record<string, string> = {
+      // Base names with various spellings
       'Sy': 'Sy.png',
+      'Sỹ': 'Sy.png', // Alternative spelling
       'Trung': 'Trung.png',
       'Bình': 'Binh.png',
+      'Binh': 'Binh.png',
       'Công': 'Cong.png',
+      'Cong': 'Cong.png',
       'Cường': 'Cuong.png',
+      'Cuong': 'Cuong.png',
       'Đ.Duy': 'D.Duy.png',
+      'D.Duy': 'D.Duy.png',
       'Duy': 'D.Duy.png',
       'Định': 'Dinh.jpg',
+      'Dinh': 'Dinh.jpg',
       'Dương': 'Duong.png',
+      'Duong': 'Duong.png',
       'Dybala': 'Dybala.jpg',
       'Galvin': 'Galvin.png',
       'H.Thành': 'H.Thanh.png',
+      'H.Thanh': 'H.Thanh.png',
       'Hà': 'Ha.png',
+      'Ha': 'Ha.png',
       'Hải': 'Hai.png',
+      'Hai': 'Hai.png',
       'Hải Lưu': 'Hai_lu.png',
+      'Hai Lưu': 'Hai_lu.png',
+      'Hai_lu': 'Hai_lu.png',
       'Hậu': 'Hau.png',
+      'Hau': 'Hau.png',
       'Hiền': 'Hien.png',
+      'Hien': 'Hien.png',
+      'Hiển': 'Hien.png', // Alternative spelling
       'Hiếu': 'Hieu.png',
+      'Hieu': 'Hieu.png',
       'Hòa': 'Hoa.png',
+      'Hoa': 'Hoa.png',
       'Hùng': 'Hung.png',
+      'Hung': 'Hung.png',
       'Huy': 'Huy.png',
       'K.Duy': 'K.Duy.png',
       'Lâm': 'Lam.png',
+      'Lam': 'Lam.png',
       'Lê': 'Le.png',
+      'Le': 'Le.png',
       'Minh Cui': 'Minh_cui.png',
+      'Minh_cui': 'Minh_cui.png',
+      'Minh củi': 'Minh_cui.png', // Alternative spelling
       'Minh Nhỏ': 'Minh_nho.jpg',
+      'Minh_nho': 'Minh_nho.jpg',
+      'Minh nhỏ': 'Minh_nho.jpg', // Alternative spelling
       'Nam': 'Nam.png',
       'Nhân': 'Nhan.png',
+      'Nhan': 'Nhan.png',
       'Phú': 'Phu.png',
+      'Phu': 'Phu.png',
       'Q.Thành': 'Q.Thanh.png',
+      'Q.Thanh': 'Q.Thanh.png',
       'Quang': 'Quang.png',
       'Quý': 'Quy.png',
+      'Quy': 'Quy.png',
       'Tây': 'Tay.png',
+      'Tay': 'Tay.png',
       'Thắng': 'Thang.png',
+      'Thang': 'Thang.png',
       'Thiện': 'Thien.png',
-      'V.Thành': 'V.Thanh.png'
+      'Thien': 'Thien.png',
+      'V.Thành': 'V.Thanh.png',
+      'V.Thanh': 'V.Thanh.png'
     };
 
-    const fileName = nameMap[playerName];
+    // First try exact match
+    let fileName = nameMap[playerName];
+    
+    // If not found, try normalized matching (remove accents and standardize)
+    if (!fileName) {
+      // Normalize the input name (remove accents, convert to lowercase for comparison)
+      const normalizedInput = playerName.toLowerCase()
+        .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+        .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+        .replace(/[ìíịỉĩ]/g, 'i')
+        .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+        .replace(/[ùúụủũưừứựửữ]/g, 'u')
+        .replace(/[ỳýỵỷỹ]/g, 'y')
+        .replace(/đ/g, 'd');
+
+      // Try to find a match by normalizing all keys
+      for (const [key, value] of Object.entries(nameMap)) {
+        const normalizedKey = key.toLowerCase()
+          .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+          .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+          .replace(/[ìíịỉĩ]/g, 'i')
+          .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+          .replace(/[ùúụủũưừứựửữ]/g, 'u')
+          .replace(/[ỳýỵỷỹ]/g, 'y')
+          .replace(/đ/g, 'd');
+        
+        if (normalizedKey === normalizedInput) {
+          fileName = value;
+          break;
+        }
+      }
+    }
+    
+    // If still not found, try partial matching (first name only)
+    if (!fileName) {
+      const firstNameOnly = playerName.split(' ')[0];
+      fileName = nameMap[firstNameOnly];
+    }
+    
     if (fileName) {
       return `assets/images/avatar_players/${fileName}`;
     }
     
-    // Default fallback avatar
-    return 'assets/images/avatar_players/default.png';
+    // Default fallback - try to find by exact filename
+    const possibleFilename = `${playerName.replace(/\s+/g, '_')}.png`;
+    return `assets/images/avatar_players/${possibleFilename}`;
   }
 
   onImageError(event: Event): void {
     // Fallback to a default icon if image fails to load
     const target = event.target as HTMLImageElement;
+    const playerName = target.alt || 'Unknown';
+    
+    console.log(`Avatar not found for player: ${playerName}, attempted URL: ${target.src}`);
+    
     target.style.display = 'none';
     const parent = target.parentNode;
     if (parent && !parent.querySelector('.fallback-icon')) {
@@ -1579,6 +2309,7 @@ export class StatsComponent implements OnInit {
       fallbackIcon.className = 'fas fa-user-circle fallback-icon';
       fallbackIcon.style.fontSize = '40px';
       fallbackIcon.style.color = '#6c757d';
+      fallbackIcon.title = `Avatar not available for ${playerName}`;
       parent.appendChild(fallbackIcon);
     }
   }
@@ -1589,4 +2320,242 @@ export class StatsComponent implements OnInit {
     }
     return 'Tất cả thời gian';
   }
+
+  // AI/ML Analysis Methods
+  private initializeAI(): void {
+    // Extract all unique player names from history
+    const playerSet = new Set<string>();
+    
+    this.history.forEach(match => {
+      [...match.teamA, ...match.teamB].forEach(player => {
+        if (player && player.firstName) {
+          const playerName = `${player.firstName} ${player.lastName || ''}`.trim();
+          playerSet.add(playerName);
+        }
+      });
+    });
+    
+    this.allPlayers = Array.from(playerSet).sort();
+  }
+
+  async runAIAnalysis(): Promise<void> {
+    if (this.selectedXanhPlayers.length === 0 || this.selectedCamPlayers.length === 0) {
+      return;
+    }
+
+    this.isAnalyzing = true;
+    
+    try {
+      // Simulate AI processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const analysis = this.performMLAnalysis();
+      this.aiAnalysisResults = analysis;
+    } catch (error) {
+      console.error('AI Analysis failed:', error);
+    } finally {
+      this.isAnalyzing = false;
+    }
+  }
+
+  private performMLAnalysis(): AIAnalysisResult {
+    // Find historical matches between selected players
+    const relevantMatches = this.findRelevantMatches();
+    
+    // Calculate player performance metrics
+    const xanhMetrics = this.calculateTeamMetrics(this.selectedXanhPlayers);
+    const camMetrics = this.calculateTeamMetrics(this.selectedCamPlayers);
+    
+    // Apply ML algorithms
+    const prediction = this.applyMLPrediction(xanhMetrics, camMetrics, relevantMatches);
+    
+    return {
+      xanhWinProb: Math.round(prediction.xanhWinProb),
+      camWinProb: Math.round(prediction.camWinProb),
+      confidence: Math.round(prediction.confidence),
+      avgGoalsDiff: prediction.avgGoalsDiff,
+      matchesAnalyzed: relevantMatches.length,
+      keyFactors: prediction.keyFactors,
+      historicalStats: this.calculateHistoricalStats(relevantMatches)
+    };
+  }
+
+  private findRelevantMatches(): MatchData[] {
+    return this.history.filter(match => {
+      const teamAPlayers = match.teamA.map(p => p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '');
+      const teamBPlayers = match.teamB.map(p => p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '');
+      
+      // Check if any selected players participated
+      const xanhInTeamA = this.selectedXanhPlayers.some(player => teamAPlayers.includes(player));
+      const xanhInTeamB = this.selectedXanhPlayers.some(player => teamBPlayers.includes(player));
+      const camInTeamA = this.selectedCamPlayers.some(player => teamAPlayers.includes(player));
+      const camInTeamB = this.selectedCamPlayers.some(player => teamBPlayers.includes(player));
+      
+      return (xanhInTeamA || xanhInTeamB) && (camInTeamA || camInTeamB);
+    });
+  }
+
+  private calculateTeamMetrics(players: string[]) {
+    let totalGoals = 0;
+    let totalAssists = 0;
+    let totalYellows = 0;
+    let totalReds = 0;
+    let totalMatches = 0;
+
+    players.forEach(playerName => {
+      this.history.forEach(match => {
+        const playerParticipated = this.checkPlayerInMatch(match, playerName);
+        if (playerParticipated) {
+          totalMatches++;
+          totalGoals += this.getPlayerStatsFromMatch(match, playerName, 'goals');
+          totalAssists += this.getPlayerStatsFromMatch(match, playerName, 'assists');
+          totalYellows += this.getPlayerStatsFromMatch(match, playerName, 'yellows');
+          totalReds += this.getPlayerStatsFromMatch(match, playerName, 'reds');
+        }
+      });
+    });
+
+    const avgGoalsPerMatch = totalMatches > 0 ? totalGoals / totalMatches : 0;
+    const avgAssistsPerMatch = totalMatches > 0 ? totalAssists / totalMatches : 0;
+    const disciplineIndex = totalMatches > 0 ? (totalYellows * 0.5 + totalReds * 2) / totalMatches : 0;
+
+    return {
+      avgGoalsPerMatch,
+      avgAssistsPerMatch,
+      disciplineIndex,
+      totalMatches,
+      attackStrength: avgGoalsPerMatch + avgAssistsPerMatch,
+      consistency: totalMatches > 5 ? 1 : totalMatches / 5 // Consistency based on experience
+    };
+  }
+
+  private applyMLPrediction(xanhMetrics: TeamMetrics, camMetrics: TeamMetrics, historicalMatches: MatchData[]) {
+    // Weighted factors for prediction
+    const weights = {
+      attackStrength: 0.3,
+      consistency: 0.25,
+      discipline: 0.15,
+      historical: 0.3
+    };
+
+    // Calculate attack advantage
+    const attackDiff = xanhMetrics.attackStrength - camMetrics.attackStrength;
+    const attackAdvantage = Math.tanh(attackDiff) * weights.attackStrength;
+
+    // Calculate consistency advantage  
+    const consistencyDiff = xanhMetrics.consistency - camMetrics.consistency;
+    const consistencyAdvantage = Math.tanh(consistencyDiff) * weights.consistency;
+
+    // Calculate discipline advantage (lower is better)
+    const disciplineDiff = camMetrics.disciplineIndex - xanhMetrics.disciplineIndex;
+    const disciplineAdvantage = Math.tanh(disciplineDiff) * weights.discipline;
+
+    // Historical performance
+    const historicalStats = this.calculateHistoricalStats(historicalMatches);
+    const historicalRate = historicalStats.totalMatches > 0 ? 
+      historicalStats.xanhWins / historicalStats.totalMatches : 0.5;
+    const historicalAdvantage = (historicalRate - 0.5) * weights.historical;
+
+    // Combine all factors
+    const totalAdvantage = attackAdvantage + consistencyAdvantage + disciplineAdvantage + historicalAdvantage;
+    
+    // Convert to probability (sigmoid-like function)
+    const xanhWinProb = 50 + (totalAdvantage * 40);
+    const camWinProb = 100 - xanhWinProb;
+
+    // Calculate confidence based on data availability
+    const confidence = Math.min(90, 
+      30 + (historicalMatches.length * 5) + 
+      (Math.min(xanhMetrics.totalMatches, camMetrics.totalMatches) * 2)
+    );
+
+    // Calculate average goal difference
+    let totalGoalDiff = 0;
+    historicalMatches.forEach(match => {
+      totalGoalDiff += Math.abs(match.scoreA - match.scoreB);
+    });
+    const avgGoalsDiff = historicalMatches.length > 0 ? 
+      (totalGoalDiff / historicalMatches.length).toFixed(1) : '0.0';
+
+    return {
+      xanhWinProb: Math.max(10, Math.min(90, xanhWinProb)),
+      camWinProb: Math.max(10, Math.min(90, camWinProb)),
+      confidence,
+      avgGoalsDiff,
+      keyFactors: [
+        { name: 'Sức tấn công', impact: Math.round(attackAdvantage * 100) },
+        { name: 'Kinh nghiệm', impact: Math.round(consistencyAdvantage * 100) },
+        { name: 'Kỷ luật', impact: Math.round(disciplineAdvantage * 100) },
+        { name: 'Lịch sử đối đầu', impact: Math.round(historicalAdvantage * 100) }
+      ]
+    };
+  }
+
+  private calculateHistoricalStats(matches: MatchData[]) {
+    let xanhWins = 0;
+    let camWins = 0;
+    let draws = 0;
+
+    matches.forEach(match => {
+      const teamAHasXanh = match.teamA.some(p => 
+        this.selectedXanhPlayers.includes(`${p.firstName} ${p.lastName || ''}`.trim())
+      );
+      const teamAHasCam = match.teamA.some(p => 
+        this.selectedCamPlayers.includes(`${p.firstName} ${p.lastName || ''}`.trim())
+      );
+
+      if (teamAHasXanh && !teamAHasCam) {
+        // Team A is Xanh
+        if (match.scoreA > match.scoreB) xanhWins++;
+        else if (match.scoreA < match.scoreB) camWins++;
+        else draws++;
+      } else if (!teamAHasXanh && teamAHasCam) {
+        // Team A is Cam
+        if (match.scoreA > match.scoreB) camWins++;
+        else if (match.scoreA < match.scoreB) xanhWins++;
+        else draws++;
+      }
+    });
+
+    return {
+      xanhWins,
+      camWins,
+      draws,
+      totalMatches: xanhWins + camWins + draws
+    };
+  }
+
+  private checkPlayerInMatch(match: MatchData, playerName: string): boolean {
+    const teamAPlayers = match.teamA.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+    const teamBPlayers = match.teamB.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+    return teamAPlayers.includes(playerName) || teamBPlayers.includes(playerName);
+  }
+
+  private getPlayerStatsFromMatch(match: MatchData, playerName: string, statType: string): number {
+    // Extract player stats from match scorerA, scorerB, assistA, assistB, etc.
+    let count = 0;
+    
+    switch (statType) {
+      case 'goals':
+        count += this.parsePlayerStatFromField(match.scorerA || '', playerName);
+        count += this.parsePlayerStatFromField(match.scorerB || '', playerName);
+        break;
+      case 'assists':
+        count += this.parsePlayerStatFromField(match.assistA || '', playerName);
+        count += this.parsePlayerStatFromField(match.assistB || '', playerName);
+        break;
+      case 'yellows':
+        count += this.parsePlayerStatFromField(match.yellowA || '', playerName);
+        count += this.parsePlayerStatFromField(match.yellowB || '', playerName);
+        break;
+      case 'reds':
+        count += this.parsePlayerStatFromField(match.redA || '', playerName);
+        count += this.parsePlayerStatFromField(match.redB || '', playerName);
+        break;
+    }
+    
+    return count;
+  }
+
+  // Note: loadHistory method is already defined earlier, will be updated to call initializeAI()
 }
