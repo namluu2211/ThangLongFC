@@ -1122,6 +1122,18 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
     return this.calculatePenaltyIncome() - this.getTotalExpenses();
   }
 
+  private getPlayerStatString(team: MatchPlayer[], statType: 'scorer' | 'assist' | 'yellow' | 'red'): string {
+    const playersWithStat = team
+      .filter(player => player[statType] > 0)
+      .map(player => {
+        const count = player[statType];
+        const name = this.getPlayerName(player);
+        return count > 1 ? `${name} (${count})` : name;
+      });
+    
+    return playersWithStat.join(', ');
+  }
+
   async calculateScore(): Promise<void> {
     try {
       this.isCalculating = true;
@@ -1162,10 +1174,19 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
       const matchData: MatchData = {
         id: Date.now().toString(),
         date: new Date().toISOString(),
-        teamA: this.teamA,
-        teamB: this.teamB,
+        teamA: [...this.teamA],
+        teamB: [...this.teamB],
         scoreA: this.getTeamScore('A'),
         scoreB: this.getTeamScore('B'),
+        // Convert player stats to goal/assist strings
+        scorerA: this.getPlayerStatString(this.teamA, 'scorer'),
+        scorerB: this.getPlayerStatString(this.teamB, 'scorer'),
+        assistA: this.getPlayerStatString(this.teamA, 'assist'),
+        assistB: this.getPlayerStatString(this.teamB, 'assist'),
+        yellowA: this.getPlayerStatString(this.teamA, 'yellow'),
+        yellowB: this.getPlayerStatString(this.teamB, 'yellow'),
+        redA: this.getPlayerStatString(this.teamA, 'red'),
+        redB: this.getPlayerStatString(this.teamB, 'red'),
         // Financial data
         chi_san: this.matchFee || 0,
         chi_nuoc: this.drinking || 0,

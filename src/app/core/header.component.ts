@@ -25,7 +25,13 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
       <!-- Login Section -->
       <div class="auth-section">
         <!-- Modal Backdrop -->
-        <div *ngIf="!loggedIn && showLoginForm" class="modal-backdrop" (click)="closeLoginForm()"></div>
+        <div 
+          *ngIf="!loggedIn && showLoginForm" 
+          class="modal-backdrop" 
+          tabindex="0"
+          (click)="closeLoginForm()" 
+          (keydown)="onBackdropKeydown($event)">
+        </div>
         
         <!-- Login Form -->
         <div *ngIf="!loggedIn && showLoginForm" class="login-form expanded">
@@ -72,7 +78,11 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
 
         <!-- User Profile Section -->
         <div *ngIf="loggedIn" class="user-profile">
-          <div class="user-info" (click)="toggleUserMenu()">
+          <div 
+            class="user-info" 
+            tabindex="0" 
+            (click)="toggleUserMenu()" 
+            (keydown)="onUserInfoKeydown($event)">
             <div class="user-avatar">
               <div class="avatar-placeholder">
                 {{getInitials()}}
@@ -101,16 +111,20 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-items">
-              <div class="dropdown-item" (click)="openProfile()">
+              <div class="dropdown-item" tabindex="0" (click)="openProfile()" (keydown)="onDropdownItemKeydown($event, openProfile)">
                 <i class="fas fa-user-edit"></i>
                 Thông tin cá nhân
               </div>
-              <div class="dropdown-item" (click)="openSettings()">
+              <div class="dropdown-item" tabindex="0" (click)="openSettings()" (keydown)="onDropdownItemKeydown($event, openSettings)">
                 <i class="fas fa-cog"></i>
                 Cài đặt
               </div>
               <div class="dropdown-divider"></div>
-              <div class="dropdown-item logout-item" (click)="logout()">
+              <div 
+                class="dropdown-item logout-item" 
+                tabindex="0"
+                (click)="logout()"
+                (keydown)="onDropdownItemKeydown($event, logout)">
                 <i class="fas fa-sign-out-alt"></i>
                 Đăng xuất
               </div>
@@ -121,7 +135,9 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
         <!-- Background overlay for closing dropdown -->
         <div class="dropdown-overlay" 
              *ngIf="showUserMenu" 
-             (click)="showUserMenu = false">
+             tabindex="0"
+             (click)="showUserMenu = false"
+             (keydown)="onDropdownOverlayKeydown($event)">
         </div>
       </div>
     </div>
@@ -807,8 +823,7 @@ export class HeaderComponent implements OnInit {
     return displayName
       .split(' ')
       .map(name => name.charAt(0).toUpperCase())
-      .join('')
-      .substring(0, 2);
+      .join('');
   }
 
   openProfile() {
@@ -816,9 +831,35 @@ export class HeaderComponent implements OnInit {
     this.showInfo('Tính năng đang được phát triển');
   }
 
-  openSettings() {
-    this.showUserMenu = false;
-    this.showInfo('Tính năng đang được phát triển');
+  // Accessibility: handle keydown for dropdown items
+  onDropdownItemKeydown(event: KeyboardEvent, action: () => void) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  }
+
+  // Accessibility: handle keydown on user info for dropdown
+  onUserInfoKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.toggleUserMenu();
+    }
+  }
+
+  // Accessibility: handle keydown on modal backdrop
+  onBackdropKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' || event.key === 'Enter') {
+      this.closeLoginForm();
+    }
+  }
+
+  // Accessibility: handle keydown on dropdown overlay
+  onDropdownOverlayKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' || event.key === 'Enter') {
+      this.showUserMenu = false;
+      event.preventDefault();
+    }
   }
 
   // Helper methods

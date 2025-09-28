@@ -1,7 +1,7 @@
 import { Component, OnInit, Input, inject, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FirebaseService } from '../../services/firebase.service';
+import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
 
 import { take, takeUntil } from 'rxjs/operators';
@@ -2754,7 +2754,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
       }
       
       // Increase timeout to 30 seconds for large datasets
-      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(this.history);
+      const historyEntries = this.convertMatchDataToHistoryEntries(this.history);
+      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(historyEntries);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000);
       });
@@ -2880,9 +2881,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
           id: match.id || undefined,
           date: match.date,
           
-          // Team and score data
-          teamA: match.teamA || [],
-          teamB: match.teamB || [],
+          // Team and score data (convert Player[] to string[] for Firebase)
+          teamA: match.teamA ? match.teamA.map(player => 
+            typeof player === 'string' ? player : `${player.firstName} ${player.lastName || ''}`.trim()
+          ) : [],
+          teamB: match.teamB ? match.teamB.map(player => 
+            typeof player === 'string' ? player : `${player.firstName} ${player.lastName || ''}`.trim()
+          ) : [],
           scoreA: match.scoreA || 0,
           scoreB: match.scoreB || 0,
           scorerA: match.scorerA || '',
@@ -3186,7 +3191,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
         .subscribe(firebaseHistory => {
         if (firebaseHistory && firebaseHistory.length > 0) {
           console.log(`🔥 Firebase history loaded: ${firebaseHistory.length} matches`);
-          this.history = firebaseHistory as MatchData[];
+          this.history = this.convertHistoryEntriesToMatchData(firebaseHistory);
           this.clearCalculationCache();
           this.processHistoryData();
           
@@ -3260,7 +3265,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
       console.log('🔄 Syncing localStorage data to Firebase...');
       
       // Set a timeout to prevent infinite sync
-      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(this.history);
+      const historyEntries = this.convertMatchDataToHistoryEntries(this.history);
+      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(historyEntries);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Sync timeout')), 10000); // 10 second timeout
       });
@@ -3333,6 +3339,46 @@ export class HistoryComponent implements OnInit, OnDestroy {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  }
+
+  private convertHistoryEntriesToMatchData(entries: HistoryEntry[]): MatchData[] {
+    return entries.map(entry => {
+      // Convert string arrays back to Player arrays if needed
+      const teamA: Player[] = entry.teamA ? entry.teamA.map((name: string) => ({
+        firstName: name,
+        id: name.toLowerCase().replace(/\s+/g, '-')
+      } as Player)) : [];
+      
+      const teamB: Player[] = entry.teamB ? entry.teamB.map((name: string) => ({
+        firstName: name,
+        id: name.toLowerCase().replace(/\s+/g, '-')
+      } as Player)) : [];
+
+      return {
+        ...entry,
+        teamA,
+        teamB
+      } as MatchData;
+    });
+  }
+
+  private convertMatchDataToHistoryEntries(matches: MatchData[]): HistoryEntry[] {
+    return matches.map(match => {
+      // Convert Player arrays to string arrays for Firebase
+      const teamA = match.teamA ? match.teamA.map(player => 
+        typeof player === 'string' ? player : `${player.firstName} ${player.lastName || ''}`.trim()
+      ) : [];
+      
+      const teamB = match.teamB ? match.teamB.map(player => 
+        typeof player === 'string' ? player : `${player.firstName} ${player.lastName || ''}`.trim()
+      ) : [];
+
+      return {
+        ...match,
+        teamA,
+        teamB
+      } as HistoryEntry;
     });
   }
 

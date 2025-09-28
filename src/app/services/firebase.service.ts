@@ -74,9 +74,9 @@ export interface HistoryEntry {
   chi_khac?: number;
   chi_total?: number;
   
-  // Metadata
-  createdAt?: string | number | null;
-  updatedAt?: string | number | null;
+  // Metadata (Firebase timestamps can be object, string, or number)
+  createdAt?: string | number | object | null;
+  updatedAt?: string | number | object | null;
   updatedBy?: string;
   lastSaved?: string;
   createdBy?: string;
