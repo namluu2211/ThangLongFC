@@ -1,6 +1,7 @@
 // PRODUCTION ENVIRONMENT CONFIGURATION
-// Firebase config loaded from environment variables
+// Firebase config loaded from environment variables  
 // Values are injected during build process from GitHub Secrets or .env.local
+// Updated: 2025-09-28 - Fixed Firebase database region URL
 
 export const environment = {
   production: true,
