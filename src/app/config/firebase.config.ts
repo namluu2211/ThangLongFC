@@ -8,6 +8,7 @@ import { environment } from '../../environments/environment';
 export const firebaseConfig = {
   apiKey: environment.firebase.apiKey,
   authDomain: environment.firebase.authDomain,
+  databaseURL: environment.firebase.databaseURL,
   projectId: environment.firebase.projectId,
   storageBucket: environment.firebase.storageBucket,
   messagingSenderId: environment.firebase.messagingSenderId,
@@ -22,6 +23,7 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   console.log('- NG_APP_FIREBASE_API_KEY');
   console.log('- NG_APP_FIREBASE_PROJECT_ID');
   console.log('- NG_APP_FIREBASE_AUTH_DOMAIN');
+  console.log('- NG_APP_FIREBASE_DATABASE_URL');
   console.log('- NG_APP_FIREBASE_STORAGE_BUCKET');
   console.log('- NG_APP_FIREBASE_MESSAGING_SENDER_ID');
   console.log('- NG_APP_FIREBASE_APP_ID');
@@ -32,10 +34,9 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Analytics only if running in browser and measurement ID is provided
-let analytics = null;
 try {
   if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
-    analytics = getAnalytics(app);
+    getAnalytics(app);
   }
 } catch (error) {
   console.warn('Firebase Analytics could not be initialized:', error);

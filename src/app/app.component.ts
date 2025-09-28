@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +10,7 @@ import { FirebaseService } from './services/firebase.service';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { MatchData, FundData } from './models/types';
+import { MatchData } from './models/types';
 
 @Component({
   selector: 'app-root',
@@ -104,10 +104,8 @@ export class AppComponent implements OnInit, OnDestroy {
   show = 'auto'; // default to 'Chia đội tự động' for better UX
   canEdit = false;
 
-  constructor(
-    private firebaseService: FirebaseService,
-    private cdr: ChangeDetectorRef
-  ) {}
+  private readonly firebaseService = inject(FirebaseService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   ngOnInit() {
     console.log('🚀 App component ngOnInit started');

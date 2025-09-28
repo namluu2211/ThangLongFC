@@ -2,7 +2,7 @@ import { Component, OnInit, Input, TrackByFunction } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, transferArrayItem } from '@angular/cdk/drag-drop';
-import { dividePlayersByPosition, Player } from './player-utils';
+import { Player } from './player-utils';
 
 @Component({
   selector: 'app-players',
@@ -80,7 +80,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
             <div *ngFor="let player of allPlayers; trackBy: trackByPlayerId" 
                  class="player-item"
                  [class.registered]="isRegistered(player)">
-              <div class="player-info" (click)="viewPlayer(player)">
+              <div class="player-info" tabindex="0" (click)="viewPlayer(player)" (keyup)="onPlayerInfoKey($event, player)">
                 <img [src]="player.avatar" 
                      [alt]="player.firstName"
                      class="player-thumb"
@@ -110,11 +110,11 @@ import { dividePlayersByPosition, Player } from './player-utils';
       </div>
 
       <!-- Player Details Modal -->
-      <div *ngIf="selectedPlayer" class="modal-overlay" (click)="closePlayerModal()">
-        <div class="player-modal" (click)="$event.stopPropagation()">
+      <div *ngIf="selectedPlayer" class="modal-overlay" tabindex="0" (click)="closePlayerModal()" (keyup)="onModalOverlayKey($event)">
+        <div class="player-modal" tabindex="0" (click)="$event.stopPropagation()" (keyup)="onModalContentKey($event)">
           <div class="modal-header">
             <h4>{{ getPlayerFullName(selectedPlayer) }}</h4>
-            <button class="close-btn" (click)="closePlayerModal()">×</button>
+            <button class="close-btn" (click)="closePlayerModal()" (keyup)="onCloseBtnKey($event)" tabindex="0">×</button>
           </div>
           <div class="modal-content">
             <div class="player-avatar-section">
@@ -174,8 +174,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
           <div class="team-header team-a">
             <h3><i class="fas fa-shield-alt me-2"></i>Đội Xanh</h3>
             <div class="score-section">
-              <label>Tỉ số:</label>
-              <input type="number" [(ngModel)]="scoreA" class="score-input" min="0" max="20">
+              <label for="scoreAInput">Tỉ số:</label>
+              <input id="scoreAInput" type="number" [(ngModel)]="scoreA" class="score-input" min="0" max="20">
             </div>
           </div>
           <div class="team-content">
@@ -214,20 +214,20 @@ import { dividePlayersByPosition, Player } from './player-utils';
             <!-- Team A Stats -->
             <div class="stats-section">
               <div class="stat-group">
-                <label>Ghi bàn:</label>
-                <input type="text" [(ngModel)]="scorerA" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="scorerAInput">Ghi bàn:</label>
+                <input id="scorerAInput" type="text" [(ngModel)]="scorerA" class="stat-input" placeholder="Tên cầu thủ">
               </div>
               <div class="stat-group">
-                <label>Kiến tạo:</label>
-                <input type="text" [(ngModel)]="assistA" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="assistAInput">Kiến tạo:</label>
+                <input id="assistAInput" type="text" [(ngModel)]="assistA" class="stat-input" placeholder="Tên cầu thủ">
               </div>
               <div class="stat-group yellow">
-                <label>Thẻ vàng:</label>
-                <input type="text" [(ngModel)]="yellowA" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="yellowAInput">Thẻ vàng:</label>
+                <input id="yellowAInput" type="text" [(ngModel)]="yellowA" class="stat-input" placeholder="Tên cầu thủ">
               </div>
               <div class="stat-group red">
-                <label>Thẻ đỏ:</label>
-                <input type="text" [(ngModel)]="redA" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="redAInput">Thẻ đỏ:</label>
+                <input id="redAInput" type="text" [(ngModel)]="redA" class="stat-input" placeholder="Tên cầu thủ">
               </div>
             </div>
           </div>
@@ -238,8 +238,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
           <div class="team-header team-b">
             <h3><i class="fas fa-shield-alt me-2"></i>Đội Cam</h3>
             <div class="score-section">
-              <label>Tỉ số:</label>
-              <input type="number" [(ngModel)]="scoreB" class="score-input" min="0" max="20">
+              <label for="scoreBInput">Tỉ số:</label>
+              <input id="scoreBInput" type="number" [(ngModel)]="scoreB" class="score-input" min="0" max="20">
             </div>
           </div>
           <div class="team-content">
@@ -278,20 +278,20 @@ import { dividePlayersByPosition, Player } from './player-utils';
             <!-- Team B Stats -->
             <div class="stats-section">
               <div class="stat-group">
-                <label>Ghi bàn:</label>
-                <input type="text" [(ngModel)]="scorerB" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="scorerBInput">Ghi bàn:</label>
+                <input id="scorerBInput" type="text" [(ngModel)]="scorerB" class="stat-input" placeholder="Tên cầu thủ">
               </div>
               <div class="stat-group">
-                <label>Kiến tạo:</label>
-                <input type="text" [(ngModel)]="assistB" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="assistBInput">Kiến tạo:</label>
+                <input id="assistBInput" type="text" [(ngModel)]="assistB" class="stat-input" placeholder="Tên cầu thủ">
               </div>
               <div class="stat-group yellow">
-                <label>Thẻ vàng:</label>
-                <input type="text" [(ngModel)]="yellowB" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="yellowBInput">Thẻ vàng:</label>
+                <input id="yellowBInput" type="text" [(ngModel)]="yellowB" class="stat-input" placeholder="Tên cầu thủ">
               </div>
               <div class="stat-group red">
-                <label>Thẻ đỏ:</label>
-                <input type="text" [(ngModel)]="redB" class="stat-input" placeholder="Tên cầu thủ">
+                <label for="redBInput">Thẻ đỏ:</label>
+                <input id="redBInput" type="text" [(ngModel)]="redB" class="stat-input" placeholder="Tên cầu thủ">
               </div>
             </div>
           </div>
@@ -1067,36 +1067,36 @@ import { dividePlayersByPosition, Player } from './player-utils';
   `]
 })
 export class PlayersComponent implements OnInit {
-  @Input() canEdit: boolean = false;
-  @Input() isAdmin: boolean = false;
+  @Input() canEdit = false;
+  @Input() isAdmin = false;
   
   allPlayers: Player[] = [];
   filteredPlayers: Player[] = [];
   teamA: Player[] = [];
   teamB: Player[] = [];
   registeredPlayers: Player[] = [];
-  useRegistered: boolean = false;
-  selectedPlayer: any = null;
+  useRegistered = false;
+  selectedPlayer: Player | null = null;
   
   // Match data
-  scoreA: number = 0;
-  scoreB: number = 0;
-  scorerA: string = '';
-  scorerB: string = '';
-  assistA: string = '';
-  assistB: string = '';
-  yellowA: string = '';
-  yellowB: string = '';
-  redA: string = '';
-  redB: string = '';
+  scoreA = 0;
+  scoreB = 0;
+  scorerA = '';
+  scorerB = '';
+  assistA = '';
+  assistB = '';
+  yellowA = '';
+  yellowB = '';
+  redA = '';
+  redB = '';
   
   // UI state
-  isDragging: boolean = false;
+  isDragging = false;
   draggedPlayer: Player | null = null;
-  showPlayerList: boolean = false;
+  showPlayerList = false;
   matchSaveMessage = '';
   saveMessage = '';
-  saveRegisteredMessage: string = '';
+  saveRegisteredMessage = '';
 
   trackByPlayerId: TrackByFunction<Player> = (index: number, player: Player) => {
     return player.id;
@@ -1214,13 +1214,13 @@ export class PlayersComponent implements OnInit {
   removeFromTeam(player: Player, team: 'A' | 'B') {
     switch (team) {
       case 'A':
-        const indexA = this.teamA.findIndex(p => p.id === player.id);
+        { const indexA = this.teamA.findIndex(p => p.id === player.id);
         if (indexA > -1) this.teamA.splice(indexA, 1);
-        break;
+        break; }
       case 'B':
-        const indexB = this.teamB.findIndex(p => p.id === player.id);
+        { const indexB = this.teamB.findIndex(p => p.id === player.id);
         if (indexB > -1) this.teamB.splice(indexB, 1);
-        break;
+        break; }
     }
     
     this.updateFilteredPlayers();
@@ -1253,9 +1253,10 @@ export class PlayersComponent implements OnInit {
     this.draggedPlayer = null;
   }
 
-  onAvatarError(event: any, player: any) {
+  onAvatarError(event: Event, player: Player) {
     const defaultAvatar = 'assets/images/default-avatar.svg';
-    event.target.src = defaultAvatar;
+    const target = event.target as HTMLImageElement;
+    target.src = defaultAvatar;
     player.avatar = defaultAvatar;
     console.warn(`Avatar failed to load for player: ${player.firstName}, using default avatar`);
   }
@@ -1268,7 +1269,7 @@ export class PlayersComponent implements OnInit {
     this.selectedPlayer = null;
   }
 
-  viewPlayer(p: any) {
+  viewPlayer(p: Player) {
     this.selectedPlayer = p;
   }
 
@@ -1311,7 +1312,21 @@ export class PlayersComponent implements OnInit {
     };
   }
 
-  private saveToHistory(match: any) {
+  private saveToHistory(match: {
+    date: string;
+    scoreA: number;
+    scoreB: number;
+    scorerA: string;
+    scorerB: string;
+    assistA: string;
+    assistB: string;
+    yellowA: string;
+    yellowB: string;
+    redA: string;
+    redB: string;
+    teamA: Player[];
+    teamB: Player[];
+  }) {
     const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
     history.push(match);
     localStorage.setItem('matchHistory', JSON.stringify(history));
@@ -1371,10 +1386,39 @@ export class PlayersComponent implements OnInit {
     }
   }
 
-  getPlayerFullName(player: any): string {
+  getPlayerFullName(player: Player): string {
     if (player.lastName) {
       return `${player.firstName} ${player.lastName}`;
     }
     return player.firstName;
+  }
+
+  // Accessibility: handle key events for modal overlay
+  onModalOverlayKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.closePlayerModal();
+    }
+  }
+
+  // Accessibility: prevent modal content from closing on keyup
+  onModalContentKey(event: KeyboardEvent) {
+    event.stopPropagation();
+  }
+
+  // Accessibility: handle key events for close button
+  onCloseBtnKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.closePlayerModal();
+    }
+  }
+
+  // Accessibility: handle key events for player info
+  onPlayerInfoKey(event: KeyboardEvent, player: Player) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.viewPlayer(player);
+    }
   }
 }

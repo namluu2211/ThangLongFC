@@ -2,6 +2,16 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+interface Match {
+  id: number;
+  date: string;
+  teamA: any[];
+  teamB: any[];
+  matchFee: number;
+  drinking: number;
+  referee: number;
+}
+
 @Component({
   selector: 'app-match-info',
   standalone: true,
@@ -59,7 +69,7 @@ import { FormsModule } from '@angular/forms';
 })
 export class MatchInfoComponent implements OnInit {
   @Input() canEdit = false;
-  @Output() matchSaved = new EventEmitter<any>();
+  @Output() matchSaved = new EventEmitter<Match>();
   players: any[] = [];
   teamA: any[] = [];
   teamB: any[] = [];

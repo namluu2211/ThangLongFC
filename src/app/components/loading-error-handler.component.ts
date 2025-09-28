@@ -1,7 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, BehaviorSubject, Observable, combineLatest } from 'rxjs';
-import { takeUntil, debounceTime, distinctUntilChanged, map } from 'rxjs/operators';
+import { Subject, BehaviorSubject } from 'rxjs';
 
 export interface LoadingState {
   isLoading: boolean;
@@ -407,9 +406,9 @@ export interface ErrorState {
 export class LoadingErrorHandlerComponent implements OnInit, OnDestroy {
   @Input() loadingState: LoadingState = { isLoading: false };
   @Input() errorState: ErrorState = { hasError: false };
-  @Input() successMessage: string = '';
-  @Input() showRetry: boolean = true;
-  @Input() isOnline: boolean = true;
+  @Input() successMessage = '';
+  @Input() showRetry = true;
+  @Input() isOnline = true;
 
   @Output() retry = new EventEmitter<void>();
   @Output() errorDismissed = new EventEmitter<void>();
@@ -540,8 +539,9 @@ export class GlobalStateManagerComponent {
       this.dismissError();
       try {
         await this.lastOperation();
-      } catch (error: any) {
-        this.setError(error.message || 'Retry failed');
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Retry failed';
+        this.setError(message);
       }
     }
   }

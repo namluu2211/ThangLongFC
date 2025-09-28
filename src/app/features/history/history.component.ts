@@ -29,14 +29,7 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
                 {{history.length}} trận đấu
               </span>
             </div>
-            <div class="edit-status-badge">
-              <span class="badge px-3 py-2" 
-                    [class.bg-success]="isAdmin()" 
-                    [class.bg-secondary]="!isAdmin()">
-                <i [class]="isAdmin() ? 'fas fa-edit' : 'fas fa-save'" class="me-1"></i>
-                {{isAdmin() ? 'Có thể chỉnh sửa & lưu' : 'Chỉ xem'}}
-              </span>
-            </div>
+
             
             <!-- Admin Firebase Actions -->
             <div class="admin-firebase-actions" *ngIf="isAdmin()">

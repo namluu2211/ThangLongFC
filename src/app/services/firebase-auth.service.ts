@@ -87,11 +87,16 @@ export class FirebaseAuthService {
       
       console.log('🎉 Login successful for admin user:', authUser.displayName);
       return authUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('🚨 Sign in error for', email, ':', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      throw new Error(this.getErrorMessage(error.code));
+      if (typeof error === 'object' && error !== null && 'code' in error && 'message' in error) {
+        const err = error as { code: string; message: string };
+        console.error('Error code:', err.code);
+        console.error('Error message:', err.message);
+        throw new Error(this.getErrorMessage(err.code));
+      } else {
+        throw new Error('Đăng nhập thất bại. Vui lòng thử lại');
+      }
     }
   }
 

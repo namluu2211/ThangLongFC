@@ -111,31 +111,31 @@ interface MonthlyStats {
             <div class="filter-body">
               <div class="row g-3">
                 <div class="col-lg-3 col-md-4">
-                  <label class="form-label fw-semibold">
+                  <label class="form-label fw-semibold" for="viewModeSelect">
                     <i class="fas fa-eye me-1"></i>
                     Xem theo:
                   </label>
-                  <select class="form-select modern-select" [(ngModel)]="viewMode" (change)="updateStats()">
+                  <select id="viewModeSelect" class="form-select modern-select" [(ngModel)]="viewMode" (change)="updateStats()">
                     <option value="all">🌍 Tất cả thời gian</option>
                     <option value="monthly">📅 Theo tháng</option>
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-4" *ngIf="viewMode === 'monthly'">
-                  <label class="form-label fw-semibold">
+                  <label class="form-label fw-semibold" for="monthSelect">
                     <i class="fas fa-calendar me-1"></i>
                     Chọn tháng:
                   </label>
-                  <select class="form-select modern-select" [(ngModel)]="selectedMonth" (change)="updateStats()">
+                  <select id="monthSelect" class="form-select modern-select" [(ngModel)]="selectedMonth" (change)="updateStats()">
                     <option value="">-- Chọn tháng --</option>
                     <option *ngFor="let month of availableMonths" [value]="month">{{formatMonth(month)}}</option>
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-4">
-                  <label class="form-label fw-semibold">
+                  <label class="form-label fw-semibold" for="sortBySelect">
                     <i class="fas fa-sort me-1"></i>
                     Sắp xếp theo:
                   </label>
-                  <select class="form-select modern-select" [(ngModel)]="sortBy" (change)="updateStats()">
+                  <select id="sortBySelect" class="form-select modern-select" [(ngModel)]="sortBy" (change)="updateStats()">
                     <option value="goals">⚽ Bàn thắng</option>
                     <option value="assists">🎯 Kiến tạo</option>
                     <option value="yellowCards">🟨 Thẻ vàng</option>
@@ -144,13 +144,8 @@ interface MonthlyStats {
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-12">
-                  <label class="form-label fw-semibold text-muted">Tình trạng:</label>
-                  <div class="mt-2">
-                    <span class="badge bg-info me-2">
-                      <i class="fas fa-sync-alt me-1"></i>
-                      Đã cập nhật
-                    </span>
-                  </div>
+                  <label class="form-label fw-semibold text-muted" for="statusField">Tình trạng:</label>
+                  <input id="statusField" type="text" class="form-control-plaintext mt-2" value="Đã cập nhật" readonly aria-label="Tình trạng: Đã cập nhật">
                 </div>
               </div>
             </div>
@@ -891,10 +886,16 @@ export class StatsComponent implements OnInit {
     if (!this.history.length) return;
 
     // Group matches by month and calculate all stats
-    type Match = {
+    interface Player {
+      firstName: string;
+      lastName?: string;
+      // Add other player properties if needed
+    }
+
+    interface Match {
       date: string;
-      teamA?: any[];
-      teamB?: any[];
+      teamA?: Player[];
+      teamB?: Player[];
       scorerA?: string;
       scorerB?: string;
       assistA?: string;
@@ -904,7 +905,7 @@ export class StatsComponent implements OnInit {
       redA?: string;
       redB?: string;
       // Add other fields as needed
-    };
+    }
     const matchesByMonth: Record<string, Match[]> = {};
     const playerStatsAll: Record<string, PlayerStats> = {};
 

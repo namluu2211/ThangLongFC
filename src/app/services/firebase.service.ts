@@ -45,8 +45,8 @@ export interface HistoryEntry {
   description?: string;
   
   // Team data
-  teamA?: any[];
-  teamB?: any[];
+  teamA?: string[];
+  teamB?: string[];
   scoreA?: number;
   scoreB?: number;
   scorerA?: string;
@@ -75,8 +75,8 @@ export interface HistoryEntry {
   chi_total?: number;
   
   // Metadata
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: string | number | null;
+  updatedAt?: string | number | null;
   updatedBy?: string;
   lastSaved?: string;
   createdBy?: string;
@@ -87,7 +87,7 @@ export interface HistoryEntry {
 })
 export class FirebaseService {
   private app = initializeApp(firebaseConfig);
-  private database: Database = getDatabase(this.app);
+  private database: Database = getDatabase(this.app, firebaseConfig.databaseURL);
   
   // Optimized BehaviorSubjects with caching
   private matchResultsSubject = new BehaviorSubject<MatchResult[]>([]);
@@ -115,11 +115,11 @@ export class FirebaseService {
   public isConnected$ = this.connectionStatus.asObservable();
 
   // Cache for frequently accessed data
-  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cache = new Map<string, { data: unknown; timestamp: number }>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   // Batch operations queue
-  private batchQueue: Array<() => Promise<void>> = [];
+  private batchQueue: (() => Promise<void>)[] = [];
   private isBatchProcessing = false;
 
   constructor() {
@@ -255,11 +255,15 @@ export class FirebaseService {
       
       const optimizedEntry = {
         ...entry,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(), // Convert to string for local cache
         createdBy: this.getCurrentUserEmail()
       };
       
-      await set(newHistoryRef, optimizedEntry);
+      await set(newHistoryRef, {
+        ...entry,
+        createdAt: serverTimestamp(),
+        createdBy: this.getCurrentUserEmail()
+      });
       
       // Update cache immediately
       const currentHistory = this.historySubject.value;
@@ -308,7 +312,7 @@ export class FirebaseService {
   }
 
   // Optimized cache management
-  private setCache(key: string, data: any) {
+  private setCache(key: string, data: unknown) {
     this.cache.set(key, {
       data: JSON.parse(JSON.stringify(data)),
       timestamp: Date.now()
@@ -318,7 +322,7 @@ export class FirebaseService {
     this.cleanExpiredCache();
   }
 
-  private getCache(key: string): any | null {
+  private getCache(key: string): unknown | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
     
@@ -333,8 +337,8 @@ export class FirebaseService {
   private loadFromCache<T>(key: string, subject: BehaviorSubject<T[]>) {
     const cachedData = this.getCache(key);
     if (cachedData) {
-      subject.next(cachedData);
-      console.log(`📦 Loaded ${key} from cache:`, cachedData.length, 'items');
+      subject.next(cachedData as T[]);
+      console.log(`📦 Loaded ${key} from cache:`, (cachedData as T[]).length, 'items');
     }
   }
 
@@ -349,15 +353,18 @@ export class FirebaseService {
 
   // Optimized getters with caching
   getCurrentMatchResults(): MatchResult[] {
-    return this.getCache('matchResults') || this.matchResultsSubject.value;
+    const cached = this.getCache('matchResults');
+    return Array.isArray(cached) ? cached as MatchResult[] : this.matchResultsSubject.value;
   }
 
   getCurrentPlayerStats(): PlayerStats[] {
-    return this.getCache('playerStats') || this.playerStatsSubject.value;
+    const cached = this.getCache('playerStats');
+    return Array.isArray(cached) ? cached as PlayerStats[] : this.playerStatsSubject.value;
   }
 
   getCurrentHistory(): HistoryEntry[] {
-    return this.getCache('history') || this.historySubject.value;
+    const cached = this.getCache('history');
+    return Array.isArray(cached) ? cached as HistoryEntry[] : this.historySubject.value;
   }
 
   // Permission helpers (optimized)

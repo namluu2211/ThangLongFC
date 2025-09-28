@@ -18,6 +18,26 @@
 		"height": 172,
 		"weight": 68,
 		"note": "Cánh trái - hay lừa dễ mất banh"
+	},,
+	{
+		"id": 36,
+		"firstName": "Nhân",
+		"position": "Hậu vệ",
+		"avatar": "assets/images/avatar_players/Nhan.png",
+		"DOB": 28,
+		"height": 177,
+		"weight": 71,
+		"note": "Cánh phải - Tốc độ, kỹ thuật nhưng hơi mỏng cơm"
+	},
+		{
+		"id": 37,
+		"firstName": "Phú",
+		"position": "Hậu vệ",
+		"avatar": "assets/images/avatar_players/Phu.png",
+		"DOB": 28,
+		"height": 177,
+		"weight": 71,
+		"note": "Cánh trái - Đứa con của thần gió, gió thì thổi lên, nên chả bao giờ về thủ"
 	},
 	{
 		"id": 3,
@@ -331,7 +351,7 @@
 	},
 	{
 		"id": 34,
-		"firstName": "Trung Dybala",
+		"firstName": "Dybala",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Dybala.jpg",
 		"DOB": "11/10/1997",
@@ -341,32 +361,12 @@
 	},
 	{
 		"id": 35,
-		"firstName": "Công Drogba",
+		"firstName": "Công",
 		"position": "Thủ môn",
 		"avatar": "assets/images/avatar_players/Cong.png",
 		"DOB": "10/10/1978",
 		"height": 177,
 		"weight": 71,
 		"note": "Ở giữa - Vua lì đòn, thằng nào ngon thì cứ thử :D" 
-	},
-	{
-		"id": 36,
-		"firstName": "Nhân",
-		"position": "Hậu vệ",
-		"avatar": "assets/images/avatar_players/Nhan.png",
-		"DOB": 28,
-		"height": 177,
-		"weight": 71,
-		"note": "Cánh phải - Tốc độ, kỹ thuật nhưng hơi mỏng cơm"
-	},
-		{
-		"id": 37,
-		"firstName": "Phú",
-		"position": "Hậu vệ",
-		"avatar": "assets/images/avatar_players/Phu.png",
-		"DOB": 28,
-		"height": 177,
-		"weight": 71,
-		"note": "Cánh trái - Đứa con của thần gió, gió thì thổi lên, nên chả bao giờ về thủ"
 	}
 ]
