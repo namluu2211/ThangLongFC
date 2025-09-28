@@ -22,7 +22,9 @@
   ],
   "scripts": {
     "start": "ng serve --open",
+    "start:env": "node scripts/build-with-env.js development && ng serve --open",
     "build": "node scripts/build-with-env.js production",
+    "build:dev": "node scripts/build-with-env.js development", 
     "test": "echo 'Tests not configured yet - skipping test step'",
     "lint": "ng lint",
     "deploy:firebase": "npm run build && firebase deploy --only hosting:mia-fc-management",

@@ -143,15 +143,18 @@
       `;
     });
     
-    // Check if app loaded after 5 seconds
+    // Check if app loaded after 8 seconds (increased timeout)
     setTimeout(function() {
       var loadingElement = document.querySelector('.app-loading');
       if (loadingElement) {
-        console.warn('App took too long to load');
+        console.warn('App took too long to load - possible configuration issue');
         loadingElement.innerHTML = `
           <div class="loading-spinner"></div>
-          <div class="loading-text">Ứng dụng đang gặp sự cố</div>
-          <div class="loading-subtitle">Vui lòng thử tải lại trang</div>
+          <div class="loading-text">Đang khắc phục sự cố...</div>
+          <div class="loading-subtitle">
+            Ứng dụng đang được cập nhật với cấu hình mới.<br>
+            Vui lòng thử tải lại trang sau vài phút.
+          </div>
           <button onclick="location.reload()" style="
             background: white;
             color: #667eea;
@@ -161,10 +164,10 @@
             font-weight: 600;
             cursor: pointer;
             margin-top: 20px;
-          ">Tải lại</button>
+          ">Tải lại ngay</button>
         `;
       }
-    }, 5000);
+    }, 8000);
     
     // Remove loading screen when Angular app starts
     document.addEventListener('DOMContentLoaded', function() {
