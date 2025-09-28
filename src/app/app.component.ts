@@ -95,26 +95,55 @@ export class AppComponent implements OnInit {
   constructor(private firebaseService: FirebaseService) {}
 
   ngOnInit() {
-    // Initialize app state - the header component will emit the initial login state
-    console.log('App component initialized with Firebase service');
+    console.log('🚀 App component ngOnInit started');
+    console.log('🔥 Firebase service available:', !!this.firebaseService);
     
-    // Initialize Firebase real-time listeners
-    this.initializeFirebaseListeners();
+    try {
+      // Initialize app state - the header component will emit the initial login state
+      console.log('App component initialized with Firebase service');
+      
+      // Initialize Firebase real-time listeners
+      this.initializeFirebaseListeners();
+      console.log('✅ Firebase listeners initialized successfully');
+    } catch (error) {
+      console.error('❌ Error in ngOnInit:', error);
+    }
   }
 
   private initializeFirebaseListeners() {
-    // Subscribe to real-time data updates
-    this.firebaseService.matchResults$.subscribe(matchResults => {
-      console.log('Real-time match results update:', matchResults);
-    });
+    try {
+      console.log('🔥 Initializing Firebase listeners...');
+      
+      // Subscribe to real-time data updates
+      this.firebaseService.matchResults$.subscribe({
+        next: (matchResults) => {
+          console.log('Real-time match results update:', matchResults);
+        },
+        error: (error) => {
+          console.error('Error in match results subscription:', error);
+        }
+      });
 
-    this.firebaseService.playerStats$.subscribe(playerStats => {
-      console.log('Real-time player stats update:', playerStats);
-    });
+      this.firebaseService.playerStats$.subscribe({
+        next: (playerStats) => {
+          console.log('Real-time player stats update:', playerStats);
+        },
+        error: (error) => {
+          console.error('Error in player stats subscription:', error);
+        }
+      });
 
-    this.firebaseService.history$.subscribe(history => {
-      console.log('Real-time history update:', history);
-    });
+      this.firebaseService.history$.subscribe({
+        next: (history) => {
+          console.log('Real-time history update:', history);
+        },
+        error: (error) => {
+          console.error('Error in history subscription:', error);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error initializing Firebase listeners:', error);
+    }
   }
 
   onLoginChange(event: { loggedIn: boolean; role: string }) {
