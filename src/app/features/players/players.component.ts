@@ -76,34 +76,6 @@ import { dividePlayersByPosition, Player } from './player-utils';
               </button>
             </div>
           </div>
-          
-          <!-- Available Players Drop Zone -->
-          <div class="available-players-section">
-            <h5 class="section-title">
-              <i class="fas fa-users me-2"></i>
-              Cầu thủ có sẵn ({{ filteredPlayers.length }} người) - Kéo vào đội
-            </h5>
-          <div 
-            class="players-row available-players"
-            cdkDropList
-            id="availablePlayersList"
-            [cdkDropListData]="filteredPlayers"
-            [cdkDropListConnectedTo]="['teamAList', 'teamBList']"
-            (cdkDropListDropped)="onDrop($event)">              <div *ngFor="let player of filteredPlayers; trackBy: trackByPlayerId"
-                   class="player-card available"
-                   cdkDrag
-                   [cdkDragData]="player"
-                   (cdkDragStarted)="onDragStarted(player)"
-                   (cdkDragEnded)="onDragEnded()">
-                <img [src]="player.avatar" 
-                     [alt]="player.firstName"
-                     class="player-avatar"
-                     (error)="onAvatarError($event, player)">
-                <span class="player-name">{{ player.firstName }}</span>
-              </div>
-            </div>
-          </div>
-
           <div class="players-grid">
             <div *ngFor="let player of allPlayers; trackBy: trackByPlayerId" 
                  class="player-item"
@@ -215,7 +187,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 cdkDropList
                 id="teamAList"
                 [cdkDropListData]="teamA"
-                [cdkDropListConnectedTo]="['availablePlayersList', 'teamBList']"
+                [cdkDropListConnectedTo]="['teamBList']"
                 (cdkDropListDropped)="onDrop($event)">
                 
                 <div *ngFor="let player of teamA; trackBy: trackByPlayerId; let i = index"
@@ -279,7 +251,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
                 cdkDropList
                 id="teamBList"
                 [cdkDropListData]="teamB"
-                [cdkDropListConnectedTo]="['availablePlayersList', 'teamAList']"
+                [cdkDropListConnectedTo]="['teamAList']"
                 (cdkDropListDropped)="onDrop($event)">
                 
                 <div *ngFor="let player of teamB; trackBy: trackByPlayerId; let i = index"
@@ -519,10 +491,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
       position: relative;
     }
 
-    .players-row.available-players {
-      border-color: #3498db;
-      background: rgba(52, 152, 219, 0.1);
-    }
+
 
     .players-row.team-players {
       border-color: #27ae60;
@@ -593,10 +562,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
     }
 
     /* Specific styling for each drop zone during drag */
-    .cdk-drag-dragging ~ .available-players::before {
-      content: "DROP TO AVAILABLE";
-      background: #3498db;
-    }
+
 
     .cdk-drag-dragging ~ .team-players::before {
       content: "DROP TO TEAM";
@@ -623,9 +589,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
 
-    .player-card.available {
-      border-color: #3498db;
-    }
+
 
     .player-card.team-member {
       border-color: #27ae60;
@@ -741,13 +705,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
       margin-bottom: 30px;
     }
 
-    .available-players-section {
-      margin-bottom: 25px;
-      padding: 20px;
-      background: rgba(52, 152, 219, 0.05);
-      border-radius: 12px;
-      border: 2px solid rgba(52, 152, 219, 0.2);
-    }
+
 
     .player-list-card {
       background: rgba(255, 255, 255, 0.95);
@@ -1166,6 +1124,7 @@ export class PlayersComponent implements OnInit {
   }
 
   updateFilteredPlayers() {
+    // Method kept for compatibility but filteredPlayers no longer used in drag zone
     if (this.useRegistered) {
       this.filteredPlayers = this.registeredPlayers.filter(
         p => !this.teamA.some(ta => ta.id === p.id) && !this.teamB.some(tb => tb.id === p.id)
@@ -1203,7 +1162,6 @@ export class PlayersComponent implements OnInit {
     
     // Enhanced debugging with container identification
     const containerNames = {
-      'availablePlayersList': 'Available Players',
       'teamAList': 'Team A',
       'teamBList': 'Team B'
     };
@@ -1251,13 +1209,6 @@ export class PlayersComponent implements OnInit {
         return;
       }
     }
-    
-    this.updateFilteredPlayers();
-    console.log('📊 Updated arrays:', {
-      filteredPlayers: this.filteredPlayers.length,
-      teamA: this.teamA.length,
-      teamB: this.teamB.length
-    });
   }
 
   removeFromTeam(player: Player, team: 'A' | 'B') {

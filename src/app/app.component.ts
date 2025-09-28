@@ -7,7 +7,7 @@ import { PlayersComponent } from './features/players/players.component';
 import { FundComponent } from './features/fund/fund.component';
 import { StatsComponent } from './features/stats/stats.component';
 import { FirebaseService } from './services/firebase.service';
-import { AdminPanelComponent } from './components/admin-panel.component';
+
 import { AdminSetupComponent } from './components/admin-setup.component';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
@@ -25,7 +25,6 @@ import { MatchData, FundData } from './models/types';
     PlayersComponent,
     FundComponent,
     StatsComponent,
-    AdminPanelComponent,
     AdminSetupComponent,
     FooterComponent
   ],
@@ -34,13 +33,6 @@ import { MatchData, FundData } from './models/types';
       <app-header (loginChange)="onLoginChange($event)"></app-header>
     </div>
     <div class="container">
-      <!-- Admin Panel - Only visible to admins -->
-      <app-admin-panel 
-        *ngIf="canEdit" 
-        [canEdit]="canEdit" 
-        [currentUser]="getCurrentUsername()">
-      </app-admin-panel>
-      
       <div class="hline"></div>
       <div class="navigation-buttons">
         <button 
