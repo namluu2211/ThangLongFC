@@ -62,6 +62,8 @@ body {
   color: var(--text-primary);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   
   /* Performance optimizations */
   -webkit-font-smoothing: antialiased;
@@ -95,6 +97,14 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  flex: 1;
+}
+
+/* Ensure app root takes full height */
+app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   flex: 1;
 }
 

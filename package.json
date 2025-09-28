@@ -2,16 +2,37 @@
   "name": "thanglong-fc",
   "version": "0.1.0",
   "private": true,
+  "description": "ThangLong FC - Mia Football Club Management Application",
+  "author": "Nam Luu <bktientu@gmail.com>",
+  "license": "MIT",
+  "copyright": "© 2025 Nam Luu. All rights reserved.",
+  "homepage": "https://mia-fc-management.web.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/namluu2211/ThangLongFC.git"
+  },
+  "keywords": [
+    "football",
+    "team-management",
+    "angular",
+    "firebase",
+    "thanglong-fc",
+    "mia-fcm",
+    "mia-football-club-management"
+  ],
   "scripts": {
     "start": "ng serve --open",
-    "build": "ng build",
-    "build:dev": "ng build --configuration development",
-    "build:secure": "node scripts/build-with-env.js development",
-    "build:secure:prod": "node scripts/build-with-env.js production",
+    "start:dev": "ng serve --open",
+    "build": "node scripts/build-with-env.js development",
+    "build:dev": "node scripts/build-with-env.js development",
+    "build:prod": "node scripts/build-with-env.js production",
     "test": "ng test",
     "lint": "ng lint",
-    "build:prod": "ng build --configuration production --base-href=https://namluu2211.github.io/ThangLongFC/",
-    "deploy": "npm run build:secure:prod && npx angular-cli-ghpages --dir=dist/browser --branch=gh-pages --no-silent",
+    "deploy:github": "npm run build:prod && npx angular-cli-ghpages --dir=dist/browser --branch=gh-pages --no-silent",
+    "deploy:firebase": "npm run build:firebase && firebase deploy --only hosting:mia-fc-management",
+    "build:firebase": "node scripts/build-with-env.js production && npx ng build --configuration=production --base-href=\"/\"",
+    "deploy:firebase:all": "npm run build:prod && firebase deploy --only hosting",
+    "deploy:firebase:preview": "npm run build:prod && firebase hosting:channel:deploy preview",
     "firebase:rules": "node scripts/generate-firebase-rules.js"
   },
   "dependencies": {

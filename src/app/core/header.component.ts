@@ -27,10 +27,10 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
         <!-- Modal Backdrop -->
         <div *ngIf="!loggedIn && showLoginForm" class="modal-backdrop" (click)="closeLoginForm()"></div>
         
-        <!-- Firebase Login Form -->
+        <!-- Login Form -->
         <div *ngIf="!loggedIn && showLoginForm" class="login-form expanded">
           <div class="form-header">
-            <h4>🔥 Firebase Login</h4>
+            <h4>🔥 Login</h4>
             <button class="close-btn" (click)="closeLoginForm()">×</button>
           </div>
           <form class="form-content" (submit)="login(); $event.preventDefault()">
@@ -58,7 +58,7 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
           
           <!-- Firebase Setup Hint -->
           <div class="firebase-hint">
-            <small>💡 Sử dụng email và mật khẩu Firebase Authentication</small>
+            <small>💡 Sử dụng email và mật khẩu Authentication</small>
           </div>
         </div>
 
@@ -721,7 +721,6 @@ export class HeaderComponent implements OnInit {
     this.isLoading = true;
 
     try {
-      console.log('🔥 Attempting Firebase login:', this.email);
       
       const firebaseUser = await this.firebaseAuthService.signInWithEmail(this.email, this.password);
       
@@ -731,11 +730,11 @@ export class HeaderComponent implements OnInit {
         this.password = ''; // Clear password for security
         this.showSuccess(`🔥 Đăng nhập thành công! Chào mừng ${firebaseUser.displayName}`);
         
-        console.log('🔥 Firebase login successful:', firebaseUser);
+        console.log('🔥 login successful:', firebaseUser);
       }
       
     } catch (error: any) {
-      console.error('❌ Firebase login failed:', error);
+      console.error('❌ login failed:', error);
       
       let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
       

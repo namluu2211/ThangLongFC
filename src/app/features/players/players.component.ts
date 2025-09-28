@@ -83,14 +83,13 @@ import { dividePlayersByPosition, Player } from './player-utils';
               <i class="fas fa-users me-2"></i>
               Cầu thủ có sẵn ({{ filteredPlayers.length }} người) - Kéo vào đội
             </h5>
-            <div 
-              class="players-row available-players"
-              cdkDropList="availablePlayersList"
-              [cdkDropListData]="filteredPlayers"
-              [cdkDropListConnectedTo]="['teamAList', 'teamBList']"
-              (cdkDropListDropped)="onDrop($event)">
-              
-              <div *ngFor="let player of filteredPlayers; trackBy: trackByPlayerId"
+          <div 
+            class="players-row available-players"
+            cdkDropList
+            id="availablePlayersList"
+            [cdkDropListData]="filteredPlayers"
+            [cdkDropListConnectedTo]="['teamAList', 'teamBList']"
+            (cdkDropListDropped)="onDrop($event)">              <div *ngFor="let player of filteredPlayers; trackBy: trackByPlayerId"
                    class="player-card available"
                    cdkDrag
                    [cdkDragData]="player"
@@ -201,7 +200,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
         <!-- Team A -->
         <div class="team-card">
           <div class="team-header team-a">
-            <h3><i class="fas fa-shield-alt me-2"></i>Đội A</h3>
+            <h3><i class="fas fa-shield-alt me-2"></i>Đội Xanh</h3>
             <div class="score-section">
               <label>Tỉ số:</label>
               <input type="number" [(ngModel)]="scoreA" class="score-input" min="0" max="20">
@@ -213,7 +212,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
               <h5 class="section-title">Đội hình A ({{ teamA.length }} người)</h5>
               <div 
                 class="players-row team-players"
-                cdkDropList="teamAList"
+                cdkDropList
+                id="teamAList"
                 [cdkDropListData]="teamA"
                 [cdkDropListConnectedTo]="['availablePlayersList', 'teamBList']"
                 (cdkDropListDropped)="onDrop($event)">
@@ -264,7 +264,7 @@ import { dividePlayersByPosition, Player } from './player-utils';
         <!-- Team B -->
         <div class="team-card">
           <div class="team-header team-b">
-            <h3><i class="fas fa-shield-alt me-2"></i>Đội B</h3>
+            <h3><i class="fas fa-shield-alt me-2"></i>Đội Cam</h3>
             <div class="score-section">
               <label>Tỉ số:</label>
               <input type="number" [(ngModel)]="scoreB" class="score-input" min="0" max="20">
@@ -276,7 +276,8 @@ import { dividePlayersByPosition, Player } from './player-utils';
               <h5 class="section-title">Đội hình B ({{ teamB.length }} người)</h5>
               <div 
                 class="players-row team-players"
-                cdkDropList="teamBList"
+                cdkDropList
+                id="teamBList"
                 [cdkDropListData]="teamB"
                 [cdkDropListConnectedTo]="['availablePlayersList', 'teamAList']"
                 (cdkDropListDropped)="onDrop($event)">
@@ -452,12 +453,12 @@ import { dividePlayersByPosition, Player } from './player-utils';
     }
 
     .team-header.team-a {
-      background: linear-gradient(45deg, #ff6b6b 0%, #ee5a52 100%);
+      background: linear-gradient(45deg, #00bcd4 0%, #0097a7 100%);
       color: white;
     }
 
     .team-header.team-b {
-      background: linear-gradient(45deg, #4ecdc4 0%, #44a08d 100%);
+      background: linear-gradient(45deg, #ff9800 0%, #f57c00 100%);
       color: white;
     }
 
@@ -541,16 +542,65 @@ import { dividePlayersByPosition, Player } from './player-utils';
 
     .players-row.cdk-drop-list-dragging {
       border-color: #e74c3c !important;
-      background: rgba(231, 76, 60, 0.2) !important;
-      transform: scale(1.02);
-      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
+      background: rgba(231, 76, 60, 0.3) !important;
+      transform: scale(1.05) !important;
+      box-shadow: 0 12px 35px rgba(231, 76, 60, 0.4) !important;
+      z-index: 1000 !important;
     }
 
     .players-row.cdk-drop-list-receiving {
       border-color: #27ae60 !important;
-      background: rgba(39, 174, 96, 0.2) !important;
-      transform: scale(1.02);
-      box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
+      background: rgba(39, 174, 96, 0.3) !important;
+      transform: scale(1.05) !important;
+      box-shadow: 0 12px 35px rgba(39, 174, 96, 0.4) !important;
+      z-index: 1000 !important;
+    }
+
+    /* Debug: Make drop zones very obvious during drag */
+    .cdk-drag-dragging ~ .players-row {
+      border: 4px solid #ff6b6b !important;
+      background: rgba(255, 107, 107, 0.1) !important;
+      animation: pulse 1s infinite;
+      position: relative;
+    }
+
+    .cdk-drag-dragging ~ .players-row::before {
+      content: "DROP HERE";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ff6b6b;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      z-index: 10;
+      pointer-events: none;
+      animation: bounce 0.5s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { opacity: 0.8; }
+    }
+
+    @keyframes bounce {
+      0% { transform: translate(-50%, -50%) scale(1); }
+      100% { transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* Specific styling for each drop zone during drag */
+    .cdk-drag-dragging ~ .available-players::before {
+      content: "DROP TO AVAILABLE";
+      background: #3498db;
+    }
+
+    .cdk-drag-dragging ~ .team-players::before {
+      content: "DROP TO TEAM";
+      background: #27ae60;
     }
 
     .player-card {
@@ -1149,21 +1199,41 @@ export class PlayersComponent implements OnInit {
   }
 
   onDrop(event: CdkDragDrop<Player[]>) {
-    console.log('🎯 Drop event:', {
-      previousContainer: event.previousContainer.id,
-      currentContainer: event.container.id,
+    console.log('🎯 DROP EVENT FIRED!');
+    
+    // Enhanced debugging with container identification
+    const containerNames = {
+      'availablePlayersList': 'Available Players',
+      'teamAList': 'Team A',
+      'teamBList': 'Team B'
+    };
+    
+    const fromContainer = containerNames[event.previousContainer.id as keyof typeof containerNames] || event.previousContainer.id;
+    const toContainer = containerNames[event.container.id as keyof typeof containerNames] || event.container.id;
+    
+    console.log('🎯 Drop event details:', {
+      from: `${fromContainer} (${event.previousContainer.id})`,
+      to: `${toContainer} (${event.container.id})`,
       previousIndex: event.previousIndex,
       currentIndex: event.currentIndex,
-      dragData: event.item.data
+      dragData: event.item.data,
+      previousData: event.previousContainer.data.length,
+      currentData: event.container.data.length
     });
 
     if (event.previousContainer === event.container) {
       // Moving within the same list - reorder if needed
-      console.log('📝 Reordering within same container');
+      console.log(`📝 Reordering within ${fromContainer} - no action needed`);
       return;
     } else {
       // Moving between lists
-      console.log('🔄 Moving between containers');
+      console.log(`🔄 Moving from ${fromContainer} to ${toContainer}`);
+      console.log('🔍 Before transfer:', {
+        sourceLength: event.previousContainer.data.length,
+        targetLength: event.container.data.length,
+        playerBeingMoved: event.previousContainer.data[event.previousIndex]
+      });
+      
       try {
         transferArrayItem(
           event.previousContainer.data,
@@ -1172,6 +1242,10 @@ export class PlayersComponent implements OnInit {
           event.currentIndex
         );
         console.log('✅ Transfer successful');
+        console.log('🔍 After transfer:', {
+          sourceLength: event.previousContainer.data.length,
+          targetLength: event.container.data.length
+        });
       } catch (error) {
         console.error('❌ Transfer failed:', error);
         return;
@@ -1217,11 +1291,13 @@ export class PlayersComponent implements OnInit {
   }
 
   onDragStarted(player: Player) {
+    console.log('🚀 DRAG STARTED:', player.firstName);
     this.isDragging = true;
     this.draggedPlayer = player;
   }
 
   onDragEnded() {
+    console.log('🛑 DRAG ENDED:', this.draggedPlayer?.firstName || 'unknown');
     this.isDragging = false;
     this.draggedPlayer = null;
   }
