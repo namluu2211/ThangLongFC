@@ -2,7 +2,7 @@
   "hosting": [
     {
       "target": "mia-fc-management",
-      "public": "dist/browser",
+      "public": "dist/browser/browser",
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -68,7 +68,7 @@
       "trailingSlash": false
     },
     {
-      "public": "dist/browser",
+      "public": "dist/browser/browser",
       "ignore": [
         "firebase.json",
         "**/.*",
