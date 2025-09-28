@@ -863,7 +863,7 @@ interface MonthlyStats {
 export class StatsComponent implements OnInit {
   history: any[] = [];
   availableMonths: string[] = [];
-  monthlyStats: { [key: string]: MonthlyStats } = {};
+  monthlyStats: Record<string, MonthlyStats> = {};
   overallStats = {
     totalMatches: 0,
     totalGoals: 0,
@@ -891,8 +891,22 @@ export class StatsComponent implements OnInit {
     if (!this.history.length) return;
 
     // Group matches by month and calculate all stats
-    const matchesByMonth: { [key: string]: any[] } = {};
-    const playerStatsAll: { [key: string]: PlayerStats } = {};
+    type Match = {
+      date: string;
+      teamA?: any[];
+      teamB?: any[];
+      scorerA?: string;
+      scorerB?: string;
+      assistA?: string;
+      assistB?: string;
+      yellowA?: string;
+      yellowB?: string;
+      redA?: string;
+      redB?: string;
+      // Add other fields as needed
+    };
+    const matchesByMonth: Record<string, Match[]> = {};
+    const playerStatsAll: Record<string, PlayerStats> = {};
 
     for (const match of this.history) {
       const date = new Date(match.date);
@@ -949,7 +963,7 @@ export class StatsComponent implements OnInit {
     
     for (const monthKey of this.availableMonths) {
       const monthMatches = matchesByMonth[monthKey];
-      const monthPlayerStats: { [key: string]: PlayerStats } = {};
+      const monthPlayerStats: Record<string, PlayerStats> = {};
       
       let totalGoals = 0;
       let totalAssists = 0;
@@ -1121,7 +1135,7 @@ export class StatsComponent implements OnInit {
       playerStats = this.monthlyStats[this.selectedMonth].playerStats;
     } else {
       // Overall stats - reconstruct from monthly data
-      const allPlayers: { [key: string]: PlayerStats } = {};
+      const allPlayers: Record<string, PlayerStats> = {};
       
       for (const monthData of Object.values(this.monthlyStats)) {
         for (const player of monthData.playerStats) {

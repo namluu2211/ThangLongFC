@@ -6,16 +6,15 @@ import {
   push, 
   set, 
   onValue, 
-  off,
   serverTimestamp,
   Database,
   goOffline,
   goOnline
 } from 'firebase/database';
-import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
-import { map, shareReplay, distinctUntilChanged, debounceTime } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
+import { shareReplay, distinctUntilChanged } from 'rxjs';
 import { firebaseConfig } from '../config/firebase.config';
-import { AdminConfig, ADMIN_EMAILS } from '../config/admin.config';
+import { AdminConfig } from '../config/admin.config';
 
 export interface MatchResult {
   id?: string;

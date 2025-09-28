@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { BehaviorSubject } from 'rxjs';
 import { firebaseConfig } from '../config/firebase.config';
-import { AdminConfig, ADMIN_EMAILS, SUPER_ADMIN_EMAILS, ADMIN_USERS } from '../config/admin.config';
+import { AdminConfig, ADMIN_EMAILS, SUPER_ADMIN_EMAILS } from '../config/admin.config';
 
 export interface AuthUser {
   email: string;

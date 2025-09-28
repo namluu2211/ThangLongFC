@@ -35,7 +35,7 @@ export class DevFirebaseAuthService {
     }
   }
 
-  async signInWithEmail(email: string, password: string): Promise<DevAuthUser | null> {
+  async signInWithEmail(email: string): Promise<DevAuthUser | null> {
     // Simulate Firebase delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 

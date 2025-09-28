@@ -7,8 +7,6 @@ import { PlayersComponent } from './features/players/players.component';
 import { FundComponent } from './features/fund/fund.component';
 import { StatsComponent } from './features/stats/stats.component';
 import { FirebaseService } from './services/firebase.service';
-
-import { AdminSetupComponent } from './components/admin-setup.component';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -25,7 +23,6 @@ import { MatchData, FundData } from './models/types';
     PlayersComponent,
     FundComponent,
     StatsComponent,
-    AdminSetupComponent,
     FooterComponent
   ],
   template: `
@@ -89,7 +86,6 @@ import { MatchData, FundData } from './models/types';
         
         <app-fund *ngIf="show==='fund'" [canEdit]="canEdit"></app-fund>
         <app-stats *ngIf="show==='stats'"></app-stats>
-        <app-admin-setup *ngIf="show==='setup' && role === 'superadmin'"></app-admin-setup>
       </div>
       <div *ngIf="!loggedIn" class="small">Bạn đang xem ở chế độ khách. Đăng nhập để chỉnh sửa hoặc lưu dữ liệu.</div>
     </div>
