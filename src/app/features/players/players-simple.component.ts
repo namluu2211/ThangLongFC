@@ -10,7 +10,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="enhanced-players-container">
+    <div class="enhanced-players-container">      
       <!-- Header Section -->
       <div class="header-section">
         <h2>
@@ -97,9 +97,6 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
           <button (click)="exportPlayerStats()" class="action-btn info">
             <i class="fas fa-file-export"></i> Export Stats
           </button>
-          <button (click)="toggleDebugMode()" class="action-btn secondary">
-            <i class="fas fa-bug"></i> Debug
-          </button>
         </div>
       </div>
 
@@ -126,18 +123,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
         </div>
       </div>
 
-      <!-- Debug Panel -->
-      <div class="debug-panel" *ngIf="showDebugMode">
-        <h3><i class="fas fa-bug me-2"></i>Debug Information</h3>
-        <div class="debug-info">
-          <div><strong>Loading State:</strong> {{ isLoading ? 'Loading...' : 'Complete' }}</div>
-          <div><strong>Error:</strong> {{ errorMessage || 'None' }}</div>
-          <div><strong>Cache Status:</strong> {{ getCacheInfo() }}</div>
-          <div><strong>Last Update:</strong> {{ lastUpdate?.toLocaleString() || 'Never' }}</div>
-          <div><strong>Search Term:</strong> "{{ searchTerm || '(empty)' }}"</div>
-          <div><strong>Active Filters:</strong> {{ getActiveFilters() }}</div>
-        </div>
-      </div>
+
 
       <!-- Loading State -->
       <div *ngIf="isLoading" class="loading-state">
@@ -238,54 +224,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
         </div>
       </div>
 
-      <!-- Player Detail Modal -->
-      <div *ngIf="selectedPlayer" class="modal-overlay" 
-           (click)="closePlayerDetails()" 
-           (keydown)="onModalKeyDown($event)"
-           tabindex="0"
-           role="dialog"
-           aria-modal="true"
-           [attr.aria-labelledby]="'modal-title-' + selectedPlayer.id">
-        <div class="player-detail-modal" 
-             (click)="$event.stopPropagation()"
-             (keydown)="$event.stopPropagation()"
-             tabindex="-1"
-             role="document">
-          <div class="modal-header">
-            <h3>{{ selectedPlayer.firstName }} {{ selectedPlayer.lastName }}</h3>
-            <button (click)="closePlayerDetails()" class="close-modal-btn">×</button>
-          </div>
-          <div class="modal-content">
-            <div class="player-detail-grid">
-              <div class="detail-avatar">
-                <img [src]="selectedPlayer.avatar" [alt]="selectedPlayer.firstName">
-              </div>
-              <div class="detail-info">
-                <div class="info-row">
-                  <span class="info-label">Position:</span>
-                  <span class="position-badge">{{ selectedPlayer.position }}</span>
-                </div>
-                <div class="info-row" *ngIf="selectedPlayer.DOB">
-                  <span class="info-label">Age:</span>
-                  <span>{{ calculateAge(selectedPlayer.DOB) }} years</span>
-                </div>
-                <div class="info-row" *ngIf="selectedPlayer.height">
-                  <span class="info-label">Height:</span>
-                  <span>{{ selectedPlayer.height }}cm</span>
-                </div>
-                <div class="info-row" *ngIf="selectedPlayer.weight">
-                  <span class="info-label">Weight:</span>
-                  <span>{{ selectedPlayer.weight }}kg</span>
-                </div>
-                <div class="info-row" *ngIf="selectedPlayer.note">
-                  <span class="info-label">Notes:</span>
-                  <span>{{ selectedPlayer.note }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Player Detail Modal - Now dynamically rendered at document.body level -->
     </div>
   `,
   styles: [`
@@ -463,43 +402,276 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       font-weight: 600;
     }
 
+    /* Modal Styles */
     .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 9999;
+      padding: 20px;
+      backdrop-filter: blur(5px);
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .player-detail-modal {
       background: white;
-      border-radius: 15px;
+      border-radius: 20px;
       max-width: 600px;
-      width: 90%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+      animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform: translateZ(0);
+      margin: auto;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Ensure modal is always visible and centered */
+    .modal-overlay::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
     }
 
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px;
-      background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+      padding: 25px 30px;
+      border-bottom: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      border-radius: 15px 15px 0 0;
+      border-radius: 20px 20px 0 0;
+      position: relative;
+      overflow: hidden;
     }
 
-    .close-modal-btn {
-      background: none;
-      border: none;
-      color: white;
+    .modal-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+Cjwvc3ZnPg==') repeat;
+      opacity: 0.1;
+      pointer-events: none;
+    }
+
+    .modal-header h4 {
+      margin: 0;
       font-size: 1.5rem;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .close-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      font-size: 1.3rem;
       cursor: pointer;
+      padding: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.1);
+    }
+
+    .modal-content {
+      padding: 30px;
+      background: #fafbfc;
+    }
+
+    .player-avatar-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 25px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .modal-avatar {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 20px;
+      border: 6px solid white;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-avatar:hover {
+      transform: scale(1.05);
+    }
+
+    .registration-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+    }
+
+    .player-details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+    }
+
+    .detail-section {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border-top: 4px solid #667eea;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .detail-section:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .detail-section.full-width {
+      grid-column: 1 / -1;
+      border-top-color: #28a745;
+    }
+
+    .detail-section h5 {
+      color: #2c3e50;
+      margin: 0 0 20px 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f1f3f4;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .detail-item:last-child {
+      margin-bottom: 0;
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: #5a6c7d;
+      font-size: 1rem;
+    }
+
+    .detail-value {
+      color: #2c3e50;
+      font-weight: 500;
+      font-size: 1rem;
+      text-align: right;
+    }
+
+    .age-value {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .age-text {
+      font-size: 0.85rem;
+      color: #7f8c8d;
+      font-weight: 400;
+    }
+
+    .position-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white !important;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
+      display: inline-flex;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .note-content {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      color: #2c3e50;
+      line-height: 1.7;
+      font-size: 1rem;
+      border: 2px solid #e9ecef;
+      font-style: italic;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .note-content::before {
+      content: '"';
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      font-size: 2rem;
+      color: #ced4da;
+      font-family: Georgia, serif;
     }
 
     /* Avatar Sizing - Consistent across all views */
@@ -665,6 +837,68 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
         padding: 10px 15px;
         font-size: 0.9rem;
       }
+
+      .player-details-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .player-detail-modal {
+        width: 95%;
+        margin: 10px;
+        max-height: 95vh;
+      }
+
+      .modal-content {
+        padding: 20px;
+      }
+
+      .modal-header {
+        padding: 20px;
+      }
+
+      .modal-header h4 {
+        font-size: 1.3rem;
+      }
+
+      .modal-avatar {
+        width: 120px;
+        height: 120px;
+      }
+
+      .player-avatar-section {
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .detail-section {
+        padding: 20px;
+      }
+
+      .detail-section h5 {
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+      }
+
+      .detail-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        text-align: left;
+      }
+
+      .detail-value {
+        text-align: left;
+      }
+
+      .age-value {
+        align-items: flex-start;
+      }
+
+      .registration-badge {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+      }
     }
   `]
 })
@@ -677,7 +911,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   filteredPlayers: Player[] = [];
   isLoading = false;
   errorMessage = '';
-  showDebugMode = false;
+
   lastUpdate?: Date;
   selectedPlayer: Player | null = null;
 
@@ -685,7 +919,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   searchTerm = '';
   selectedPosition = '';
   sortBy = 'firstName';
-  viewMode: 'grid' | 'list' = 'grid';
+  viewMode: 'grid' | 'list' = 'list';
   availablePositions: string[] = [];
 
   ngOnInit() {
@@ -811,9 +1045,45 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
 
   calculateAge(dob?: string | number): number | null {
     if (!dob) return null;
-    const birthYear = typeof dob === 'string' ? parseInt(dob) : dob;
-    if (isNaN(birthYear)) return null;
+    
+    let birthYear: number;
+    
+    if (typeof dob === 'number') {
+      birthYear = dob;
+    } else if (typeof dob === 'string') {
+      // Handle different date formats
+      if (dob.includes('/')) {
+        // Format: MM/DD/YYYY or DD/MM/YYYY
+        const parts = dob.split('/');
+        if (parts.length === 3) {
+          birthYear = parseInt(parts[2]); // Year is the last part
+        } else {
+          birthYear = parseInt(dob);
+        }
+      } else if (dob.includes('-')) {
+        // Format: YYYY-MM-DD
+        const parts = dob.split('-');
+        birthYear = parseInt(parts[0]); // Year is the first part
+      } else {
+        // Assume it's just a year
+        birthYear = parseInt(dob);
+      }
+    } else {
+      return null;
+    }
+    
+    if (isNaN(birthYear) || birthYear < 1900 || birthYear > new Date().getFullYear()) {
+      return null;
+    }
+    
     return new Date().getFullYear() - birthYear;
+  }
+
+  getPlayerFullName(player: Player): string {
+    if (player.lastName) {
+      return `${player.firstName} ${player.lastName}`;
+    }
+    return player.firstName;
   }
 
   getAverageAge(): string {
@@ -826,18 +1096,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     return Math.round(average).toString();
   }
 
-  getCacheInfo(): string {
-    const cached = localStorage.getItem('players.json');
-    return cached ? `${Math.round(cached.length / 1024)}KB cached` : 'No cache';
-  }
 
-  getActiveFilters(): string {
-    const filters = [];
-    if (this.searchTerm) filters.push(`Search: "${this.searchTerm}"`);
-    if (this.selectedPosition) filters.push(`Position: ${this.selectedPosition}`);
-    if (this.sortBy !== 'firstName') filters.push(`Sort: ${this.sortBy}`);
-    return filters.length > 0 ? filters.join(', ') : 'None';
-  }
 
   clearFilters() {
     this.searchTerm = '';
@@ -846,16 +1105,235 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
-  toggleDebugMode() {
-    this.showDebugMode = !this.showDebugMode;
-  }
+
 
   viewPlayerDetails(player: Player) {
     this.selectedPlayer = player;
+    
+    // Remove any existing modal
+    this.closePlayerDetails();
+    
+    // Create modal HTML
+    const modalHTML = `
+      <div class="modal-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        padding: 20px;
+        backdrop-filter: blur(5px);
+      ">
+        <div class="player-detail-modal" style="
+          background: white;
+          border-radius: 20px;
+          max-width: 600px;
+          width: 100%;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+          position: relative;
+          padding: 0;
+        ">
+          <div class="modal-header" style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 30px;
+            border-bottom: 2px solid #f0f0f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+          ">
+            <h4 style="margin: 0; font-size: 1.5rem; font-weight: 600;">${this.getPlayerFullName(player)}</h4>
+            <button class="close-btn" style="
+              background: rgba(255, 255, 255, 0.2);
+              border: none;
+              color: white;
+              font-size: 24px;
+              width: 40px;
+              height: 40px;
+              border-radius: 50%;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: all 0.2s ease;
+            " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">×</button>
+          </div>
+          <div class="modal-content" style="padding: 30px;">
+            <div class="player-avatar-section" style="text-align: center; margin-bottom: 30px;">
+              <img src="${player.avatar}" alt="${player.firstName}" style="
+                width: 120px;
+                height: 120px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 5px solid #667eea;
+                margin-bottom: 15px;
+              ">
+              <div style="
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 25px;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 14px;
+                font-weight: 500;
+              ">
+                <i class="fas fa-check-circle"></i>
+                Cầu thủ đăng ký
+              </div>
+            </div>
+            
+            <div class="player-details-grid">
+              <div class="detail-section" style="margin-bottom: 25px;">
+                <h5 style="
+                  color: #667eea;
+                  margin-bottom: 15px;
+                  font-size: 1.1rem;
+                  font-weight: 600;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                ">
+                  <i class="fas fa-info-circle"></i>Thông tin cơ bản
+                </h5>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                  <span style="font-weight: 500; color: #475569;">Vị trí:</span>
+                  <span style="
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 4px 12px;
+                    border-radius: 15px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                  ">
+                    <i class="fas fa-futbol"></i>
+                    ${player.position}
+                  </span>
+                </div>
+                ${player.DOB ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                  <span style="font-weight: 500; color: #475569;">Năm sinh:</span>
+                  <span>${player.DOB} <span style="color: #667eea; font-weight: 500;">(${this.calculateAge(player.DOB)} tuổi)</span></span>
+                </div>
+                ` : ''}
+              </div>
+
+              ${player.height || player.weight ? `
+              <div class="detail-section" style="margin-bottom: 25px;">
+                <h5 style="
+                  color: #667eea;
+                  margin-bottom: 15px;
+                  font-size: 1.1rem;
+                  font-weight: 600;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                ">
+                  <i class="fas fa-ruler-vertical"></i>Thông số
+                </h5>
+                ${player.height ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                  <span style="font-weight: 500; color: #475569;">Chiều cao:</span>
+                  <span>${player.height} cm</span>
+                </div>
+                ` : ''}
+                ${player.weight ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                  <span style="font-weight: 500; color: #475569;">Cân nặng:</span>
+                  <span>${player.weight} kg</span>
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
+
+              ${player.note ? `
+              <div class="detail-section">
+                <h5 style="
+                  color: #667eea;
+                  margin-bottom: 15px;
+                  font-size: 1.1rem;
+                  font-weight: 600;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                ">
+                  <i class="fas fa-sticky-note"></i>Ghi chú
+                </h5>
+                <div style="
+                  background: #f8fafc;
+                  padding: 15px;
+                  border-radius: 10px;
+                  color: #475569;
+                  line-height: 1.6;
+                ">
+                  ${player.note}
+                </div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Create modal element
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHTML;
+    modalDiv.id = 'player-modal';
+    
+    // Add to document body
+    document.body.appendChild(modalDiv);
+    
+    // Prevent body scrolling
+    document.body.style.overflow = 'hidden';
+    
+    // Add event listeners
+    const overlay = modalDiv.querySelector('.modal-overlay') as HTMLElement;
+    const closeBtn = modalDiv.querySelector('.close-btn') as HTMLElement;
+    
+    const closeModal = () => {
+      this.closePlayerDetails();
+    };
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        closeModal();
+      }
+    });
+    
+    closeBtn.addEventListener('click', closeModal);
+    
+    // Add keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
   }
 
   closePlayerDetails() {
     this.selectedPlayer = null;
+    
+    // Remove modal from DOM
+    const existingModal = document.getElementById('player-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Restore body scrolling
+    document.body.style.overflow = '';
   }
 
   exportPlayerStats() {
@@ -899,5 +1377,8 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     if (this.componentLoadId) {
       this.performanceService.endComponentLoad(this.componentLoadId, 'PlayersSimpleComponent');
     }
+    
+    // Clean up any existing modal
+    this.closePlayerDetails();
   }
 }

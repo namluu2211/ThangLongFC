@@ -76,9 +76,6 @@ import { Player } from './player-utils';
               </button>
             </div>
           </div>
-          <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 5px;">
-            <strong>Debug Info:</strong> Total Players: {{ allPlayers.length }} | Show List: {{ showPlayerList }}
-          </div>
           
           <div class="players-grid" *ngIf="allPlayers.length > 0; else noPlayersTemplate">
             <div *ngFor="let player of allPlayers; trackBy: trackByPlayerId" 
@@ -152,8 +149,8 @@ import { Player } from './player-utils';
                   </span>
                 </div>
                 <div class="detail-item" *ngIf="selectedPlayer.DOB">
-                  <span class="detail-label">Tuổi:</span>
-                  <span class="detail-value">{{ selectedPlayer.DOB }}</span>
+                  <span class="detail-label">Năm sinh:</span>
+                  <span class="detail-value age-value">{{ selectedPlayer.DOB }} <span class="age-text">({{ calculateAge(selectedPlayer.DOB) }} tuổi)</span></span>
                 </div>
               </div>
 
@@ -241,6 +238,108 @@ import { Player } from './player-utils';
               <div class="stat-group red">
                 <label for="redAInput">Thẻ đỏ:</label>
                 <input id="redAInput" type="text" [(ngModel)]="redA" class="stat-input" placeholder="Tên cầu thủ">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI/ML Analysis Section -->
+        <div class="ai-analysis-section">
+          <div class="analysis-container">
+            <div class="analysis-header">
+              <div class="battle-icon">
+                <i class="fas fa-brain analysis-brain"></i>
+                <div class="vs-divider">
+                  <span class="vs-text">VS</span>
+                  <div class="crossed-swords">
+                    <i class="fas fa-sword sword-1"></i>
+                    <i class="fas fa-sword sword-2"></i>
+                  </div>
+                </div>
+                <i class="fas fa-chart-line analysis-chart"></i>
+              </div>
+            </div>
+            
+            <div class="analysis-content" [class.analyzing]="isAnalyzing">
+              <div class="analysis-status">
+                <div class="status-indicator" [class.active]="isAnalyzing">
+                  <div class="pulse-ring"></div>
+                  <div class="pulse-core"></div>
+                </div>
+                <h4 class="analysis-title">{{ isAnalyzing ? 'Đang phân tích đội hình...' : 'Phân tích AI/ML' }}</h4>
+              </div>
+              
+              <div class="analysis-details" *ngIf="!isAnalyzing">
+                <div class="analysis-grid">
+                  <div class="analysis-item">
+                    <div class="metric-icon team-a-color">
+                      <i class="fas fa-users"></i>
+                    </div>
+                    <div class="metric-info">
+                      <span class="metric-label">Đội Xanh</span>
+                      <span class="metric-value">{{ teamA.length }} cầu thủ</span>
+                    </div>
+                  </div>
+                  
+                  <div class="analysis-item">
+                    <div class="metric-icon balance-color">
+                      <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="metric-info">
+                      <span class="metric-label">Cân bằng</span>
+                      <span class="metric-value">{{ getTeamBalance() }}</span>
+                    </div>
+                  </div>
+                  
+                  <div class="analysis-item">
+                    <div class="metric-icon team-b-color">
+                      <i class="fas fa-users"></i>
+                    </div>
+                    <div class="metric-info">
+                      <span class="metric-label">Đội Cam</span>
+                      <span class="metric-value">{{ teamB.length }} cầu thủ</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="quick-actions">
+                  <button class="ai-btn analyze-btn" (click)="startAIAnalysis()" [disabled]="isAnalyzing">
+                    <i class="fas fa-robot me-2"></i>
+                    {{ isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI' }}
+                  </button>
+                  
+                  <button class="ai-btn balance-btn" (click)="autoBalance()" [disabled]="isAnalyzing">
+                    <i class="fas fa-magic me-2"></i>
+                    Cân bằng tự động
+                  </button>
+                </div>
+              </div>
+              
+              <div class="loading-analysis" *ngIf="isAnalyzing">
+                <div class="analysis-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill" [style.width.%]="analysisProgress"></div>
+                  </div>
+                  <span class="progress-text">{{ analysisProgress }}%</span>
+                </div>
+                <div class="analysis-steps">
+                  <div class="step" [class.active]="analysisStep >= 1" [class.completed]="analysisStep > 1">
+                    <i class="fas fa-user-friends"></i>
+                    <span>Phân tích cầu thủ</span>
+                  </div>
+                  <div class="step" [class.active]="analysisStep >= 2" [class.completed]="analysisStep > 2">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Tính toán thống kê</span>
+                  </div>
+                  <div class="step" [class.active]="analysisStep >= 3" [class.completed]="analysisStep > 3">
+                    <i class="fas fa-balance-scale"></i>
+                    <span>Đánh giá cân bằng</span>
+                  </div>
+                  <div class="step" [class.active]="analysisStep >= 4">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Hoàn thành</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -844,22 +943,42 @@ import { Player } from './player-utils';
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 9999;
+      padding: 20px;
+      backdrop-filter: blur(5px);
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .player-modal {
       background: white;
-      border-radius: 15px;
-      max-width: 650px;
-      width: 90%;
-      max-height: 85vh;
+      border-radius: 20px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      animation: modalSlideIn 0.3s ease-out;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+      animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform: translateZ(0);
+      margin: auto;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Ensure modal is always visible and centered */
+    .modal-overlay::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
     }
 
     @keyframes modalSlideIn {
@@ -877,112 +996,154 @@ import { Player } from './player-utils';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px;
-      border-bottom: 1px solid #ecf0f1;
-      background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+      padding: 25px 30px;
+      border-bottom: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      border-radius: 15px 15px 0 0;
+      border-radius: 20px 20px 0 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+Cjwvc3ZnPg==') repeat;
+      opacity: 0.1;
+      pointer-events: none;
     }
 
     .modal-header h4 {
       margin: 0;
-      font-size: 1.3rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
     }
 
     .close-btn {
-      background: none;
-      border: none;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.3);
       color: white;
-      font-size: 1.5rem;
+      font-size: 1.3rem;
       cursor: pointer;
       padding: 0;
-      width: 30px;
-      height: 30px;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      transition: background-color 0.3s ease;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
     }
 
     .close-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.1);
     }
 
     .modal-content {
-      padding: 25px;
+      padding: 30px;
+      background: #fafbfc;
     }
 
     .player-avatar-section {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 25px;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #ecf0f1;
+      margin-bottom: 30px;
+      padding: 25px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.05);
     }
 
     .modal-avatar {
-      width: 120px;
-      height: 120px;
+      width: 140px;
+      height: 140px;
       border-radius: 50%;
       object-fit: cover;
-      margin-bottom: 15px;
-      border: 4px solid #ecf0f1;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      border: 6px solid white;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-avatar:hover {
+      transform: scale(1.05);
     }
 
     .registration-badge {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 0.9rem;
+      gap: 10px;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-size: 1rem;
       font-weight: 600;
-      background: #dc3545;
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
       color: white;
       transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
     }
 
     .registration-badge.active {
-      background: #28a745;
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
     }
 
     .player-details-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 25px;
     }
 
     .detail-section {
-      background: #f8f9fa;
-      padding: 20px;
-      border-radius: 12px;
-      border-left: 4px solid #667eea;
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border-top: 4px solid #667eea;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .detail-section:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
     }
 
     .detail-section.full-width {
       grid-column: 1 / -1;
-      border-left-color: #28a745;
+      border-top-color: #28a745;
     }
 
     .detail-section h5 {
       color: #2c3e50;
-      margin: 0 0 15px 0;
-      font-size: 1.1rem;
-      font-weight: 600;
+      margin: 0 0 20px 0;
+      font-size: 1.2rem;
+      font-weight: 700;
       display: flex;
       align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f1f3f4;
     }
 
     .detail-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      margin-bottom: 15px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     .detail-item:last-child {
@@ -992,35 +1153,65 @@ import { Player } from './player-utils';
 
     .detail-label {
       font-weight: 600;
-      color: #495057;
-      font-size: 0.95rem;
+      color: #5a6c7d;
+      font-size: 1rem;
     }
 
     .detail-value {
       color: #2c3e50;
       font-weight: 500;
-      font-size: 0.95rem;
+      font-size: 1rem;
+      text-align: right;
+    }
+
+    .age-value {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .age-text {
+      font-size: 0.85rem;
+      color: #7f8c8d;
+      font-weight: 400;
     }
 
     .position-badge {
-      background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white !important;
-      padding: 4px 10px;
-      border-radius: 15px;
-      font-size: 0.85rem !important;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
       display: inline-flex;
       align-items: center;
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .note-content {
-      background: white;
-      padding: 15px;
-      border-radius: 8px;
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
       color: #2c3e50;
-      line-height: 1.6;
-      font-size: 0.95rem;
-      border: 1px solid rgba(0, 0, 0, 0.1);
+      line-height: 1.7;
+      font-size: 1rem;
+      border: 2px solid #e9ecef;
       font-style: italic;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .note-content::before {
+      content: '"';
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      font-size: 2rem;
+      color: #ced4da;
+      font-family: Georgia, serif;
     }
 
     .text-success {
@@ -1065,16 +1256,495 @@ import { Player } from './player-utils';
 
       .player-details-grid {
         grid-template-columns: 1fr;
-        gap: 15px;
+        gap: 20px;
       }
 
       .player-modal {
         width: 95%;
         margin: 10px;
+        max-height: 95vh;
       }
 
       .modal-content {
         padding: 20px;
+      }
+
+      .modal-header {
+        padding: 20px;
+      }
+
+      .modal-header h4 {
+        font-size: 1.3rem;
+      }
+
+      .modal-avatar {
+        width: 120px;
+        height: 120px;
+      }
+
+      .player-avatar-section {
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .detail-section {
+        padding: 20px;
+      }
+
+      .detail-section h5 {
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+      }
+
+      .detail-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        text-align: left;
+      }
+
+      .detail-value {
+        text-align: left;
+      }
+
+      .age-value {
+        align-items: flex-start;
+      }
+
+      .registration-badge {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+      }
+    }
+
+    /* AI/ML Analysis Section Styles */
+    .ai-analysis-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 40px 0;
+      padding: 0 20px;
+    }
+
+    .analysis-container {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 248, 255, 0.95) 100%);
+      border-radius: 25px;
+      padding: 30px;
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(20px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      width: 100%;
+      max-width: 500px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .analysis-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+      animation: shimmer 3s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    .analysis-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .battle-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      position: relative;
+    }
+
+    .analysis-brain, .analysis-chart {
+      font-size: 2.5rem;
+      color: #4f46e5;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    .vs-divider {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .vs-text {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #dc2626;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      letter-spacing: 3px;
+    }
+
+    .crossed-swords {
+      position: relative;
+      width: 60px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sword-1, .sword-2 {
+      position: absolute;
+      font-size: 1.8rem;
+      color: #8b5cf6;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .sword-1 {
+      transform: rotate(45deg);
+      animation: sword-clash-1 3s ease-in-out infinite;
+    }
+
+    .sword-2 {
+      transform: rotate(-45deg);
+      animation: sword-clash-2 3s ease-in-out infinite;
+    }
+
+    @keyframes sword-clash-1 {
+      0%, 100% { transform: rotate(45deg) translateX(0); }
+      50% { transform: rotate(45deg) translateX(-3px); }
+    }
+
+    @keyframes sword-clash-2 {
+      0%, 100% { transform: rotate(-45deg) translateX(0); }
+      50% { transform: rotate(-45deg) translateX(3px); }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+        filter: drop-shadow(0 0 10px rgba(79, 70, 229, 0.3));
+      }
+      50% { 
+        opacity: 0.8; 
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 20px rgba(79, 70, 229, 0.5));
+      }
+    }
+
+    .analysis-content {
+      text-align: center;
+    }
+
+    .analysis-status {
+      margin-bottom: 25px;
+    }
+
+    .status-indicator {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 15px;
+    }
+
+    .pulse-ring, .pulse-core {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .pulse-core {
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(45deg, #4f46e5, #7c3aed);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .pulse-ring {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(79, 70, 229, 0.3);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .status-indicator.active .pulse-ring {
+      animation: pulse-ring-animation 2s ease-out infinite;
+    }
+
+    @keyframes pulse-ring-animation {
+      0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+      }
+    }
+
+    .analysis-title {
+      color: #1f2937;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .analysis-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .metric-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: white;
+    }
+
+    .metric-icon.team-a-color {
+      background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+    }
+
+    .metric-icon.team-b-color {
+      background: linear-gradient(45deg, #f97316, #ea580c);
+    }
+
+    .metric-icon.balance-color {
+      background: linear-gradient(45deg, #10b981, #059669);
+    }
+
+    .metric-info {
+      text-align: center;
+    }
+
+    .metric-label {
+      display: block;
+      font-size: 0.85rem;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 1.1rem;
+      color: #1f2937;
+      font-weight: 600;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .ai-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 25px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .analyze-btn {
+      background: linear-gradient(45deg, #4f46e5, #7c3aed);
+      color: white;
+    }
+
+    .balance-btn {
+      background: linear-gradient(45deg, #10b981, #059669);
+      color: white;
+    }
+
+    .ai-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .ai-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading-analysis {
+      padding: 20px 0;
+    }
+
+    .analysis-progress {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background: rgba(79, 70, 229, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4f46e5, #7c3aed);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 20px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+      animation: progress-shine 2s infinite;
+    }
+
+    @keyframes progress-shine {
+      0% { transform: translateX(-20px); }
+      100% { transform: translateX(20px); }
+    }
+
+    .progress-text {
+      font-weight: 600;
+      color: #4f46e5;
+      font-size: 0.9rem;
+    }
+
+    .analysis-steps {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      padding: 12px 8px;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      opacity: 0.4;
+    }
+
+    .step.active {
+      opacity: 1;
+      background: rgba(79, 70, 229, 0.1);
+      color: #4f46e5;
+    }
+
+    .step.completed {
+      opacity: 1;
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+
+    .step i {
+      font-size: 1.2rem;
+    }
+
+    .step span {
+      font-size: 0.7rem;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* Responsive Design for AI Section */
+    @media (max-width: 768px) {
+      .ai-analysis-section {
+        margin: 20px 0;
+        padding: 0 10px;
+      }
+
+      .analysis-container {
+        padding: 20px;
+        max-width: 100%;
+      }
+
+      .battle-icon {
+        gap: 15px;
+      }
+
+      .analysis-brain, .analysis-chart {
+        font-size: 2rem;
+      }
+
+      .vs-text {
+        font-size: 1.4rem;
+      }
+
+      .analysis-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .quick-actions {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .ai-btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .analysis-steps {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .step {
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 10px 15px;
+      }
+
+      .step span {
+        text-align: left;
       }
     }
   `]
@@ -1108,6 +1778,11 @@ export class PlayersComponent implements OnInit {
   draggedPlayer: Player | null = null;
   showPlayerList = true; // Show player list by default
   matchSaveMessage = '';
+  
+  // AI/ML Analysis state
+  isAnalyzing = false;
+  analysisProgress = 0;
+  analysisStep = 0;
   saveMessage = '';
   saveRegisteredMessage = '';
 
@@ -1243,10 +1918,21 @@ export class PlayersComponent implements OnInit {
 
   closePlayerModal() {
     this.selectedPlayer = null;
+    // Restore body scrolling
+    document.body.style.overflow = '';
   }
 
   viewPlayer(p: Player) {
     this.selectedPlayer = p;
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+    // Force scroll to top of modal overlay to ensure visibility
+    setTimeout(() => {
+      const overlay = document.querySelector('.modal-overlay') as HTMLElement;
+      if (overlay) {
+        overlay.scrollTop = 0;
+      }
+    }, 100);
   }
 
   savePlayers() {
@@ -1369,6 +2055,41 @@ export class PlayersComponent implements OnInit {
     return player.firstName;
   }
 
+  calculateAge(birthYear: number | string): number {
+    const currentYear = new Date().getFullYear();
+    let yearOfBirth: number;
+    
+    if (typeof birthYear === 'number') {
+      yearOfBirth = birthYear;
+    } else if (typeof birthYear === 'string') {
+      // Handle different date formats
+      if (birthYear.includes('/')) {
+        // Format: MM/DD/YYYY or DD/MM/YYYY
+        const parts = birthYear.split('/');
+        if (parts.length === 3) {
+          yearOfBirth = parseInt(parts[2]); // Year is the last part
+        } else {
+          yearOfBirth = parseInt(birthYear);
+        }
+      } else if (birthYear.includes('-')) {
+        // Format: YYYY-MM-DD
+        const parts = birthYear.split('-');
+        yearOfBirth = parseInt(parts[0]); // Year is the first part
+      } else {
+        // Assume it's just a year
+        yearOfBirth = parseInt(birthYear);
+      }
+    } else {
+      return 0;
+    }
+    
+    if (isNaN(yearOfBirth) || yearOfBirth < 1900 || yearOfBirth > currentYear) {
+      return 0;
+    }
+    
+    return currentYear - yearOfBirth;
+  }
+
   // Accessibility: handle key events for modal overlay
   onModalOverlayKey(event: KeyboardEvent) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -1396,5 +2117,104 @@ export class PlayersComponent implements OnInit {
       event.preventDefault();
       this.viewPlayer(player);
     }
+  }
+
+  // AI/ML Analysis Methods
+  getTeamBalance(): string {
+    const difference = Math.abs(this.teamA.length - this.teamB.length);
+    if (difference === 0) return 'Hoàn hảo';
+    if (difference <= 1) return 'Tốt';
+    if (difference <= 2) return 'Khá';
+    return 'Cần cải thiện';
+  }
+
+  startAIAnalysis(): void {
+    if (this.isAnalyzing) return;
+
+    this.isAnalyzing = true;
+    this.analysisProgress = 0;
+    this.analysisStep = 0;
+
+    // Simulate AI analysis process
+    const analysisSteps = [
+      { step: 1, duration: 1000, progress: 25 },
+      { step: 2, duration: 1500, progress: 50 },
+      { step: 3, duration: 2000, progress: 75 },
+      { step: 4, duration: 1000, progress: 100 }
+    ];
+
+    let currentStepIndex = 0;
+
+    const runNextStep = () => {
+      if (currentStepIndex >= analysisSteps.length) {
+        this.isAnalyzing = false;
+        this.showAnalysisResults();
+        return;
+      }
+
+      const currentStep = analysisSteps[currentStepIndex];
+      this.analysisStep = currentStep.step;
+
+      // Animate progress
+      const duration = currentStep.duration;
+      const startProgress = this.analysisProgress;
+      const targetProgress = currentStep.progress;
+      const startTime = Date.now();
+
+      const animateProgress = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        this.analysisProgress = startProgress + (targetProgress - startProgress) * progress;
+
+        if (progress < 1) {
+          requestAnimationFrame(animateProgress);
+        } else {
+          currentStepIndex++;
+          setTimeout(runNextStep, 200);
+        }
+      };
+
+      animateProgress();
+    };
+
+    runNextStep();
+  }
+
+  autoBalance(): void {
+    if (this.isAnalyzing) return;
+
+    const allAvailablePlayers = [...this.teamA, ...this.teamB];
+    if (allAvailablePlayers.length === 0) return;
+
+    // Clear current teams
+    this.teamA = [];
+    this.teamB = [];
+
+    // Shuffle players randomly
+    const shuffled = [...allAvailablePlayers].sort(() => Math.random() - 0.5);
+
+    // Distribute players evenly
+    shuffled.forEach((player, index) => {
+      if (index % 2 === 0) {
+        this.teamA.push(player);
+      } else {
+        this.teamB.push(player);
+      }
+    });
+
+    this.savePlayers();
+  }
+
+  private showAnalysisResults(): void {
+    // Show analysis completion message
+    const balanceScore = this.getTeamBalance();
+    console.log('🤖 AI Analysis completed!');
+    console.log(`Team balance: ${balanceScore}`);
+    console.log(`Team A: ${this.teamA.length} players`);
+    console.log(`Team B: ${this.teamB.length} players`);
+    
+    // You could show a modal or toast message here
+    alert(`✅ Phân tích hoàn thành!\n\nCân bằng đội hình: ${balanceScore}\nĐội Xanh: ${this.teamA.length} cầu thủ\nĐội Cam: ${this.teamB.length} cầu thủ`);
   }
 }
