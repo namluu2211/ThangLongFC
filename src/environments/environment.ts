@@ -6,14 +6,14 @@ export const environment = {
   production: false,
   enableAnalytics: false, // Disable analytics in development
   firebase: {
-    // Development config - using placeholder values for local development
-    apiKey: 'dev-mode-placeholder',
-    authDomain: 'localhost',
-    databaseURL: 'https://localhost/dev-database',
-    projectId: 'dev-project',
-    storageBucket: 'dev-storage',
-    messagingSenderId: 'dev-sender',
-    appId: 'dev-app-id'
-    // measurementId removed - analytics disabled in development
+    // Development config - using placeholder values that will be replaced during build
+    apiKey: '{{NG_APP_FIREBASE_API_KEY}}',
+    authDomain: '{{NG_APP_FIREBASE_AUTH_DOMAIN}}',
+    databaseURL: '{{NG_APP_FIREBASE_DATABASE_URL}}',
+    projectId: '{{NG_APP_FIREBASE_PROJECT_ID}}',
+    storageBucket: '{{NG_APP_FIREBASE_STORAGE_BUCKET}}',
+    messagingSenderId: '{{NG_APP_FIREBASE_MESSAGING_SENDER_ID}}',
+    appId: '{{NG_APP_FIREBASE_APP_ID}}',
+    measurementId: '{{NG_APP_FIREBASE_MEASUREMENT_ID}}'
   }
 };

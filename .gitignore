@@ -8,8 +8,4 @@ node_modules
 scripts/firebase-rules.json
 
 # Environment files (never commit these!)
-.env
-.env.local
-.env.development
-.env.staging
-.env.production
+.env.*
