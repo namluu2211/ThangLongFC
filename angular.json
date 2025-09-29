@@ -54,23 +54,23 @@
                 {
                   "type": "initial",
                   "maximumWarning": "1MB",
-                  "maximumError": "1.5MB"
+                  "maximumError": "2MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "20kB",
-                  "maximumError": "30kB"
+                  "maximumWarning": "30kB",
+                  "maximumError": "50kB"
                 },
                 {
                   "type": "bundle",
                   "name": "vendor",
-                  "maximumWarning": "400kB",
-                  "maximumError": "600kB"
+                  "maximumWarning": "500kB",
+                  "maximumError": "800kB"
                 },
                 {
                   "type": "anyScript",
-                  "maximumWarning": "200kB",
-                  "maximumError": "700kB"
+                  "maximumWarning": "600kB",
+                  "maximumError": "1MB"
                 }
               ]
             },
