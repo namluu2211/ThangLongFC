@@ -276,47 +276,11 @@ export class LazyLoadingService {
 
   // Register common components
   registerCommonComponents(): void {
-    // Players component (high priority)
-    this.registerComponent({
-      name: 'players',
-      loadComponent: () => import('../features/players/players.component').then(m => m.PlayersComponent),
-      preload: true,
-      priority: 1
-    });
+    // Only register components that are NOT directly imported in app.component.ts
+    // Components like players, players-simple, fund, history, stats are directly imported
+    // so we should not register them here to avoid chunking conflicts
 
-    // Players Simple component (high priority - used in main view)
-    this.registerComponent({
-      name: 'players-simple',
-      loadComponent: () => import('../features/players/players-simple.component').then(m => m.PlayersSimpleComponent),
-      preload: true,
-      priority: 1
-    });
-
-    // Fund component (medium priority)
-    this.registerComponent({
-      name: 'fund',
-      loadComponent: () => import('../features/fund/fund.component').then(m => m.FundComponent),
-      preload: true,
-      priority: 2
-    });
-
-    // History component (medium priority)
-    this.registerComponent({
-      name: 'history',
-      loadComponent: () => import('../features/history/history.component').then(m => m.HistoryComponent),
-      preload: false,
-      priority: 2
-    });
-
-    // Stats component (low priority - large bundle)
-    this.registerComponent({
-      name: 'stats',
-      loadComponent: () => import('../features/stats/stats.component').then(m => m.StatsComponent),
-      preload: false,
-      priority: 3
-    });
-
-    // Match info component (medium priority)
+    // Match info component (medium priority) - this one is truly lazy loaded
     this.registerComponent({
       name: 'match-info',
       loadComponent: () => import('../features/match-info/match-info.component').then(m => m.MatchInfoComponent),

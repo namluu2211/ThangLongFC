@@ -181,8 +181,8 @@ export class AppComponent implements OnInit, OnDestroy {
       
       // Preload critical components after service initialization
       setTimeout(() => {
-        this.lazyLoadingService.preloadComponent('players-simple');
-        this.lazyLoadingService.preloadComponent('fund');
+        // Only preload truly lazy-loaded components like match-info
+        this.lazyLoadingService.preloadComponent('match-info');
         console.log('✅ Component preloading started');
       }, 100);
       
