@@ -12,7 +12,7 @@ import { LazyLoadingService } from './services/lazy-loading.service';
 import { AssetOptimizationService } from './services/asset-optimization.service';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, debounceTime } from 'rxjs/operators';
 import { MatchData } from './models/types';
 
 @Component({
@@ -160,21 +160,28 @@ export class AppComponent implements OnInit, OnDestroy {
       this.assetOptimizationService.preloadCriticalAssets();
       console.log('✅ Asset optimization started');
       
-      // Preload critical components
-      this.lazyLoadingService.preloadComponent('players-simple');
-      this.lazyLoadingService.preloadComponent('fund');
-      console.log('✅ Component preloading started');
+      // Preload critical components after service initialization
+      setTimeout(() => {
+        this.lazyLoadingService.preloadComponent('players-simple');
+        this.lazyLoadingService.preloadComponent('fund');
+        console.log('✅ Component preloading started');
+      }, 100);
       
-      // Monitor performance metrics and log warnings for poor performance
+      // Monitor performance metrics with heavy throttling to reduce overhead
       this.performanceService.metrics$
-        .pipe(takeUntil(this.destroy$))
+        .pipe(
+          debounceTime(10000), // Increased throttle to 10 seconds to reduce monitoring frequency
+          takeUntil(this.destroy$)
+        )
         .subscribe(metrics => {
-          if (metrics && (metrics.memoryUsage > 100 || metrics.renderingTime > 100)) {
+          if (metrics && (metrics.memoryUsage > 50 || metrics.renderingTime > 5000)) {
             console.warn('⚠️ Performance issues detected:', {
               memoryUsage: metrics.memoryUsage,
               renderingTime: metrics.renderingTime,
               componentCount: metrics.componentLoadTimes.size
             });
+            // Automatically trigger memory optimization when issues detected
+            this.performanceService.optimizeMemoryUsage();
           }
         });
         
@@ -329,6 +336,9 @@ export class AppComponent implements OnInit, OnDestroy {
     // Log final performance report
     this.performanceService.logPerformanceReport();
     this.assetOptimizationService.logAssetReport();
+    
+    // Final memory cleanup
+    this.performanceService.optimizeMemoryUsage();
     
     // Clean up performance services
     this.performanceService.destroy();

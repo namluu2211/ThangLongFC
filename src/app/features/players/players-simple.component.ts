@@ -210,9 +210,9 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
             <div class="col-actions">Actions</div>
           </div>
           
-          <div *ngFor="let player of filteredPlayers" class="list-row">
-            <div class="col-name">
-              <img [src]="player.avatar" [alt]="player.firstName" class="list-avatar">
+          <div *ngFor="let player of filteredPlayers" class="list-item">
+            <div class="list-name">
+              <img [src]="player.avatar" [alt]="player.firstName" class="list-avatar" (error)="onAvatarError($event)">
               <span>{{ player.firstName }} {{ player.lastName }}</span>
             </div>
             <div class="col-position">
@@ -502,9 +502,168 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       cursor: pointer;
     }
 
+    /* Avatar Sizing - Consistent across all views */
+    .player-avatar-enhanced {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .player-avatar-enhanced:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .list-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e9ecef;
+      margin-right: 15px;
+    }
+
+    .detail-avatar img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #667eea;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .player-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .player-basic-info {
+      flex: 1;
+    }
+
+    .player-name-enhanced {
+      margin: 0 0 8px 0;
+      color: #2c3e50;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .player-stats {
+      display: flex;
+      gap: 15px;
+      margin: 15px 0;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
+    .player-actions {
+      margin-top: 15px;
+    }
+
+    .detail-btn {
+      background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: transform 0.2s ease;
+    }
+
+    .detail-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .players-list {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .list-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 80px 80px 80px 100px;
+      gap: 15px;
+      padding: 15px 20px;
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .list-item {
+      display: grid;
+      grid-template-columns: 2fr 1fr 80px 80px 80px 100px;
+      gap: 15px;
+      padding: 15px 20px;
+      align-items: center;
+      border-bottom: 1px solid #f1f3f4;
+      transition: background-color 0.2s ease;
+    }
+
+    .list-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .list-item:last-child {
+      border-bottom: none;
+    }
+
+    .list-name {
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+    }
+
     @media (max-width: 768px) {
       .controls-grid {
         grid-template-columns: 1fr;
+      }
+
+      .player-avatar-enhanced {
+        width: 60px;
+        height: 60px;
+        border-width: 2px;
+      }
+
+      .list-avatar {
+        width: 40px;
+        height: 40px;
+      }
+
+      .detail-avatar img {
+        width: 100px;
+        height: 100px;
+        border-width: 3px;
+      }
+
+      .players-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .list-header,
+      .list-item {
+        grid-template-columns: 2fr 1fr 60px 60px 60px 80px;
+        gap: 10px;
+        padding: 10px 15px;
+        font-size: 0.9rem;
       }
     }
   `]

@@ -1010,8 +1010,8 @@ interface TeamMetrics {
     }
 
     .player-avatar {
-      width: 40px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
@@ -1021,6 +1021,8 @@ interface TeamMetrics {
       font-size: 1.2rem;
       overflow: hidden;
       position: relative;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     .avatar-img {
@@ -1178,8 +1180,8 @@ interface TeamMetrics {
       }
       
       .player-avatar {
-        width: 30px;
-        height: 30px;
+        width: 40px;
+        height: 40px;
         font-size: 1rem;
       }
       

@@ -34,6 +34,10 @@ export class PerformanceService {
 
   // Performance observer for detailed monitoring
   private observer: PerformanceObserver | null = null;
+  
+  // Timer management to prevent memory leaks
+  private timers = new Set<ReturnType<typeof setInterval>>();
+  private isDestroyed = false;
 
   constructor() {
     this.metrics = {
@@ -47,7 +51,22 @@ export class PerformanceService {
       interactionLatency: 0
     };
 
-    this.initializePerformanceMonitoring();
+    // Significantly delay initialization to prevent startup blocking
+    setTimeout(() => {
+      if (!this.isDestroyed) {
+        this.initializePerformanceMonitoring();
+      }
+    }, 15000); // Increased to 15 seconds
+  }
+
+  // Timer management methods
+  private addTimer(timerId: ReturnType<typeof setInterval>): void {
+    this.timers.add(timerId);
+  }
+
+  private clearAllTimers(): void {
+    this.timers.forEach(timerId => clearInterval(timerId));
+    this.timers.clear();
   }
 
   private initializePerformanceMonitoring(): void {
@@ -77,8 +96,12 @@ export class PerformanceService {
     // Monitor network requests
     this.startNetworkMonitoring();
 
-    // Set up periodic metrics updates
-    setInterval(() => this.updateMetrics(), 5000);
+    // Set up periodic metrics updates with minimal frequency
+    this.addTimer(setInterval(() => {
+      if (!this.isDestroyed) {
+        this.throttledUpdateMetrics();
+      }
+    }, 120000)); // Further reduced to 2 minutes
   }
 
   // Component lifecycle tracking
@@ -143,7 +166,11 @@ export class PerformanceService {
       };
 
       updateMemory();
-      setInterval(updateMemory, 10000); // Update every 10 seconds
+      this.addTimer(setInterval(() => {
+        if (!this.isDestroyed) {
+          updateMemory();
+        }
+      }, 60000)); // Reduced to every 60 seconds
     }
   }
 
@@ -297,13 +324,22 @@ export class PerformanceService {
       this.metrics.initialLoadTime = navigation.loadEventEnd - navigation.fetchStart;
     }
 
-    // Update paint timing
+    // Update paint timing - calculate rendering duration, not absolute time
     const paintEntries = performance.getEntriesByType('paint');
+    let fcpTime = 0;
     paintEntries.forEach(entry => {
       if (entry.name === 'first-contentful-paint') {
-        this.metrics.renderingTime = entry.startTime;
+        fcpTime = entry.startTime;
       }
     });
+    
+    // Calculate rendering time as duration from navigation start
+    if (navigation && fcpTime > 0) {
+      this.metrics.renderingTime = fcpTime - navigation.fetchStart;
+    } else if (fcpTime > 0) {
+      // Fallback: limit to reasonable values
+      this.metrics.renderingTime = Math.min(fcpTime, 5000); // Cap at 5 seconds
+    }
 
     // Emit updated metrics
     this.metricsSubject.next({ ...this.metrics });
@@ -345,13 +381,61 @@ export class PerformanceService {
     console.groupEnd();
   }
 
+  // Memory management and optimization
+  optimizeMemoryUsage(): void {
+    // Limit stored metrics to prevent memory leaks
+    if (this.componentMetrics.length > 100) {
+      this.componentMetrics = this.componentMetrics.slice(-50);
+    }
+    
+    if (this.performanceEntries.length > 200) {
+      this.performanceEntries = this.performanceEntries.slice(-100);
+    }
+    
+    // Clear old component load times
+    if (this.metrics.componentLoadTimes.size > 50) {
+      const entries = Array.from(this.metrics.componentLoadTimes.entries());
+      this.metrics.componentLoadTimes.clear();
+      entries.slice(-25).forEach(([key, value]) => {
+        this.metrics.componentLoadTimes.set(key, value);
+      });
+    }
+    
+    // Force garbage collection if available (browser dev mode)
+    const globalWindow = window as typeof window & { gc?: () => void };
+    if (globalWindow.gc && typeof globalWindow.gc === 'function') {
+      globalWindow.gc();
+    }
+  }
+
+  // Throttled performance updates to reduce overhead
+  private throttledUpdateMetrics = this.throttle(() => {
+    this.updateMetrics();
+    this.optimizeMemoryUsage();
+  }, 1000);
+  
+  private throttle<T extends (...args: unknown[]) => void>(func: T, delay: number): T {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    return ((...args: Parameters<T>) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => func(...args), delay);
+    }) as T;
+  }
+
   // Cleanup
   destroy(): void {
+    this.isDestroyed = true;
+    this.clearAllTimers();
+    
     if (this.observer) {
       this.observer.disconnect();
     }
     this.metricsSubject.complete();
     this.componentMetrics = [];
     this.performanceEntries = [];
+    this.metrics.componentLoadTimes.clear();
+    this.metrics.bundleSizes.clear();
   }
 }

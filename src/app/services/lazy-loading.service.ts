@@ -34,6 +34,7 @@ export class LazyLoadingService {
   private loadingStates = new Map<string, Promise<Type<unknown>>>();
 
   constructor() {
+    this.registerCommonComponents();
     this.initializeLazyLoading();
   }
 
@@ -281,6 +282,22 @@ export class LazyLoadingService {
       loadComponent: () => import('../features/players/players.component').then(m => m.PlayersComponent),
       preload: true,
       priority: 1
+    });
+
+    // Players Simple component (high priority - used in main view)
+    this.registerComponent({
+      name: 'players-simple',
+      loadComponent: () => import('../features/players/players-simple.component').then(m => m.PlayersSimpleComponent),
+      preload: true,
+      priority: 1
+    });
+
+    // Fund component (medium priority)
+    this.registerComponent({
+      name: 'fund',
+      loadComponent: () => import('../features/fund/fund.component').then(m => m.FundComponent),
+      preload: true,
+      priority: 2
     });
 
     // History component (medium priority)

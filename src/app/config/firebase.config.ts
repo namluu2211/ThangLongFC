@@ -1,6 +1,5 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { environment } from '../../environments/environment';
 
 // Firebase configuration loaded from environment
@@ -12,15 +11,17 @@ export const firebaseConfig = {
   projectId: environment.firebase.projectId,
   storageBucket: environment.firebase.storageBucket,
   messagingSenderId: environment.firebase.messagingSenderId,
-  appId: environment.firebase.appId,
-  measurementId: environment.firebase.measurementId
+  appId: environment.firebase.appId
 };
 
 // Validate required Firebase configuration
 const hasValidConfig = firebaseConfig.apiKey && 
                       firebaseConfig.projectId && 
+                      firebaseConfig.databaseURL &&
                       !firebaseConfig.apiKey.includes('{{') && 
-                      !firebaseConfig.projectId.includes('{{');
+                      !firebaseConfig.projectId.includes('{{') &&
+                      !firebaseConfig.apiKey.includes('dev-api-key') && // Skip dev placeholder
+                      firebaseConfig.apiKey.length > 20; // Ensure it's a real API key
 
 if (!hasValidConfig) {
   console.warn('⚠️ Firebase configuration contains placeholder values or is incomplete.');
@@ -46,10 +47,8 @@ if (isFirebaseConfigValid) {
     app = initializeApp(firebaseConfig);
     console.log('✅ Firebase initialized successfully');
     
-    // Initialize Analytics only if running in browser and measurement ID is provided
-    if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
-      getAnalytics(app);
-    }
+    // Analytics disabled to prevent measurement ID errors
+    console.log('📊 Firebase Analytics disabled to prevent configuration errors');
   } catch (error) {
     console.error('❌ Firebase initialization failed:', error);
     app = null;
