@@ -277,7 +277,7 @@ import { CommonModule } from '@angular/common';
 })
 export class FooterComponent {
   getVersion(): string {
-    return '0.1.0';
+    return '1.0.0';
   }
 
   getBuildDate(): string {

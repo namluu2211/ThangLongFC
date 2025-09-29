@@ -1,12 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Player } from '../players/player-utils';
 
 interface MatchData {
   id?: string;
   date: string;
-  teamA: any[];
-  teamB: any[];
+  teamA: Player[];
+  teamB: Player[];
   scoreA: number;
   scoreB: number;
   scorerA?: string;

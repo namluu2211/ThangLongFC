@@ -3,10 +3,13 @@ import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HistoryComponent } from './features/history/history.component';
-import { PlayersComponent } from './features/players/players.component';
+import { PlayersSimpleComponent } from './features/players/players-simple.component';
 import { FundComponent } from './features/fund/fund.component';
 import { StatsComponent } from './features/stats/stats.component';
 import { FirebaseService } from './services/firebase.service';
+import { PerformanceService } from './services/performance.service';
+import { LazyLoadingService } from './services/lazy-loading.service';
+import { AssetOptimizationService } from './services/asset-optimization.service';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -20,7 +23,7 @@ import { MatchData } from './models/types';
     FormsModule,
     HeaderComponent,
     HistoryComponent,
-    PlayersComponent,
+    PlayersSimpleComponent,
     FundComponent,
     StatsComponent,
     FooterComponent
@@ -63,7 +66,11 @@ import { MatchData } from './models/types';
       </div>
       <!-- Professional Content Area -->
       <div class="content-area fade-in">
-        <app-players *ngIf="show==='auto'" [canEdit]="canEdit" mode="auto"></app-players>
+        <div *ngIf="show==='auto'" style="padding: 20px;">
+          <h2>⚽ Danh Sách Cầu Thủ</h2>
+          <p>Đang tạm thời hiển thị chế độ gỡ lỗi...</p>
+          <app-players-simple></app-players-simple>
+        </div>
         <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
         <app-players *ngIf="show==='list'" [canEdit]="canEdit" mode="list"></app-players>
         
@@ -105,11 +112,16 @@ export class AppComponent implements OnInit, OnDestroy {
   canEdit = false;
 
   private readonly firebaseService = inject(FirebaseService);
+  private readonly performanceService = inject(PerformanceService);
+  private readonly lazyLoadingService = inject(LazyLoadingService);
+  private readonly assetOptimizationService = inject(AssetOptimizationService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   ngOnInit() {
-    console.log('🚀 App component ngOnInit started');
-    console.log('🔥 Firebase service available:', !!this.firebaseService);
+    // App component initialization
+    
+    // Initialize performance monitoring
+    this.initializePerformanceServices();
     
     // Remove loading screen immediately when app component initializes
     setTimeout(() => {
@@ -137,18 +149,51 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
+  private initializePerformanceServices() {
+    console.log('🚀 Initializing performance services...');
+    
+    try {
+      // Performance monitoring is automatically started in constructor
+      console.log('✅ Performance monitoring active');
+      
+      // Preload critical assets for player avatars
+      this.assetOptimizationService.preloadCriticalAssets();
+      console.log('✅ Asset optimization started');
+      
+      // Preload critical components
+      this.lazyLoadingService.preloadComponent('players-simple');
+      this.lazyLoadingService.preloadComponent('fund');
+      console.log('✅ Component preloading started');
+      
+      // Monitor performance metrics and log warnings for poor performance
+      this.performanceService.metrics$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(metrics => {
+          if (metrics && (metrics.memoryUsage > 100 || metrics.renderingTime > 100)) {
+            console.warn('⚠️ Performance issues detected:', {
+              memoryUsage: metrics.memoryUsage,
+              renderingTime: metrics.renderingTime,
+              componentCount: metrics.componentLoadTimes.size
+            });
+          }
+        });
+        
+    } catch (error) {
+      console.warn('⚠️ Performance services initialization failed:', error.message);
+    }
+  }
+
   private initializeFirebaseListeners() {
     // Use requestIdleCallback for better performance
     const initListeners = () => {
       try {
-        console.log('🔥 Initializing Firebase listeners...');
+        // Initialize Firebase listeners
         
         // Combine Firebase subscriptions with takeUntil for proper cleanup
         this.firebaseService.matchResults$
           .pipe(takeUntil(this.destroy$))
           .subscribe({
-            next: (matchResults) => {
-              console.log('Real-time match results update:', matchResults?.length || 0, 'items');
+            next: () => {
               this.invalidateFundCache();
               this.cdr.markForCheck();
             },
@@ -195,7 +240,6 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   onLoginChange(event: { loggedIn: boolean; role: string }) {
-    console.log('Login change received:', event);
     
     // Only update if values actually changed
     if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
@@ -206,10 +250,8 @@ export class AppComponent implements OnInit, OnDestroy {
       // Store role in localStorage for history component
       if (this.role) {
         localStorage.setItem('role', this.role);
-        console.log('✅ Role stored in localStorage:', this.role);
       } else {
         localStorage.removeItem('role');
-        console.log('🗑️ Role removed from localStorage');
       }
       
       // Trigger change detection
@@ -284,6 +326,14 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
+    // Log final performance report
+    this.performanceService.logPerformanceReport();
+    this.assetOptimizationService.logAssetReport();
+    
+    // Clean up performance services
+    this.performanceService.destroy();
+    this.assetOptimizationService.destroy();
+    
     // Complete all subscriptions
     this.destroy$.next();
     this.destroy$.complete();

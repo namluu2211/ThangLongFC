@@ -76,7 +76,11 @@ import { Player } from './player-utils';
               </button>
             </div>
           </div>
-          <div class="players-grid">
+          <div class="debug-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 15px; border-radius: 5px;">
+            <strong>Debug Info:</strong> Total Players: {{ allPlayers.length }} | Show List: {{ showPlayerList }}
+          </div>
+          
+          <div class="players-grid" *ngIf="allPlayers.length > 0; else noPlayersTemplate">
             <div *ngFor="let player of allPlayers; trackBy: trackByPlayerId" 
                  class="player-item"
                  [class.registered]="isRegistered(player)">
@@ -102,6 +106,15 @@ import { Player } from './player-utils';
               </div>
             </div>
           </div>
+
+          <ng-template #noPlayersTemplate>
+            <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px; color: #6c757d;">
+              <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 15px;"></i>
+              <h4>Không có dữ liệu cầu thủ</h4>
+              <p>Đang tải hoặc có lỗi khi tải danh sách cầu thủ.</p>
+              <button class="modern-btn btn-primary" (click)="loadPlayers()">Thử tải lại</button>
+            </div>
+          </ng-template>
           
           <div *ngIf="saveRegisteredMessage" class="status-message success mt-3">
             {{ saveRegisteredMessage }}
@@ -1093,7 +1106,7 @@ export class PlayersComponent implements OnInit {
   // UI state
   isDragging = false;
   draggedPlayer: Player | null = null;
-  showPlayerList = false;
+  showPlayerList = true; // Show player list by default
   matchSaveMessage = '';
   saveMessage = '';
   saveRegisteredMessage = '';
@@ -1104,22 +1117,18 @@ export class PlayersComponent implements OnInit {
 
   async loadPlayers() {
     try {
-      // Try to load from localStorage first
-      const cachedData = localStorage.getItem('players.json');
-      if (cachedData) {
-        this.allPlayers = JSON.parse(cachedData);
-      } else {
-        // Load from assets file
-        const response = await fetch('assets/players.json');
-        const data = await response.json();
-        this.allPlayers = data;
-        // Cache the data
-        localStorage.setItem('players.json', JSON.stringify(data));
+      // Load from assets file
+      const response = await fetch('/assets/players.json');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const data = await response.json();
+      this.allPlayers = data || [];
       
       this.updateFilteredPlayers();
     } catch (error) {
-      console.error('Error loading players:', error);
+      console.error('❌ Error loading players:', error);
+      this.allPlayers = [];
     }
   }
 
@@ -1158,40 +1167,12 @@ export class PlayersComponent implements OnInit {
   }
 
   onDrop(event: CdkDragDrop<Player[]>) {
-    console.log('🎯 DROP EVENT FIRED!');
-    
-    // Enhanced debugging with container identification
-    const containerNames = {
-      'teamAList': 'Team A',
-      'teamBList': 'Team B'
-    };
-    
-    const fromContainer = containerNames[event.previousContainer.id as keyof typeof containerNames] || event.previousContainer.id;
-    const toContainer = containerNames[event.container.id as keyof typeof containerNames] || event.container.id;
-    
-    console.log('🎯 Drop event details:', {
-      from: `${fromContainer} (${event.previousContainer.id})`,
-      to: `${toContainer} (${event.container.id})`,
-      previousIndex: event.previousIndex,
-      currentIndex: event.currentIndex,
-      dragData: event.item.data,
-      previousData: event.previousContainer.data.length,
-      currentData: event.container.data.length
-    });
 
     if (event.previousContainer === event.container) {
       // Moving within the same list - reorder if needed
-      console.log(`📝 Reordering within ${fromContainer} - no action needed`);
       return;
     } else {
       // Moving between lists
-      console.log(`🔄 Moving from ${fromContainer} to ${toContainer}`);
-      console.log('🔍 Before transfer:', {
-        sourceLength: event.previousContainer.data.length,
-        targetLength: event.container.data.length,
-        playerBeingMoved: event.previousContainer.data[event.previousIndex]
-      });
-      
       try {
         transferArrayItem(
           event.previousContainer.data,
@@ -1199,13 +1180,8 @@ export class PlayersComponent implements OnInit {
           event.previousIndex,
           event.currentIndex
         );
-        console.log('✅ Transfer successful');
-        console.log('🔍 After transfer:', {
-          sourceLength: event.previousContainer.data.length,
-          targetLength: event.container.data.length
-        });
       } catch (error) {
-        console.error('❌ Transfer failed:', error);
+        console.error('Transfer failed:', error);
         return;
       }
     }
@@ -1332,10 +1308,10 @@ export class PlayersComponent implements OnInit {
     localStorage.setItem('matchHistory', JSON.stringify(history));
   }
 
-  private showTemporaryMessage(messageProperty: string, message: string) {
-    (this as any)[messageProperty] = message;
+  private showTemporaryMessage(messageProperty: keyof Pick<PlayersComponent, 'matchSaveMessage' | 'saveMessage' | 'saveRegisteredMessage'>, message: string) {
+    this[messageProperty] = message;
     setTimeout(() => {
-      (this as any)[messageProperty] = '';
+      this[messageProperty] = '';
     }, 3000);
   }
 

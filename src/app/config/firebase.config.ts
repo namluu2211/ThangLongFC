@@ -17,9 +17,15 @@ export const firebaseConfig = {
 };
 
 // Validate required Firebase configuration
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error('🚨 Firebase configuration is incomplete. Please check your environment variables.');
-  console.log('Required environment variables:');
+const hasValidConfig = firebaseConfig.apiKey && 
+                      firebaseConfig.projectId && 
+                      !firebaseConfig.apiKey.includes('{{') && 
+                      !firebaseConfig.projectId.includes('{{');
+
+if (!hasValidConfig) {
+  console.warn('⚠️ Firebase configuration contains placeholder values or is incomplete.');
+  console.warn('The application will run in offline mode for development.');
+  console.log('📋 To enable Firebase, set these environment variables:');
   console.log('- NG_APP_FIREBASE_API_KEY');
   console.log('- NG_APP_FIREBASE_PROJECT_ID');
   console.log('- NG_APP_FIREBASE_AUTH_DOMAIN');
@@ -30,14 +36,26 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   console.log('- NG_APP_FIREBASE_MEASUREMENT_ID (optional)');
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+export const isFirebaseConfigValid = hasValidConfig;
 
-// Initialize Analytics only if running in browser and measurement ID is provided
-try {
-  if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
-    getAnalytics(app);
+// Initialize Firebase only if configuration is valid
+let app: import('firebase/app').FirebaseApp | null = null;
+
+if (isFirebaseConfigValid) {
+  try {
+    app = initializeApp(firebaseConfig);
+    console.log('✅ Firebase initialized successfully');
+    
+    // Initialize Analytics only if running in browser and measurement ID is provided
+    if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+      getAnalytics(app);
+    }
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    app = null;
   }
-} catch (error) {
-  console.warn('Firebase Analytics could not be initialized:', error);
+} else {
+  console.log('🔄 Running in development mode without Firebase');
 }
+
+export const firebaseApp = app;

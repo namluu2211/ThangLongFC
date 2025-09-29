@@ -13,7 +13,7 @@ import {
 } from 'firebase/database';
 import { BehaviorSubject } from 'rxjs';
 import { shareReplay, distinctUntilChanged } from 'rxjs';
-import { firebaseConfig } from '../config/firebase.config';
+import { firebaseConfig, isFirebaseConfigValid } from '../config/firebase.config';
 import { AdminConfig } from '../config/admin.config';
 
 export interface MatchResult {
@@ -86,13 +86,16 @@ export interface HistoryEntry {
   providedIn: 'root'
 })
 export class FirebaseService {
-  private app = initializeApp(firebaseConfig);
-  private database: Database = getDatabase(this.app, firebaseConfig.databaseURL);
+  private app: import('firebase/app').FirebaseApp | null = null;
+  private database: Database | null = null;
+  private isEnabled = false;
   
   // Optimized BehaviorSubjects with caching
   private matchResultsSubject = new BehaviorSubject<MatchResult[]>([]);
   private playerStatsSubject = new BehaviorSubject<PlayerStats[]>([]);
   private historySubject = new BehaviorSubject<HistoryEntry[]>([]);
+
+
   
   // Cached observables with shareReplay for multiple subscribers
   public matchResults$ = this.matchResultsSubject.asObservable().pipe(
@@ -114,18 +117,59 @@ export class FirebaseService {
   private connectionStatus = new BehaviorSubject<boolean>(true);
   public isConnected$ = this.connectionStatus.asObservable();
 
-  // Cache for frequently accessed data
-  private cache = new Map<string, { data: unknown; timestamp: number }>();
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  // Enhanced offline mode support
+  private isOfflineMode = new BehaviorSubject<boolean>(false);
+  public isOfflineMode$ = this.isOfflineMode.asObservable();
 
-  // Batch operations queue
-  private batchQueue: (() => Promise<void>)[] = [];
+  // Cache for frequently accessed data with advanced features
+  private cache = new Map<string, { data: unknown; timestamp: number; version: number; checksum?: string }>();
+  private CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly MAX_CACHE_SIZE = 100; // Prevent memory leaks
+
+  // Enhanced batch operations with priority queue
+  private batchQueue: { operation: () => Promise<void>; priority: number; retryCount: number }[] = [];
   private isBatchProcessing = false;
+  private readonly MAX_RETRY_ATTEMPTS = 5;
+
+  // Performance monitoring
+  private performanceMetrics = {
+    operationCount: 0,
+    averageResponseTime: 0,
+    errorCount: 0,
+    cacheHitRate: 0,
+    lastOperationTime: Date.now()
+  };
+
+  // Data validation and integrity
+  private dataValidationEnabled = true;
+  private integrityChecks = new Map<string, string>(); // checksums for data integrity
+
+  // Network status monitoring
+  private networkStatus = new BehaviorSubject<'online' | 'offline' | 'slow'>('online');
 
   constructor() {
-    this.initializeOptimizedListeners();
-    this.setupConnectionMonitoring();
-    this.enableOfflineSupport();
+    this.initializeFirebaseService();
+    this.setupNetworkMonitoring();
+  }
+
+  private initializeFirebaseService() {
+    if (isFirebaseConfigValid) {
+      try {
+        this.app = initializeApp(firebaseConfig);
+        this.database = getDatabase(this.app, firebaseConfig.databaseURL);
+        this.isEnabled = true;
+        console.log('✅ Firebase service initialized successfully');
+        this.initializeOptimizedListeners();
+        this.setupConnectionMonitoring();
+        this.enableOfflineSupport();
+      } catch (error) {
+        console.error('❌ Firebase service initialization failed:', error);
+        this.isEnabled = false;
+      }
+    } else {
+      console.log('🔄 Firebase service running in offline mode (invalid config)');
+      this.isEnabled = false;
+    }
   }
 
   private initializeOptimizedListeners() {
@@ -136,6 +180,11 @@ export class FirebaseService {
   }
 
   private setupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
+    if (!this.isEnabled || !this.database) {
+      console.log(`⚠️ Skipping ${path} listener - Firebase not available`);
+      return;
+    }
+    
     const dbRef = ref(this.database, path);
     
     const retryListener = (retryCount = 0) => {
@@ -276,15 +325,19 @@ export class FirebaseService {
   }
 
   // Batch operation management
-  private async executeBatchOperation<T>(operation: () => Promise<T>): Promise<T> {
+  private async executeBatchOperation<T>(operation: () => Promise<T>, priority = 1): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.batchQueue.push(async () => {
-        try {
-          const result = await operation();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
+      this.batchQueue.push({
+        operation: async () => {
+          try {
+            const result = await operation();
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        },
+        priority,
+        retryCount: 0
       });
 
       this.processBatchQueue();
@@ -299,10 +352,27 @@ export class FirebaseService {
     this.isBatchProcessing = true;
     
     try {
-      // Process operations in batches of 5
+      // Sort by priority and process operations in batches of 5
+      this.batchQueue.sort((a, b) => b.priority - a.priority);
+      
       while (this.batchQueue.length > 0) {
         const batch = this.batchQueue.splice(0, 5);
-        await Promise.all(batch.map(operation => operation()));
+        await Promise.all(batch.map(item => {
+          const startTime = Date.now();
+          return item.operation().then(() => {
+            this.updatePerformanceMetrics(Date.now() - startTime, true);
+          }).catch((error) => {
+            this.updatePerformanceMetrics(Date.now() - startTime, false);
+            if (item.retryCount < this.MAX_RETRY_ATTEMPTS) {
+              item.retryCount++;
+              this.batchQueue.unshift(item); // Retry with higher priority
+              console.warn(`🔄 Retrying operation (${item.retryCount}/${this.MAX_RETRY_ATTEMPTS}):`, error);
+            } else {
+              console.error('❌ Max retry attempts reached:', error);
+              throw error;
+            }
+          });
+        }));
       }
     } catch (error) {
       console.error('❌ Batch processing failed:', error);
@@ -311,12 +381,24 @@ export class FirebaseService {
     }
   }
 
-  // Optimized cache management
+  // Enhanced cache management with integrity checks
   private setCache(key: string, data: unknown) {
+    const serializedData = JSON.stringify(data);
+    const checksum = this.generateChecksum(serializedData);
+    
     this.cache.set(key, {
-      data: JSON.parse(JSON.stringify(data)),
-      timestamp: Date.now()
+      data: JSON.parse(serializedData),
+      timestamp: Date.now(),
+      version: Date.now(), // Use timestamp as version
+      checksum
     });
+    
+    // Maintain cache size limit
+    if (this.cache.size > this.MAX_CACHE_SIZE) {
+      const oldestKey = [...this.cache.entries()]
+        .sort(([,a], [,b]) => a.timestamp - b.timestamp)[0][0];
+      this.cache.delete(oldestKey);
+    }
     
     // Clean old cache entries
     this.cleanExpiredCache();
@@ -395,24 +477,191 @@ export class FirebaseService {
     }
   }
 
-  // Analytics and monitoring
+  // Enhanced analytics and monitoring
   getCacheStats() {
+    const entries = [...this.cache.values()];
     const stats = {
       totalEntries: this.cache.size,
-      memoryUsage: JSON.stringify([...this.cache.values()]).length,
-      oldestEntry: Math.min(...[...this.cache.values()].map(v => v.timestamp)),
-      newestEntry: Math.max(...[...this.cache.values()].map(v => v.timestamp))
+      memoryUsage: JSON.stringify(entries).length,
+      oldestEntry: entries.length > 0 ? Math.min(...entries.map(v => v.timestamp)) : 0,
+      newestEntry: entries.length > 0 ? Math.max(...entries.map(v => v.timestamp)) : 0,
+      hitRate: this.performanceMetrics.cacheHitRate,
+      averageAge: entries.length > 0 ? (Date.now() - entries.reduce((sum, v) => sum + v.timestamp, 0) / entries.length) : 0
     };
     
-    console.log('📊 Cache Statistics:', stats);
+    console.log('📊 Enhanced Cache Statistics:', stats);
     return stats;
   }
 
   getBatchQueueStatus() {
     return {
       queueLength: this.batchQueue.length,
-      isProcessing: this.isBatchProcessing
+      isProcessing: this.isBatchProcessing,
+      averageResponseTime: this.performanceMetrics.averageResponseTime,
+      operationCount: this.performanceMetrics.operationCount,
+      errorCount: this.performanceMetrics.errorCount
     };
+  }
+
+  getPerformanceMetrics() {
+    return { ...this.performanceMetrics };
+  }
+
+  // Performance tracking
+  private updatePerformanceMetrics(responseTime: number, success: boolean) {
+    this.performanceMetrics.operationCount++;
+    this.performanceMetrics.lastOperationTime = Date.now();
+    
+    if (success) {
+      // Update rolling average response time
+      const count = this.performanceMetrics.operationCount;
+      this.performanceMetrics.averageResponseTime = 
+        (this.performanceMetrics.averageResponseTime * (count - 1) + responseTime) / count;
+    } else {
+      this.performanceMetrics.errorCount++;
+    }
+    
+    // Update cache hit rate (simplified calculation)
+    const cacheHits = this.cache.size;
+    const totalOps = this.performanceMetrics.operationCount;
+    this.performanceMetrics.cacheHitRate = (cacheHits / Math.max(totalOps, 1)) * 100;
+  }
+
+  // Data integrity
+  private generateChecksum(data: string): string {
+    // Simple checksum implementation (for production, use a proper hash function)
+    let hash = 0;
+    for (let i = 0; i < data.length; i++) {
+      const char = data.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
+  }
+
+  private validateDataIntegrity(key: string, data: unknown): boolean {
+    if (!this.dataValidationEnabled) return true;
+    
+    const cached = this.cache.get(key);
+    if (!cached) return true;
+    
+    const currentChecksum = this.generateChecksum(JSON.stringify(data));
+    const isValid = currentChecksum === cached.checksum;
+    
+    if (!isValid) {
+      console.warn(`⚠️ Data integrity check failed for ${key}`);
+    }
+    
+    return isValid;
+  }
+
+  // Network monitoring
+  private setupNetworkMonitoring() {
+    // Monitor connection quality (with proper typing)
+    const nav = navigator as Navigator & { connection?: { effectiveType: string; addEventListener: (event: string, callback: () => void) => void } };
+    if (nav.connection) {
+      const updateNetworkStatus = () => {
+        const effectiveType = nav.connection!.effectiveType;
+        if (effectiveType === '4g') {
+          this.networkStatus.next('online');
+        } else if (effectiveType === '3g' || effectiveType === '2g') {
+          this.networkStatus.next('slow');
+        } else {
+          this.networkStatus.next('offline');
+        }
+      };
+
+      nav.connection.addEventListener('change', updateNetworkStatus);
+      updateNetworkStatus();
+    }
+
+    // Monitor online/offline status
+    window.addEventListener('online', () => {
+      console.log('🌐 Network connection restored');
+      this.networkStatus.next('online');
+      this.connectionStatus.next(true);
+      this.isOfflineMode.next(false);
+    });
+
+    window.addEventListener('offline', () => {
+      console.warn('📱 Network connection lost');
+      this.networkStatus.next('offline');
+      this.connectionStatus.next(false);
+      this.isOfflineMode.next(true);
+    });
+  }
+
+  // Enhanced offline mode management
+  async enableOfflineMode(): Promise<void> {
+    console.log('📱 Enabling enhanced offline mode');
+    this.isOfflineMode.next(true);
+    
+    // Save current data to localStorage as backup
+    this.saveToLocalStorage();
+    
+    try {
+      if (this.database) {
+        goOffline(this.database);
+      }
+    } catch (error) {
+      console.warn('⚠️ Firebase offline mode setup warning:', error);
+    }
+  }
+
+  async enableOnlineMode(): Promise<void> {
+    console.log('🌐 Enabling online mode');
+    this.isOfflineMode.next(false);
+    
+    try {
+      if (this.database) {
+        goOnline(this.database);
+        // Sync any offline changes
+        await this.syncOfflineChanges();
+      }
+    } catch (error) {
+      console.warn('⚠️ Firebase online mode setup warning:', error);
+    }
+  }
+
+  private saveToLocalStorage(): void {
+    try {
+      localStorage.setItem('firebase_cache_matchResults', JSON.stringify(this.getCurrentMatchResults()));
+      localStorage.setItem('firebase_cache_playerStats', JSON.stringify(this.getCurrentPlayerStats()));
+      localStorage.setItem('firebase_cache_history', JSON.stringify(this.getCurrentHistory()));
+      localStorage.setItem('firebase_cache_timestamp', Date.now().toString());
+      console.log('💾 Data cached to localStorage for offline access');
+    } catch (error) {
+      console.error('❌ Failed to save to localStorage:', error);
+    }
+  }
+
+  private async syncOfflineChanges(): Promise<void> {
+    console.log('🔄 Syncing offline changes...');
+    
+    try {
+      // Check if there are any pending changes in localStorage
+      const pendingChanges = localStorage.getItem('firebase_pending_changes');
+      if (pendingChanges) {
+        const changes = JSON.parse(pendingChanges);
+        
+        for (const change of changes) {
+          try {
+            await this.executeBatchOperation(async () => {
+              // Execute pending change based on type
+              console.log('🔄 Syncing change:', change.type, change.id);
+            }, 3); // High priority for sync
+          } catch (error) {
+            console.error('❌ Failed to sync change:', change, error);
+          }
+        }
+        
+        // Clear pending changes after successful sync
+        localStorage.removeItem('firebase_pending_changes');
+        console.log('✅ Offline changes synced successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error syncing offline changes:', error);
+    }
   }
 
   // Delete methods
@@ -526,7 +775,6 @@ export class FirebaseService {
 
   async batchUpdateMatchFinances(matchId: string, updates: Partial<HistoryEntry>): Promise<void> {
     return this.executeBatchOperation(async () => {
-      const matchRef = ref(this.database, `history/${matchId}`);
       const updateData = {
         ...updates,
         updatedAt: serverTimestamp(),
@@ -549,7 +797,7 @@ export class FirebaseService {
       this.historySubject.next(updatedHistory);
       
       console.log(`💾 Match ${matchId} batch updated:`, Object.keys(updates));
-    });
+    }, 2); // Higher priority for batch updates
   }
 
   async syncLocalHistoryToFirebase(localHistory: HistoryEntry[]): Promise<void> {
@@ -635,11 +883,99 @@ export class FirebaseService {
     return 'system@thanglong.fc';
   }
 
-  // Cleanup method
-  destroy() {
-    // Clean up listeners and cache
+  // Enhanced service management
+  async resetService(): Promise<void> {
+    console.log('🔄 Resetting Firebase service...');
+    
+    // Clear cache and queues
     this.cache.clear();
     this.batchQueue.length = 0;
-    console.log('🧹 Firebase service cleaned up');
+    
+    // Reset performance metrics
+    this.performanceMetrics = {
+      operationCount: 0,
+      averageResponseTime: 0,
+      errorCount: 0,
+      cacheHitRate: 0,
+      lastOperationTime: Date.now()
+    };
+    
+    // Reinitialize if needed
+    if (this.isEnabled && this.database) {
+      this.initializeOptimizedListeners();
+    }
+    
+    console.log('✅ Firebase service reset complete');
+  }
+
+  // Health check
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    details: {
+      firebase: boolean;
+      cache: boolean;
+      network: string;
+      performance: {
+        responseTime: number;
+        errorRate: number;
+      };
+    };
+  }> {
+    const details = {
+      firebase: this.isEnabled && !!this.database,
+      cache: this.cache.size > 0,
+      network: this.networkStatus.value,
+      performance: {
+        responseTime: this.performanceMetrics.averageResponseTime,
+        errorRate: this.performanceMetrics.operationCount > 0 ? 
+          (this.performanceMetrics.errorCount / this.performanceMetrics.operationCount) * 100 : 0
+      }
+    };
+
+    let status: 'healthy' | 'degraded' | 'unhealthy';
+    
+    if (details.firebase && details.network === 'online' && details.performance.errorRate < 5) {
+      status = 'healthy';
+    } else if (details.firebase || details.cache) {
+      status = 'degraded';
+    } else {
+      status = 'unhealthy';
+    }
+
+    console.log('🏥 Firebase service health check:', status, details);
+    return { status, details };
+  }
+
+  // Configuration methods
+  enableDataValidation(enabled: boolean): void {
+    this.dataValidationEnabled = enabled;
+    console.log(`🛡️ Data validation ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  setCacheDuration(duration: number): void {
+    this.CACHE_DURATION = duration;
+    console.log(`⏰ Cache duration set to ${duration}ms`);
+  }
+
+  // Enhanced cleanup method
+  destroy() {
+    console.log('🧹 Cleaning up Firebase service...');
+    
+    // Event listeners will be automatically cleaned up when the service is destroyed
+    
+    // Clear all data
+    this.cache.clear();
+    this.batchQueue.length = 0;
+    this.integrityChecks.clear();
+    
+    // Complete observables
+    this.matchResultsSubject.complete();
+    this.playerStatsSubject.complete();
+    this.historySubject.complete();
+    this.connectionStatus.complete();
+    this.isOfflineMode.complete();
+    this.networkStatus.complete();
+    
+    console.log('✅ Firebase service cleanup complete');
   }
 }

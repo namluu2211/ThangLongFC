@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Output, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminConfig } from '../config/admin.config';
@@ -666,7 +666,7 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
   `]
 })
 export class HeaderComponent implements OnInit {
-  @Output() loginChange = new EventEmitter<any>();
+  @Output() loginChange = new EventEmitter<{loggedIn: boolean; role: string}>();
   
   // Firebase Authentication properties
   email = '';
@@ -680,8 +680,8 @@ export class HeaderComponent implements OnInit {
   // Current user info from Firebase
   currentUserEmail = '';
   currentUserDisplayName = '';
-
-  constructor(private firebaseAuthService: FirebaseAuthService) {}
+  
+  private readonly firebaseAuthService = inject(FirebaseAuthService);
 
   ngOnInit() {
     // Subscribe to Firebase auth state changes
@@ -749,18 +749,19 @@ export class HeaderComponent implements OnInit {
         console.log('🔥 login successful:', firebaseUser);
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ login failed:', error);
       
+      const errorMsg = error instanceof Error ? error.message : String(error);
       let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
       
-      if (error.message.includes('user-not-found')) {
+      if (errorMsg.includes('user-not-found')) {
         errorMessage = `Không tìm thấy tài khoản Firebase cho email ${this.email}. Vui lòng tạo tài khoản trước.`;
-      } else if (error.message.includes('wrong-password')) {
+      } else if (errorMsg.includes('wrong-password')) {
         errorMessage = 'Mật khẩu không chính xác.';
-      } else if (error.message.includes('invalid-email')) {
+      } else if (errorMsg.includes('invalid-email')) {
         errorMessage = 'Email không hợp lệ.';
-      } else if (error.message.includes('Unauthorized')) {
+      } else if (errorMsg.includes('Unauthorized')) {
         errorMessage = 'Email này không có quyền admin.';
       }
       
