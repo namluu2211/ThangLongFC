@@ -3,6 +3,7 @@ import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HistoryComponent } from './features/history/history.component';
+import { PlayersComponent } from './features/players/players.component';
 import { PlayersSimpleComponent } from './features/players/players-simple.component';
 import { FundComponent } from './features/fund/fund.component';
 import { StatsComponent } from './features/stats/stats.component';
@@ -23,6 +24,7 @@ import { MatchData } from './models/types';
     FormsModule,
     HeaderComponent,
     HistoryComponent,
+    PlayersComponent,
     PlayersSimpleComponent,
     FundComponent,
     StatsComponent,
@@ -37,17 +39,24 @@ import { MatchData } from './models/types';
       <div class="navigation-buttons">
         <button 
           class="nav-btn" 
-          [class.active]="show === 'auto'"
-          (click)="show='auto'">
+          [class.active]="show === 'players'"
+          (click)="show='players'">
           <i class="fas fa-users"></i>
           <span>Chia đội</span>
+        </button>
+        <button 
+          class="nav-btn" 
+          [class.active]="show === 'list'"
+          (click)="show='list'">
+          <i class="fas fa-list"></i>
+          <span>Danh sách cầu thủ</span>
         </button>
         <button 
           class="nav-btn" 
           [class.active]="show === 'history'"
           (click)="show='history'">
           <i class="fas fa-history"></i>
-          <span>Xem Lịch Sử</span>
+          <span>Lịch sử trận đấu</span>
         </button>
         <button 
           class="nav-btn" 
@@ -66,13 +75,15 @@ import { MatchData } from './models/types';
       </div>
       <!-- Professional Content Area -->
       <div class="content-area fade-in">
-        <div *ngIf="show==='auto'" style="padding: 20px;">
-          <h2>⚽ Danh Sách Cầu Thủ</h2>
-          <p>Đang tạm thời hiển thị chế độ gỡ lỗi...</p>
+        <!-- Team Division - Full players component with drag-drop functionality -->
+        <app-players *ngIf="show==='players'" [canEdit]="canEdit"></app-players>
+        
+        <!-- Registered Players List - Enhanced players management -->
+        <div *ngIf="show==='list'" style="padding: 20px;">
           <app-players-simple></app-players-simple>
         </div>
+        
         <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
-        <app-players *ngIf="show==='list'" [canEdit]="canEdit" mode="list"></app-players>
         
         <!-- Professional Fund Display -->
         <div *ngIf="show==='fund'" class="fund-header-card glass interactive slide-up">
@@ -108,7 +119,7 @@ export class AppComponent implements OnInit, OnDestroy {
   
   loggedIn = false;
   role = '';
-  show = 'auto'; // default to 'Chia đội tự động' for better UX
+  show = 'players'; // default to team division for better UX
   canEdit = false;
 
   private readonly firebaseService = inject(FirebaseService);
@@ -137,8 +148,16 @@ export class AppComponent implements OnInit, OnDestroy {
       console.log('App component initialized with Firebase service');
       
       // Initialize Firebase real-time listeners with error handling
-      this.initializeFirebaseListeners();
-      console.log('✅ Firebase listeners initialized successfully');
+      setTimeout(() => {
+        try {
+          this.initializeFirebaseListeners();
+          console.log('✅ Firebase listeners initialized successfully');
+        } catch (firebaseError) {
+          console.warn('⚠️ Firebase listeners initialization failed:', firebaseError);
+          // Continue with app initialization even if Firebase fails
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error('❌ Error in ngOnInit:', error);
       // Still remove loading screen even if there's an error

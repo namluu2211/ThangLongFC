@@ -29,7 +29,7 @@ import { Player } from './player-utils';
             (click)="togglePlayerListView()"
             title="Xem danh sách cầu thủ">
             <i class="fas fa-list me-2"></i>
-            {{ showPlayerList ? 'Ẩn danh sách' : 'Danh Sách' }}
+            {{ showPlayerList ? 'Ẩn danh sách' : 'Hiện danh sách' }}
           </button>
           
           <button 
@@ -1336,7 +1336,7 @@ export class PlayersComponent implements OnInit {
       this.registeredPlayers.push({ ...player });
       this.showTemporaryMessage('saveRegisteredMessage', `Đã đăng ký ${player.firstName}`);
     }
-
+    
     // Save to localStorage
     localStorage.setItem('registeredPlayers', JSON.stringify(this.registeredPlayers));
     
