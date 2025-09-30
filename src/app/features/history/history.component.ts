@@ -76,8 +76,12 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
               <i class="fas fa-coins"></i>
             </div>
             <div class="summary-content">
-              <div class="summary-label">Tổng thu</div>
+              <div class="summary-label">
+                <i class="fas fa-arrow-up me-1"></i>
+                Tổng thu nhập
+              </div>
               <div class="summary-value">{{formatCurrency(getTotalRevenue())}}</div>
+              <div class="summary-detail">{{history.length}} trận đấu</div>
             </div>
           </div>
           
@@ -86,8 +90,12 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
               <i class="fas fa-receipt"></i>
             </div>
             <div class="summary-content">
-              <div class="summary-label">Tổng chi</div>
+              <div class="summary-label">
+                <i class="fas fa-arrow-down me-1"></i>
+                Tổng chi phí
+              </div>
               <div class="summary-value">{{formatCurrency(getTotalExpenses())}}</div>
+              <div class="summary-detail">Bao gồm sân, trọng tài, nước</div>
             </div>
           </div>
           
@@ -98,8 +106,30 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
               <i class="fas fa-balance-scale"></i>
             </div>
             <div class="summary-content">
-              <div class="summary-label">Lãi/Lỗ ròng</div>
+              <div class="summary-label">
+                <i [class]="getNetProfit() > 0 ? 'fas fa-chart-line text-success' : getNetProfit() < 0 ? 'fas fa-chart-line-down text-danger' : 'fas fa-equals'" class="me-1"></i>
+                {{getNetProfit() > 0 ? 'Lãi ròng' : getNetProfit() < 0 ? 'Lỗ ròng' : 'Hòa vốn'}}
+              </div>
               <div class="summary-value">{{formatCurrency(getNetProfit())}}</div>
+              <div class="summary-detail">
+                {{getNetProfit() > 0 ? 'Hoạt động có lãi' : getNetProfit() < 0 ? 'Cần cải thiện thu nhập' : 'Cân bằng thu chi'}}
+              </div>
+            </div>
+          </div>
+          
+          <div class="summary-item avg-per-match">
+            <div class="summary-icon">
+              <i class="fas fa-calculator"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">
+                <i class="fas fa-chart-bar me-1"></i>
+                Trung bình/trận
+              </div>
+              <div class="summary-value">{{formatCurrency(getAveragePerMatch())}}</div>
+              <div class="summary-detail">
+                Thu: {{formatCurrency(getTotalRevenue() / Math.max(history.length, 1))}}
+              </div>
             </div>
           </div>
           

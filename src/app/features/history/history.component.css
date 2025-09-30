@@ -357,7 +357,7 @@
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0;
   padding: 0;
 }
@@ -455,6 +455,15 @@
   color: #3498db;
 }
 
+/* Enhanced text colors for profit/loss indicators */
+.text-success {
+  color: #27ae60 !important;
+}
+
+.text-danger {
+  color: #e74c3c !important;
+}
+
 .summary-content {
   flex: 1;
 }
@@ -462,14 +471,24 @@
 .summary-label {
   font-size: 0.9rem;
   color: #7f8c8d;
-  font-weight: 500;
-  margin-bottom: 5px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
 }
 
 .summary-value {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.4rem;
+  font-weight: 800;
   color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.summary-detail {
+  font-size: 0.75rem;
+  color: #95a5a6;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .net-profit.profit .summary-value {
@@ -635,6 +654,10 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .summary-detail {
+    font-size: 0.7rem;
+  }
+
   .summary-item {
     padding: 15px 20px;
     flex-direction: column;
@@ -685,4 +708,234 @@
   .summary-grid {
     grid-template-columns: 1fr;
   }
+
+  .summary-detail {
+    font-size: 0.7rem;
+  }
+}
+
+/* Enhanced Financial Input Styling */
+.financial-section {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 15px;
+  padding: 25px;
+  margin-top: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.financial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.financial-header span {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.financial-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.financial-item {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 4px solid #bdc3c7;
+  transition: all 0.3s ease;
+}
+
+.financial-item.revenue {
+  border-left-color: #27ae60;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.05) 0%, rgba(46, 204, 113, 0.08) 100%);
+}
+
+.financial-item.expenses {
+  border-left-color: #e74c3c;
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.05) 0%, rgba(192, 57, 43, 0.08) 100%);
+}
+
+.financial-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.calculation-toggle, .expense-add-btn {
+  background: rgba(52, 152, 219, 0.1);
+  border: 2px solid rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.8rem;
+}
+
+.calculation-toggle:hover, .expense-add-btn:hover {
+  background: #3498db;
+  color: white;
+  transform: scale(1.05);
+}
+
+.revenue-breakdown, .expense-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.revenue-item, .expense-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.revenue-item:hover, .expense-item:hover {
+  background: #f8f9fa;
+  transform: translateX(2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.revenue-label, .expense-label {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  min-width: 120px;
+}
+
+.expense-label.required::after {
+  content: ' *';
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.revenue-input, .expense-input {
+  padding: 10px 50px 10px 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  width: 140px;
+  text-align: right;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.revenue-input:focus, .expense-input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.revenue-input.error, .expense-input.error {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.currency-suffix {
+  position: absolute;
+  right: 12px;
+  color: #7f8c8d;
+  font-size: 0.85rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Enhanced auto calculation styling */
+.auto-calculation {
+  background: white;
+  border-radius: 10px;
+  padding: 18px;
+  border: 2px solid rgba(39, 174, 96, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.calculation-breakdown {
+  margin-bottom: 15px;
+}
+
+.calc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.calc-item:last-child {
+  border-bottom: none;
+}
+
+.calc-label {
+  font-size: 0.85rem;
+  color: #5a6c7d;
+  font-weight: 500;
+}
+
+.calc-value {
+  font-weight: 600;
+  color: #27ae60;
+  font-size: 0.9rem;
+}
+
+.auto-total {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #27ae60;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(46, 204, 113, 0.12) 100%);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(39, 174, 96, 0.2);
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+  gap: 8px;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
