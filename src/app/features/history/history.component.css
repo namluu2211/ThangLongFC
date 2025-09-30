@@ -939,3 +939,638 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Enhanced Team Lineup Styling */
+.lineups-section {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 15px;
+  padding: 25px;
+  margin-top: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.lineups-title {
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #ecf0f1;
+  display: flex;
+  align-items: center;
+}
+
+.lineups-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.lineup-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+  min-height: 120px;
+}
+
+.team-a-card {
+  border-left: 4px solid #00bcd4;
+  background: linear-gradient(135deg, rgba(0, 188, 212, 0.03) 0%, rgba(0, 151, 167, 0.06) 100%);
+}
+
+.team-b-card {
+  border-left: 4px solid #ff9800;
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.03) 0%, rgba(245, 124, 0, 0.06) 100%);
+}
+
+.lineup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.team-badge {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.team-a-badge {
+  color: #00bcd4;
+}
+
+.team-b-badge {
+  color: #ff9800;
+}
+
+.team-name {
+  font-weight: 700;
+}
+
+.player-count-badge {
+  background: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.vs-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.vs-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 50px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  border: 3px solid white;
+}
+
+.player-list-enhanced {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.players-container {
+  line-height: 1.6;
+}
+
+.player-name {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin: 2px 4px 2px 0;
+  font-weight: 500;
+  color: #2c3e50;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.team-a-card .player-name {
+  border-left: 3px solid #00bcd4;
+}
+
+.team-b-card .player-name {
+  border-left: 3px solid #ff9800;
+}
+
+.player-name:hover {
+  background: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.no-players-message {
+  color: #95a5a6;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+  background: rgba(149, 165, 166, 0.05);
+  border-radius: 8px;
+  border: 1px dashed #bdc3c7;
+}
+
+/* Enhanced Financial Header */
+.financial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding: 20px 25px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.financial-title {
+  display: flex;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.financial-status {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.financial-summary-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mini-total {
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.mini-total.revenue {
+  color: #2ecc71;
+}
+
+.mini-total.expense {
+  color: #e74c3c;
+}
+
+.mini-divider {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 300;
+}
+
+/* Responsive Design for Enhanced Layouts */
+@media (max-width: 768px) {
+  .lineups-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .vs-divider {
+    padding: 10px 0;
+  }
+  
+  .vs-text {
+    padding: 8px 16px;
+    font-size: 1rem;
+  }
+  
+  .financial-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .financial-summary-mini {
+    justify-content: center;
+  }
+  
+  .lineup-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .player-name {
+    font-size: 0.85rem;
+    padding: 3px 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lineups-section {
+    padding: 20px 15px;
+  }
+  
+  .financial-summary-mini {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .mini-divider {
+    display: none;
+  }
+}
+
+/* Enhanced Expense Cards Styling */
+.expense-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.expense-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.expense-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.referee-expense {
+  border-left: 4px solid #e74c3c;
+}
+
+.water-expense {
+  border-left: 4px solid #3498db;
+}
+
+.field-expense {
+  border-left: 4px solid #27ae60;
+}
+
+.expense-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 15px;
+}
+
+.expense-icon-wrapper {
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: white;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+.expense-icon-wrapper.referee {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.expense-icon-wrapper.water {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
+.expense-icon-wrapper.field {
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+}
+
+.expense-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.expense-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.expense-description {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-weight: 400;
+}
+
+.expense-input-group {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 5px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.expense-input-group:focus-within {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  background: white;
+}
+
+.expense-input-enhanced {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 12px 15px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #2c3e50;
+  text-align: right;
+}
+
+.expense-input-enhanced:focus {
+  outline: none;
+}
+
+.expense-input-enhanced::placeholder {
+  color: #bdc3c7;
+  font-weight: 400;
+}
+
+.expense-input-enhanced.error {
+  color: #e74c3c;
+}
+
+.currency-label {
+  padding: 8px 12px;
+  background: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  margin-left: 10px;
+}
+
+.expense-summary {
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.05) 0%, rgba(192, 57, 43, 0.08) 100%);
+  border: 2px solid rgba(231, 76, 60, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 10px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.summary-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+}
+
+.summary-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #e74c3c;
+}
+
+.save-expenses-btn {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-shadow: 0 3px 10px rgba(231, 76, 60, 0.2);
+}
+
+.save-expenses-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}
+
+.save-expenses-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Enhanced responsive design for expense cards */
+@media (max-width: 768px) {
+  .expense-card {
+    padding: 15px;
+  }
+  
+  .expense-header {
+    gap: 12px;
+  }
+  
+  .expense-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+  
+  .expense-title {
+    font-size: 0.9rem;
+  }
+  
+  .expense-description {
+    font-size: 0.8rem;
+  }
+  
+  .expense-input-enhanced {
+    font-size: 0.9rem;
+    padding: 10px 12px;
+  }
+}
+
+/* Profit/Loss Summary Styling */
+.profit-loss-summary {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.98) 100%);
+  border-radius: 15px;
+  padding: 20px 25px;
+  margin-top: 20px;
+  border: 2px solid #e9ecef;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.profit-loss-summary .summary-header {
+  color: #2c3e50;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.profit-loss-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.summary-item-mini {
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.summary-item-mini:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.revenue-mini {
+  border-left: 4px solid #27ae60;
+}
+
+.expense-mini {
+  border-left: 4px solid #e74c3c;
+}
+
+.profit-mini {
+  border-left: 4px solid #95a5a6;
+}
+
+.profit-mini.profit {
+  border-left-color: #f39c12;
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.03) 0%, rgba(230, 126, 34, 0.06) 100%);
+}
+
+.profit-mini.loss {
+  border-left-color: #e74c3c;
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.03) 0%, rgba(192, 57, 43, 0.06) 100%);
+}
+
+.profit-mini.break-even {
+  border-left-color: #3498db;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.03) 0%, rgba(41, 128, 185, 0.06) 100%);
+}
+
+.mini-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 1.1rem;
+  color: white;
+}
+
+.revenue-mini .mini-icon {
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+}
+
+.expense-mini .mini-icon {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.profit-mini .mini-icon {
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+}
+
+.profit-mini.profit .mini-icon {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+}
+
+.profit-mini.loss .mini-icon {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.profit-mini.break-even .mini-icon {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
+.mini-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mini-label {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.mini-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.profit-mini.profit .mini-value {
+  color: #f39c12;
+}
+
+.profit-mini.loss .mini-value {
+  color: #e74c3c;
+}
+
+.profit-mini.break-even .mini-value {
+  color: #3498db;
+}
+
+/* Responsive design for profit/loss summary */
+@media (max-width: 768px) {
+  .profit-loss-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .profit-loss-summary {
+    padding: 15px 20px;
+  }
+  
+  .summary-item-mini {
+    padding: 12px 15px;
+  }
+  
+  .mini-icon {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+}

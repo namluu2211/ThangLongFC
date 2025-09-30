@@ -382,24 +382,59 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
 
           <!-- Team Lineups -->
           <div class="lineups-section">
-            <div class="lineup-item">
-              <div class="lineup-header">
-                <i class="fas fa-users me-2"></i>
-                <span>Đội Xanh</span>
-                <span class="player-count">({{(m.teamA || []).length}} người)</span>
+            <h4 class="lineups-title">
+              <i class="fas fa-clipboard-list me-2"></i>
+              Đội hình thi đấu
+            </h4>
+            <div class="lineups-grid">
+              <div class="lineup-card team-a-card">
+                <div class="lineup-header">
+                  <div class="team-badge team-a-badge">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    <span class="team-name">Đội Xanh</span>
+                  </div>
+                  <span class="player-count-badge">{{(m.teamA || []).length}} cầu thủ</span>
+                </div>
+                <div class="player-list-enhanced">
+                  <div class="players-container" *ngIf="(m.teamA || []).length > 0; else noPlayersA">
+                    <span class="player-name" *ngFor="let player of getTeamArray(m.teamA); let last = last">
+                      {{getPlayerName(player)}}<span *ngIf="!last">, </span>
+                    </span>
+                  </div>
+                  <ng-template #noPlayersA>
+                    <div class="no-players-message">
+                      <i class="fas fa-user-slash me-2"></i>
+                      Chưa có cầu thủ
+                    </div>
+                  </ng-template>
+                </div>
               </div>
-              <div class="player-list">
-                {{getTeamNames(m.teamA) || 'Chưa có thông tin'}}
+              
+              <div class="vs-divider">
+                <span class="vs-text">VS</span>
               </div>
-            </div>
-            <div class="lineup-item">
-              <div class="lineup-header">
-                <i class="fas fa-users me-2"></i>
-                <span>Đội Cam</span>
-                <span class="player-count">({{(m.teamB || []).length}} người)</span>
-              </div>
-              <div class="player-list">
-                {{getTeamNames(m.teamB) || 'Chưa có thông tin'}}
+              
+              <div class="lineup-card team-b-card">
+                <div class="lineup-header">
+                  <div class="team-badge team-b-badge">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    <span class="team-name">Đội Cam</span>
+                  </div>
+                  <span class="player-count-badge">{{(m.teamB || []).length}} cầu thủ</span>
+                </div>
+                <div class="player-list-enhanced">
+                  <div class="players-container" *ngIf="(m.teamB || []).length > 0; else noPlayersB">
+                    <span class="player-name" *ngFor="let player of getTeamArray(m.teamB); let last = last">
+                      {{getPlayerName(player)}}<span *ngIf="!last">, </span>
+                    </span>
+                  </div>
+                  <ng-template #noPlayersB>
+                    <div class="no-players-message">
+                      <i class="fas fa-user-slash me-2"></i>
+                      Chưa có cầu thủ
+                    </div>
+                  </ng-template>
+                </div>
               </div>
             </div>
           </div>
@@ -407,11 +442,24 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
           <!-- Financial Section -->
           <div class="financial-section">
             <div class="financial-header">
-              <i class="fas fa-coins me-2"></i>
-              <span>Thông tin tài chính</span>
-              <div class="save-status" *ngIf="getSaveStatus(m)" [class]="getSaveStatusClass(m)">
-                <i [class]="saveStatus.get(m) === 'saving' ? 'fas fa-spinner fa-spin' : saveStatus.get(m) === 'saved' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'" class="me-1"></i>
-                {{getSaveStatus(m)}}
+              <div class="financial-title">
+                <i class="fas fa-money-bill-wave me-2"></i>
+                <span>Quản lý tài chính</span>
+              </div>
+              <div class="financial-status">
+                <div class="save-status" *ngIf="getSaveStatus(m)" [class]="getSaveStatusClass(m)">
+                  <i [class]="saveStatus.get(m) === 'saving' ? 'fas fa-spinner fa-spin' : saveStatus.get(m) === 'saved' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'" class="me-1"></i>
+                  {{getSaveStatus(m)}}
+                </div>
+                <div class="financial-summary-mini">
+                  <span class="mini-total revenue" [title]="'Tổng thu: ' + formatCurrency(m.thu || 0)">
+                    <i class="fas fa-arrow-up me-1"></i>{{formatCurrency(m.thu || 0)}}
+                  </span>
+                  <span class="mini-divider">|</span>
+                  <span class="mini-total expense" [title]="'Tổng chi: ' + formatCurrency((m.chi_trongtai || 0) + (m.chi_nuoc || 0) + (m.chi_san || 0))">
+                    <i class="fas fa-arrow-down me-1"></i>{{formatCurrency((m.chi_trongtai || 0) + (m.chi_nuoc || 0) + (m.chi_san || 0))}}
+                  </span>
+                </div>
               </div>
             </div>
             
@@ -522,32 +570,112 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
                   </button>
                 </div>
                 <div class="expense-breakdown">
-                  <!-- Core expense categories -->
-                  <div class="expense-item" 
-                       [attr.data-tooltip]="'Chi phí trọng tài cho trận đấu (VD: 100,000 VND)'">
-                    <span class="expense-label required">
-                      <i class="fas fa-whistle me-1"></i>
-                      Trọng tài:
-                    </span>
-                    <div class="input-wrapper">
+                  <!-- Core expense categories with enhanced UI -->
+                  <div class="expense-card referee-expense">
+                    <div class="expense-header">
+                      <div class="expense-icon-wrapper referee">
+                        <i class="fas fa-whistle"></i>
+                      </div>
+                      <div class="expense-info">
+                        <span class="expense-title">Trọng tài *</span>
+                        <span class="expense-description">Phí trọng tài trận đấu</span>
+                      </div>
+                    </div>
+                    <div class="expense-input-group">
                       <input 
                         type="number" 
                         [(ngModel)]="m.chi_trongtai" 
                         (ngModelChange)="updateChi(m)"
                         (blur)="validateExpenseInput(m, 'chi_trongtai')"
-                        class="expense-input"
+                        class="expense-input-enhanced"
                         [class.error]="hasExpenseError(m, 'chi_trongtai')"
                         [readonly]="!isAdmin()"
                         [disabled]="!isAdmin()"
                         min="0"
                         step="1000"
-                        placeholder="0" />
-                      <span class="currency-suffix">VND</span>
+                        placeholder="Nhập số tiền..." />
+                      <span class="currency-label">VND</span>
                     </div>
                   </div>
                   
+                  <div class="expense-card water-expense">
+                    <div class="expense-header">
+                      <div class="expense-icon-wrapper water">
+                        <i class="fas fa-tint"></i>
+                      </div>
+                      <div class="expense-info">
+                        <span class="expense-title">Nước uống</span>
+                        <span class="expense-description">Nước cho cầu thủ</span>
+                      </div>
+                    </div>
+                    <div class="expense-input-group">
+                      <input 
+                        type="number" 
+                        [(ngModel)]="m.chi_nuoc" 
+                        (ngModelChange)="updateChi(m)"
+                        (blur)="validateExpenseInput(m, 'chi_nuoc')"
+                        class="expense-input-enhanced"
+                        [class.error]="hasExpenseError(m, 'chi_nuoc')"
+                        [readonly]="!isAdmin()"
+                        [disabled]="!isAdmin()"
+                        min="0"
+                        step="1000"
+                        placeholder="Nhập số tiền..." />
+                      <span class="currency-label">VND</span>
+                    </div>
+                  </div>
+                  
+                  <div class="expense-card field-expense">
+                    <div class="expense-header">
+                      <div class="expense-icon-wrapper field">
+                        <i class="fas fa-futbol"></i>
+                      </div>
+                      <div class="expense-info">
+                        <span class="expense-title">Sân bóng *</span>
+                        <span class="expense-description">Phí thuê sân thi đấu</span>
+                      </div>
+                    </div>
+                    <div class="expense-input-group">
+                      <input 
+                        type="number" 
+                        [(ngModel)]="m.chi_san" 
+                        (ngModelChange)="updateChi(m)"
+                        (blur)="validateExpenseInput(m, 'chi_san')"
+                        class="expense-input-enhanced"
+                        [class.error]="hasExpenseError(m, 'chi_san')"
+                        [readonly]="!isAdmin()"
+                        [disabled]="!isAdmin()"
+                        min="0"
+                        step="1000"
+                        placeholder="Nhập số tiền..." />
+                      <span class="currency-label">VND</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Expense summary -->
+                  <div class="expense-summary">
+                    <div class="summary-row">
+                      <span class="summary-label">
+                        <i class="fas fa-calculator me-1"></i>
+                        Tổng chi phí:
+                      </span>
+                      <span class="summary-amount">
+                        {{formatCurrency((m.chi_trongtai || 0) + (m.chi_nuoc || 0) + (m.chi_san || 0))}}
+                      </span>
+                    </div>
+                    <button 
+                      *ngIf="isAdmin()" 
+                      class="save-expenses-btn"
+                      (click)="saveMatchData(m, 'chi')"
+                      [disabled]="saveStatus.get(m) === 'saving'"
+                      title="Lưu thông tin chi phí">
+                      <i [class]="saveStatus.get(m) === 'saving' ? 'fas fa-spinner fa-spin' : 'fas fa-save'" class="me-2"></i>
+                      {{saveStatus.get(m) === 'saving' ? 'Đang lưu...' : 'Lưu Chi phí'}}
+                    </button>
+                  </div>
+                  
                   <div class="expense-item"
-                       [attr.data-tooltip]="'Chi phí nước uống cho cầu thủ (VD: 50,000 VND)'">
+                       [attr.data-tooltip]="'Chi phí nước uống cho cầu thủ (VD: 50,000 VND)'" style="display: none;">
                     <span class="expense-label">
                       <i class="fas fa-tint me-1"></i>
                       Nước:
@@ -1819,5 +1947,20 @@ export class HistoryComponent implements OnInit, OnDestroy {
       style: 'currency',
       currency: 'VND'
     }).format(amount);
+  }
+
+  // Helper methods for enhanced team display
+  getTeamArray(team: Player[] | string[] | undefined): (Player | string)[] {
+    return Array.isArray(team) ? team : [];
+  }
+
+  getPlayerName(player: Player | string): string {
+    if (typeof player === 'string') {
+      return player;
+    }
+    if (player && typeof player === 'object') {
+      return player.firstName ? `${player.firstName} ${player.lastName || ''}`.trim() : 'Unknown Player';
+    }
+    return 'Unknown Player';
   }
 }

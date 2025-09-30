@@ -44,9 +44,9 @@ function loadAdminConfig() {
         { email: 'bktientu@gmail.com', username: 'NamLuu', displayName: 'Nam Lưu', role: 'superadmin' },
         { email: 'nguyenthuysy@gmail.com', username: 'SyNguyen', displayName: 'Sy Nguyễn', role: 'admin' },
         { email: 'hanguyen@thanglongfc.com', username: 'HaNguyen', displayName: 'Hà Nguyễn', role: 'admin' },
-        { email: 'hieunguyen@thanglongfc.com', username: 'HieuNguyen', displayName: 'Hiếu Nguyễn', role: 'admin' }
+        { email: 'hieutran@thanglongfc.com', username: 'HieuTran', displayName: 'Hiếu Trần', role: 'admin' }
       ],
-      ADMIN_EMAILS: ['bktientu@gmail.com', 'nguyenthuysy@gmail.com', 'hanguyen@thanglongfc.com', 'hieunguyen@thanglongfc.com']
+      ADMIN_EMAILS: ['bktientu@gmail.com', 'nguyenthuysy@gmail.com', 'hanguyen@thanglongfc.com', 'hieutran@thanglongfc.com']
     };
   }
 }
