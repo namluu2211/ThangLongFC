@@ -759,8 +759,8 @@
 }
 
 .financial-item.expenses {
-  border-left-color: #e74c3c;
-  background: linear-gradient(135deg, rgba(231, 76, 60, 0.05) 0%, rgba(192, 57, 43, 0.08) 100%);
+  border-left-color: #95a5a6;
+  background: linear-gradient(135deg, rgba(149, 165, 166, 0.05) 0%, rgba(127, 140, 141, 0.08) 100%);
 }
 
 .financial-label {
@@ -1330,8 +1330,8 @@
 }
 
 .expense-summary {
-  background: linear-gradient(135deg, rgba(231, 76, 60, 0.05) 0%, rgba(192, 57, 43, 0.08) 100%);
-  border: 2px solid rgba(231, 76, 60, 0.1);
+  background: linear-gradient(135deg, rgba(149, 165, 166, 0.05) 0%, rgba(127, 140, 141, 0.08) 100%);
+  border: 2px solid rgba(149, 165, 166, 0.1);
   border-radius: 12px;
   padding: 20px;
   margin-top: 10px;
@@ -1359,7 +1359,7 @@
 }
 
 .save-expenses-btn {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   color: white;
   border: none;
   padding: 12px 25px;
@@ -1371,13 +1371,13 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  box-shadow: 0 3px 10px rgba(231, 76, 60, 0.2);
+  box-shadow: 0 3px 10px rgba(52, 152, 219, 0.2);
 }
 
 .save-expenses-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+  box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
 }
 
 .save-expenses-btn:disabled {

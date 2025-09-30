@@ -179,71 +179,138 @@ import { Player } from './player-utils';
 
       <!-- Teams Section -->
       <div class="teams-container">
-        <!-- Team A -->
-        <div class="team-card">
-          <div class="team-header team-a">
-            <h3><i class="fas fa-shield-alt me-2"></i>Đội Xanh</h3>
-            <div class="score-section">
-              <label for="scoreAInput">Tỉ số:</label>
-              <input id="scoreAInput" type="number" [(ngModel)]="scoreA" class="score-input" min="0" max="20">
+        <!-- Teams Row (Side by Side) -->
+        <div class="teams-row">
+          <!-- Team A -->
+          <div class="team-card">
+            <div class="team-header team-a">
+              <h3><i class="fas fa-shield-alt me-2"></i>Đội Xanh</h3>
+              <div class="score-section">
+                <label for="scoreAInput">Tỉ số:</label>
+                <input id="scoreAInput" type="number" [(ngModel)]="scoreA" class="score-input" min="0" max="20">
+              </div>
             </div>
-          </div>
-          <div class="team-content">
-            <!-- Team A Players -->
-            <div class="team-players-section">
-              <h5 class="section-title">Đội hình A ({{ teamA.length }} người)</h5>
-              <div 
-                class="players-row team-players"
-                cdkDropList
-                id="teamAList"
-                [cdkDropListData]="teamA"
-                [cdkDropListConnectedTo]="['teamBList']"
-                (cdkDropListDropped)="onDrop($event)">
-                
-                <div *ngFor="let player of teamA; trackBy: trackByPlayerId; let i = index"
-                     class="player-card team-member"
-                     cdkDrag
-                     [cdkDragData]="player"
-                     (cdkDragStarted)="onDragStarted(player)"
-                     (cdkDragEnded)="onDragEnded()">
-                  <img [src]="player.avatar" 
-                       [alt]="player.firstName"
-                       class="player-avatar"
-                       (error)="onAvatarError($event, player)">
-                  <span class="player-name">{{ player.firstName }}</span>
-                  <button 
-                    class="delete-btn"
-                    (click)="removeFromTeam(player, 'A')"
-                    title="Xóa khỏi đội">
-                    ×
-                  </button>
+            <div class="team-content">
+              <!-- Team A Players -->
+              <div class="team-players-section">
+                <h5 class="section-title">Đội hình A ({{ teamA.length }} người)</h5>
+                <div 
+                  class="players-row team-players"
+                  cdkDropList
+                  id="teamAList"
+                  [cdkDropListData]="teamA"
+                  [cdkDropListConnectedTo]="['teamBList']"
+                  (cdkDropListDropped)="onDrop($event)">
+                  
+                  <div *ngFor="let player of teamA; trackBy: trackByPlayerId; let i = index"
+                       class="player-card team-member"
+                       cdkDrag
+                       [cdkDragData]="player"
+                       (cdkDragStarted)="onDragStarted(player)"
+                       (cdkDragEnded)="onDragEnded()">
+                    <img [src]="player.avatar" 
+                         [alt]="player.firstName"
+                         class="player-avatar"
+                         (error)="onAvatarError($event, player)">
+                    <span class="player-name">{{ player.firstName }}</span>
+                    <button 
+                      class="delete-btn"
+                      (click)="removeFromTeam(player, 'A')"
+                      title="Xóa khỏi đội">
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Team A Stats -->
+              <div class="stats-section">
+                <div class="stat-group">
+                  <label for="scorerAInput">Ghi bàn:</label>
+                  <input id="scorerAInput" type="text" [(ngModel)]="scorerA" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+                <div class="stat-group">
+                  <label for="assistAInput">Kiến tạo:</label>
+                  <input id="assistAInput" type="text" [(ngModel)]="assistA" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+                <div class="stat-group yellow">
+                  <label for="yellowAInput">Thẻ vàng:</label>
+                  <input id="yellowAInput" type="text" [(ngModel)]="yellowA" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+                <div class="stat-group red">
+                  <label for="redAInput">Thẻ đỏ:</label>
+                  <input id="redAInput" type="text" [(ngModel)]="redA" class="stat-input" placeholder="Tên cầu thủ">
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Team A Stats -->
-            <div class="stats-section">
-              <div class="stat-group">
-                <label for="scorerAInput">Ghi bàn:</label>
-                <input id="scorerAInput" type="text" [(ngModel)]="scorerA" class="stat-input" placeholder="Tên cầu thủ">
+          <!-- Team B -->
+          <div class="team-card">
+            <div class="team-header team-b">
+              <h3><i class="fas fa-shield-alt me-2"></i>Đội Cam</h3>
+              <div class="score-section">
+                <label for="scoreBInput">Tỉ số:</label>
+                <input id="scoreBInput" type="number" [(ngModel)]="scoreB" class="score-input" min="0" max="20">
               </div>
-              <div class="stat-group">
-                <label for="assistAInput">Kiến tạo:</label>
-                <input id="assistAInput" type="text" [(ngModel)]="assistA" class="stat-input" placeholder="Tên cầu thủ">
+            </div>
+            <div class="team-content">
+              <!-- Team B Players -->
+              <div class="team-players-section">
+                <h5 class="section-title">Đội hình B ({{ teamB.length }} người)</h5>
+                <div 
+                  class="players-row team-players"
+                  cdkDropList
+                  id="teamBList"
+                  [cdkDropListData]="teamB"
+                  [cdkDropListConnectedTo]="['teamAList']"
+                  (cdkDropListDropped)="onDrop($event)">
+                  
+                  <div *ngFor="let player of teamB; trackBy: trackByPlayerId; let i = index"
+                       class="player-card team-member"
+                       cdkDrag
+                       [cdkDragData]="player"
+                       (cdkDragStarted)="onDragStarted(player)"
+                       (cdkDragEnded)="onDragEnded()">
+                    <img [src]="player.avatar" 
+                         [alt]="player.firstName"
+                         class="player-avatar"
+                         (error)="onAvatarError($event, player)">
+                    <span class="player-name">{{ player.firstName }}</span>
+                    <button 
+                      class="delete-btn"
+                      (click)="removeFromTeam(player, 'B')"
+                      title="Xóa khỏi đội">
+                      ×
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div class="stat-group yellow">
-                <label for="yellowAInput">Thẻ vàng:</label>
-                <input id="yellowAInput" type="text" [(ngModel)]="yellowA" class="stat-input" placeholder="Tên cầu thủ">
-              </div>
-              <div class="stat-group red">
-                <label for="redAInput">Thẻ đỏ:</label>
-                <input id="redAInput" type="text" [(ngModel)]="redA" class="stat-input" placeholder="Tên cầu thủ">
+
+              <!-- Team B Stats -->
+              <div class="stats-section">
+                <div class="stat-group">
+                  <label for="scorerBInput">Ghi bàn:</label>
+                  <input id="scorerBInput" type="text" [(ngModel)]="scorerB" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+                <div class="stat-group">
+                  <label for="assistBInput">Kiến tạo:</label>
+                  <input id="assistBInput" type="text" [(ngModel)]="assistB" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+                <div class="stat-group yellow">
+                  <label for="yellowBInput">Thẻ vàng:</label>
+                  <input id="yellowBInput" type="text" [(ngModel)]="yellowB" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+                <div class="stat-group red">
+                  <label for="redBInput">Thẻ đỏ:</label>
+                  <input id="redBInput" type="text" [(ngModel)]="redB" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- AI/ML Analysis Section -->
+        <!-- AI/ML Analysis Section (Below Both Teams) -->
         <div class="ai-analysis-section">
           <div class="analysis-container">
             <div class="analysis-header">
@@ -345,69 +412,7 @@ import { Player } from './player-utils';
           </div>
         </div>
 
-        <!-- Team B -->
-        <div class="team-card">
-          <div class="team-header team-b">
-            <h3><i class="fas fa-shield-alt me-2"></i>Đội Cam</h3>
-            <div class="score-section">
-              <label for="scoreBInput">Tỉ số:</label>
-              <input id="scoreBInput" type="number" [(ngModel)]="scoreB" class="score-input" min="0" max="20">
-            </div>
-          </div>
-          <div class="team-content">
-            <!-- Team B Players -->
-            <div class="team-players-section">
-              <h5 class="section-title">Đội hình B ({{ teamB.length }} người)</h5>
-              <div 
-                class="players-row team-players"
-                cdkDropList
-                id="teamBList"
-                [cdkDropListData]="teamB"
-                [cdkDropListConnectedTo]="['teamAList']"
-                (cdkDropListDropped)="onDrop($event)">
-                
-                <div *ngFor="let player of teamB; trackBy: trackByPlayerId; let i = index"
-                     class="player-card team-member"
-                     cdkDrag
-                     [cdkDragData]="player"
-                     (cdkDragStarted)="onDragStarted(player)"
-                     (cdkDragEnded)="onDragEnded()">
-                  <img [src]="player.avatar" 
-                       [alt]="player.firstName"
-                       class="player-avatar"
-                       (error)="onAvatarError($event, player)">
-                  <span class="player-name">{{ player.firstName }}</span>
-                  <button 
-                    class="delete-btn"
-                    (click)="removeFromTeam(player, 'B')"
-                    title="Xóa khỏi đội">
-                    ×
-                  </button>
-                </div>
-              </div>
-            </div>
 
-            <!-- Team B Stats -->
-            <div class="stats-section">
-              <div class="stat-group">
-                <label for="scorerBInput">Ghi bàn:</label>
-                <input id="scorerBInput" type="text" [(ngModel)]="scorerB" class="stat-input" placeholder="Tên cầu thủ">
-              </div>
-              <div class="stat-group">
-                <label for="assistBInput">Kiến tạo:</label>
-                <input id="assistBInput" type="text" [(ngModel)]="assistB" class="stat-input" placeholder="Tên cầu thủ">
-              </div>
-              <div class="stat-group yellow">
-                <label for="yellowBInput">Thẻ vàng:</label>
-                <input id="yellowBInput" type="text" [(ngModel)]="yellowB" class="stat-input" placeholder="Tên cầu thủ">
-              </div>
-              <div class="stat-group red">
-                <label for="redBInput">Thẻ đỏ:</label>
-                <input id="redBInput" type="text" [(ngModel)]="redB" class="stat-input" placeholder="Tên cầu thủ">
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   `,
@@ -512,11 +517,15 @@ import { Player } from './player-utils';
     }
 
     .teams-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .teams-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
-      max-width: 1400px;
-      margin: 0 auto;
+      margin-bottom: 20px;
     }
 
     .team-card {
@@ -1229,7 +1238,7 @@ import { Player } from './player-utils';
 
     /* Responsive Design */
     @media (max-width: 768px) {
-      .teams-container {
+      .teams-row {
         grid-template-columns: 1fr;
         gap: 15px;
       }

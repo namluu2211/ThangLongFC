@@ -29,7 +29,6 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
                 <i class="fas fa-calendar-alt me-1"></i>
                 {{history.length}} trận đấu
               </span>
-            </div>
 
             
             <!-- Admin Firebase Actions -->
@@ -128,7 +127,7 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
               </div>
               <div class="summary-value">{{formatCurrency(getAveragePerMatch())}}</div>
               <div class="summary-detail">
-                Thu: {{formatCurrency(getTotalRevenue() / Math.max(history.length, 1))}}
+                Thu: {{formatCurrency(getAverageRevenue())}}
               </div>
             </div>
           </div>
@@ -673,149 +672,6 @@ import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../mo
                       {{saveStatus.get(m) === 'saving' ? 'Đang lưu...' : 'Lưu Chi phí'}}
                     </button>
                   </div>
-                  
-                  <div class="expense-item"
-                       [attr.data-tooltip]="'Chi phí nước uống cho cầu thủ (VD: 50,000 VND)'" style="display: none;">
-                    <span class="expense-label">
-                      <i class="fas fa-tint me-1"></i>
-                      Nước:
-                    </span>
-                    <div class="input-wrapper">
-                      <input 
-                        type="number" 
-                        [(ngModel)]="m.chi_nuoc" 
-                        (ngModelChange)="updateChi(m)"
-                        (blur)="validateExpenseInput(m, 'chi_nuoc')"
-                        class="expense-input"
-                        [class.error]="hasExpenseError(m, 'chi_nuoc')"
-                        [readonly]="!isAdmin()"
-                        [disabled]="!isAdmin()"
-                        min="0"
-                        step="1000"
-                        placeholder="0" />
-                      <span class="currency-suffix">VND</span>
-                    </div>
-                  </div>
-                  
-                  <div class="expense-item"
-                       [attr.data-tooltip]="'Chi phí thuê sân bóng (VD: 300,000 VND)'">
-                    <span class="expense-label required">
-                      <i class="fas fa-futbol me-1"></i>
-                      Sân:
-                    </span>
-                    <div class="input-wrapper">
-                      <input 
-                        type="number" 
-                        [(ngModel)]="m.chi_san" 
-                        (ngModelChange)="updateChi(m)"
-                        (blur)="validateExpenseInput(m, 'chi_san')"
-                        class="expense-input"
-                        [class.error]="hasExpenseError(m, 'chi_san')"
-                        [readonly]="!isAdmin()"
-                        [disabled]="!isAdmin()"
-                        min="0"
-                        step="1000"
-                        placeholder="0" />
-                      <span class="currency-suffix">VND</span>
-                    </div>
-                  </div>
-
-                  <!-- Additional expense categories (collapsible) -->
-                  <div class="additional-expenses" *ngIf="m.showAllExpenses">
-                    <div class="expense-item"
-                         [attr.data-tooltip]="'Chi phí đi lại, xăng xe (VD: 30,000 VND)'">
-                      <span class="expense-label">
-                        <i class="fas fa-car me-1"></i>
-                        Đi lại:
-                      </span>
-                      <div class="input-wrapper">
-                        <input 
-                          type="number" 
-                          [(ngModel)]="m.chi_dilai" 
-                          (ngModelChange)="updateChi(m)"
-                          class="expense-input"
-                          [readonly]="!isAdmin()"
-                          [disabled]="!isAdmin()"
-                          min="0"
-                          step="1000"
-                          placeholder="0" />
-                        <span class="currency-suffix">VND</span>
-                      </div>
-                    </div>
-                    
-                    <div class="expense-item"
-                         [attr.data-tooltip]="'Chi phí ăn uống sau trận (VD: 200,000 VND)'">
-                      <span class="expense-label">
-                        <i class="fas fa-utensils me-1"></i>
-                        Ăn uống:
-                      </span>
-                      <div class="input-wrapper">
-                        <input 
-                          type="number" 
-                          [(ngModel)]="m.chi_anuong" 
-                          (ngModelChange)="updateChi(m)"
-                          class="expense-input"
-                          [readonly]="!isAdmin()"
-                          [disabled]="!isAdmin()"
-                          min="0"
-                          step="1000"
-                          placeholder="0" />
-                        <span class="currency-suffix">VND</span>
-                      </div>
-                    </div>
-                    
-                    <div class="expense-item"
-                         [attr.data-tooltip]="'Chi phí khác như dụng cụ, y tế... (VD: 20,000 VND)'">
-                      <span class="expense-label">
-                        <i class="fas fa-ellipsis-h me-1"></i>
-                        Khác:
-                      </span>
-                      <div class="input-wrapper">
-                        <input 
-                          type="number" 
-                          [(ngModel)]="m.chi_khac" 
-                          (ngModelChange)="updateChi(m)"
-                          class="expense-input"
-                          [readonly]="!isAdmin()"
-                          [disabled]="!isAdmin()"
-                          min="0"
-                          step="1000"
-                          placeholder="0" />
-                        <span class="currency-suffix">VND</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="expense-total">
-                    <span class="total-label">
-                      <i class="fas fa-calculator me-1"></i>
-                      Tổng chi phí:
-                    </span>
-                    <span class="total-value">{{formatCurrency(calcChi(m))}}</span>
-                  </div>
-                  
-                  <div class="expense-actions" *ngIf="isAdmin()">
-                    <button 
-                      class="save-btn manual"
-                      (click)="saveMatchData(m, 'chi')"
-                      [disabled]="saveStatus.get(m) === 'saving'"
-                      title="Lưu thủ công dữ liệu chi phí">
-                      <i [class]="saveStatus.get(m) === 'saving' ? 'fas fa-spinner fa-spin' : 'fas fa-save'" class="me-1"></i>
-                      {{saveStatus.get(m) === 'saving' ? 'Đang lưu...' : 'Lưu Chi'}}
-                    </button>
-                  </div>
-                  
-                  <!-- Expense validation messages -->
-                  <div class="expense-validation" *ngIf="getExpenseErrors(m).length">
-                    <div class="validation-header">
-                      <i class="fas fa-exclamation-triangle me-1"></i>
-                      Lưu ý:
-                    </div>
-                    <ul class="validation-list">
-                      <li *ngFor="let error of getExpenseErrors(m)" class="validation-item">
-                        {{error}}
-                      </li>
-                    </ul>
                   </div>
                 </div>
               </div>
@@ -1127,6 +983,14 @@ export class HistoryComponent implements OnInit, OnDestroy {
     return this.getMemoizedCalculation('averagePerMatch', () => 
       this.history.length > 0 ? this.getNetProfit() / this.history.length : 0
     );
+  }
+
+  getAverageRevenue(): number {
+    return this.history.length > 0 ? this.getTotalRevenue() / this.history.length : 0;
+  }
+
+  getAverageExpense(): number {
+    return this.history.length > 0 ? this.getTotalExpenses() / this.history.length : 0;
   }
 
   // Detailed revenue breakdown
