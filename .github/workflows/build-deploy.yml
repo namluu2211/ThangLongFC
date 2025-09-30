@@ -6,6 +6,25 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      force_deploy:
+        description: 'Force deployment even from non-main branch'
+        required: false
+        default: false
+        type: boolean
+      skip_tests:
+        description: 'Skip running tests'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -44,6 +63,7 @@ jobs:
       run: npm run build --if-present
 
     - name: Run tests (if available)
+      if: github.event.inputs.skip_tests != 'true'
       env:
         # API Configuration
         NG_APP_API_URL: ${{ secrets.NG_APP_API_URL }}
@@ -68,9 +88,19 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.event.inputs.force_deploy == 'true'))
 
     steps:
+    - name: Deployment Info
+      run: |
+        echo "🚀 Starting deployment process..."
+        echo "Branch: ${{ github.ref }}"
+        echo "Event: ${{ github.event_name }}"
+        echo "Environment: ${{ github.event.inputs.deploy_environment || 'production' }}"
+        echo "Force Deploy: ${{ github.event.inputs.force_deploy || 'false' }}"
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -106,3 +136,10 @@ jobs:
         projectId: mia-fcm-d8555
         channelId: live
         target: mia-fc-management
+
+    - name: Deployment Success
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "🌐 Application deployed to: https://mia-fc-management.web.app/"
+        echo "📊 Environment: ${{ github.event.inputs.deploy_environment || 'production' }}"
+        echo "🎯 Branch deployed: ${{ github.ref }}"
