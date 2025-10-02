@@ -14,23 +14,23 @@
 		"firstName": "Định",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Dinh.jpg",
-		"DOB": 27,
-		"height": 172,
-		"weight": 68,
+		"DOB": "01/01/1987",
+		"height": 167,
+		"weight": 67,
 		"note": "Cánh trái - hay lừa dễ mất banh"
 	},
 	{
-		"id": 36,
+		"id": 3,
 		"firstName": "Nhân",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Nhan.png",
-		"DOB": 28,
-		"height": 177,
-		"weight": 71,
+		"DOB": "01/01/1997",
+		"height": 163,
+		"weight": 55,
 		"note": "Cánh phải - Tốc độ, kỹ thuật nhưng hơi mỏng cơm"
 	},
 		{
-		"id": 37,
+		"id": 4,
 		"firstName": "Phú",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Phu.png",
@@ -40,7 +40,7 @@
 		"note": "Cánh trái - Đứa con của thần gió, gió thì thổi lên, nên chả bao giờ về thủ"
 	},
 	{
-		"id": 3,
+		"id": 5,
 		"firstName": "Hưng",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Hung.png",
@@ -50,7 +50,7 @@
 		"note": "Cánh phải - lầm lì, lủi thủi"
 	},
 	{
-		"id": 4,
+		"id": 6,
 		"firstName": "V.Thanh",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/V.Thanh.png",
@@ -60,7 +60,7 @@
 		"note": "Cánh trái - đầu 2 thứ tóc, mắt mờ, tranh chấp yếu"
 	},
 	{
-		"id": 5,
+		"id": 7,
 		"firstName": "Galvin",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Galvin.png",
@@ -70,7 +70,7 @@
 		"note": "Cánh phải - hay nói, mà nói chưa chắc đúng :D"
 	},
 	{
-		"id": 6,
+		"id": 8,
 		"firstName": "Bình",
 		"position": "Hậu vệ",
 		"avatar": "assets/images/avatar_players/Binh.png",
@@ -80,7 +80,7 @@
 		"note": "Cánh phải - Bụng hơi bự nên chạy hơi chậm"
 	},
 	{
-		"id": 7,
+		"id": 9,
 		"firstName": "Nam",
 		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Nam.png",
@@ -90,7 +90,7 @@
 		"note": "Ỡ giữa - Đầu bạc, chửi hơi nhiều, mấy thể loại hay múa thì coi chừng"
 	},
 	{
-		"id": 8,
+		"id": 10,
 		"firstName": "Quang",
 		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Quang.png",
@@ -100,7 +100,7 @@
 		"note" : "Cánh phải - Bạn đầu gấu, nhưng tính nai hơi"
 	},
 	{
-		"id": 9,
+		"id": 11,
 		"firstName": "Hiếu",
 		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Hieu.png",
@@ -110,7 +110,7 @@
 		"note": "Ở giữa - Đầu gấu, Trùm Muya Thái, mấy vua tốc độ thì cảnh giác :D"
 	},
 	{
-		"id": 10,
+		"id": 12,
 		"firstName": "Lâm",
 		"position": "Trung vệ",
 		"avatar": "assets/images/avatar_players/Lam.png",
@@ -120,44 +120,24 @@
 		"note": "Đa năng - Công thủ toàn diện, nhưng hay dễ bị xỏ háng"
 	},
 	{
-		"id": 11,
-		"firstName": "Hải",
-		"position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/Hai.png",
-		"DOB": 28,
-		"height": 172,
-		"weight": 68,
-		"note": "Ở giữa - Cha của thằng Minh nhí, quán xuyến tốt, nhưng lười thủ"
-	},
-	{
-		"id": 12,
-		"firstName": "Sỹ",
-		"position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/Sy.png",
-		"DOB": 27,
-		"height": 174,
-		"weight": 70,
-		"note": "Ở giữa - Bầu"	
-	},
-	{
 		"id": 13,
-		"firstName": "K.Duy",
-		"position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/K.Duy.png",
-		"DOB": 29,
-		"height": 176,
-		"weight": 72,
-		"note": "Ở giữa - nghiệp đá banh, nhưng cứ nghĩ mình là họa sĩ => dễ mất banh"
+		"firstName": "Công",
+		"position": "Thủ môn",
+		"avatar": "assets/images/avatar_players/Cong.png",
+		"DOB": "10/10/1978",
+		"height": 177,
+		"weight": 71,
+		"note": "Ở giữa - Vua lì đòn, thằng nào ngon thì cứ thử :D" 
 	},
 	{
 		"id": 14,
-		"firstName": "Đ.Duy",
-		"position": "Tiền vệ",
-		"avatar": "assets/images/avatar_players/D.Duy.png",
-		"DOB": 26,
-		"height": 173,
-		"weight": 69,
-		"note": "Cánh - phải, trái như nhau, nhưng thường bị gãy cánh"
+		"firstName": "Hải Lu",
+		"position": "Thủ môn",
+		"avatar": "assets/images/avatar_players/Hai_lu.png",
+		"DOB": 43,
+		"height": 180,
+		"weight": 75,
+		"note": "Chụp tốt"
 	},
 	{
 		"id": 15,
@@ -248,9 +228,48 @@
 		"height": 176,
 		"weight": 72,
 		"note": "Ở giữa - Bạn thằng zai trẻ ở trên"
+	},{
+		"id": 24,
+		"firstName": "Hải",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/Hai.png",
+		"DOB": 28,
+		"height": 172,
+		"weight": 68,
+		"note": "Ở giữa - Cha của thằng Minh nhí, quán xuyến tốt, nhưng lười thủ"
 	},
 	{
-		"id": 24,
+		"id": 25,
+		"firstName": "Sỹ",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/Sy.png",
+		"DOB": 27,
+		"height": 174,
+		"weight": 70,
+		"note": "Ở giữa - Bầu"	
+	},
+	{
+		"id": 26,
+		"firstName": "K.Duy",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/K.Duy.png",
+		"DOB": 29,
+		"height": 176,
+		"weight": 72,
+		"note": "Ở giữa - nghiệp đá banh, nhưng cứ nghĩ mình là họa sĩ => dễ mất banh"
+	},
+	{
+		"id": 27,
+		"firstName": "Đ.Duy",
+		"position": "Tiền vệ",
+		"avatar": "assets/images/avatar_players/D.Duy.png",
+		"DOB": 26,
+		"height": 173,
+		"weight": 69,
+		"note": "Cánh - phải, trái như nhau, nhưng thường bị gãy cánh"
+	},
+	{
+		"id": 28,
 		"firstName": "Minh củi",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Minh_cui.png",
@@ -260,7 +279,7 @@
 		"note": "Ở giữa - Cái tên nói lên tất cả CỦI - nhưng hok có nó thì đội hok có kịch xem"
 	},
 	{
-		"id": 25,
+		"id": 29,
 		"firstName": "Minh nhỏ",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Minh_nho.jpg",
@@ -270,7 +289,7 @@
 		"note": "Ở giữa - Con thằng tiền vệ lười thủ, Siêng hơn cha, nhưng cần cải thiện nhiều"
 	},
 	{
-		"id": 26,
+		"id": 30,
 		"firstName": "Cường",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Cuong.png",
@@ -280,7 +299,7 @@
 		"note": "Cánh phải - Sợ đầu gấu như cọp, thà bỏ banh chứ hok theo :D " 
 	},
 	{
-		"id": 27,
+		"id": 31,
 		"firstName": "Huy",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Huy.png",
@@ -290,7 +309,7 @@
 		"note": "Ở giữa - Chịu khó, nhưng khó chịu chuyền ai"
 	},
 	{
-		"id": 28,
+		"id": 32,
 		"firstName": "Trung",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Trung.png",
@@ -300,7 +319,7 @@
 		"note": "Ở giữa - Chơi đầu cực tốt, Nhiệt huyết, chỉ tội vô trận hay xỉn"
 	},
 	{
-		"id": 29,
+		"id": 33,
 		"firstName": "T.Hải",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/T.Hai.png",
@@ -310,7 +329,7 @@
 		"note": "Ở giữa - Tinh tế nhưng yếu => xìu"
 	},
 	{
-		"id": 30,
+		"id": 34,
 		"firstName": "Dương",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Duong.png",
@@ -320,7 +339,7 @@
 		"note": "Ở giữa - Suốt ngày chửi thằng đầu gấu, nhưng có ăn dc nó đâu :D "
 	},
 	{
-		"id": 31,
+		"id": 35,
 		"firstName": "Thiện",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Thien.png",
@@ -330,7 +349,7 @@
 		"note": "Ở giữa - Em đầu gấu, và cũng hay ăn chửi từ thằng anh"
 	},
 	{
-		"id": 32,
+		"id": 36,
 		"firstName": "H.Thành",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/H.Thanh.png",
@@ -340,17 +359,7 @@
 		"note": "Ở giữa - Khá toàn diện, chơi ổn định"
 	},
 	{
-		"id": 33,
-		"firstName": "Hải Lu",
-		"position": "Thủ môn",
-		"avatar": "assets/images/avatar_players/Hai_lu.png",
-		"DOB": 43,
-		"height": 180,
-		"weight": 75,
-		"note": "Chụp tốt"
-	},
-	{
-		"id": 34,
+		"id": 37,
 		"firstName": "Dybala",
 		"position": "Tiền đạo",
 		"avatar": "assets/images/avatar_players/Dybala.jpg",
@@ -358,15 +367,5 @@
 		"height": 170,
 		"weight": 67,
 		"note": "Ở giữa - siêu tốc độ, mỗi tội hay lắng quắng"
-	},
-	{
-		"id": 35,
-		"firstName": "Công",
-		"position": "Thủ môn",
-		"avatar": "assets/images/avatar_players/Cong.png",
-		"DOB": "10/10/1978",
-		"height": 177,
-		"weight": 71,
-		"note": "Ở giữa - Vua lì đòn, thằng nào ngon thì cứ thử :D" 
 	}
 ]

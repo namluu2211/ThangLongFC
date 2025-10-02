@@ -33,9 +33,9 @@ export const ADMIN_USERS: AdminUser[] = [
     permissions: ['read', 'write', 'admin_panel']
   },
   {
-    email: 'hieunguyen@thanglongfc.com',
-    username: 'HieuNguyen',
-    displayName: 'Hiếu Nguyễn', 
+    email: 'hieutran@thanglongfc.com',
+    username: 'hieutran',
+    displayName: 'Hiếu Trần', 
     role: 'admin',
     permissions: ['read', 'write', 'admin_panel']
   }
