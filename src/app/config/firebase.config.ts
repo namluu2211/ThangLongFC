@@ -1,5 +1,5 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { environment } from '../../environments/environment';
 
 // Firebase configuration loaded from environment
@@ -44,7 +44,15 @@ let app: import('firebase/app').FirebaseApp | null = null;
 
 if (isFirebaseConfigValid) {
   try {
-    app = initializeApp(firebaseConfig);
+    // Check if Firebase app already exists
+    const existingApps = getApps();
+    if (existingApps.length > 0) {
+      console.log('🔥 Using existing Firebase app instance from config');
+      app = existingApps[0];
+    } else {
+      console.log('🔥 Initializing new Firebase app from config');
+      app = initializeApp(firebaseConfig);
+    }
     console.log('✅ Firebase initialized successfully');
     
     // Analytics disabled to prevent measurement ID errors

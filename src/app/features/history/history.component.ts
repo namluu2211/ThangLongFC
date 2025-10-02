@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
+import { FirebaseHistoryService } from '../../core/services/firebase-history.service';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { StatisticsService } from '../../core/services/statistics.service';
@@ -55,6 +56,23 @@ import { PlayerInfo } from '../../core/models/player.model';
                 <i class="fas fa-download me-1"></i>
                 Xuất dữ liệu
               </button>
+              
+              <button 
+                class="btn btn-sm btn-info" 
+                (click)="syncFromFirebase()"
+                title="Đồng bộ dữ liệu từ Firebase Realtime Database">
+                <i class="fas fa-cloud-download-alt me-1"></i>
+                Sync từ Firebase
+              </button>
+              
+              <div class="firebase-status-indicator">
+                <span class="badge" 
+                      [class]="getFirebaseStatusClass()"
+                      title="{{getFirebaseStatusText()}}">
+                  <i class="fas fa-circle me-1"></i>
+                  {{getFirebaseStatusText()}}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -1256,6 +1274,148 @@ export class HistoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  // New Firebase Realtime Database sync method
+  async syncFromFirebase(): Promise<void> {
+    if (!this.isAdmin()) {
+      alert('Chỉ admin mới có thể đồng bộ dữ liệu');
+      return;
+    }
+
+    try {
+      console.log('🔄 Starting sync from Firebase Realtime Database...');
+      
+      // Get Firebase service status
+      const status = this.firebaseHistoryService.getStatus();
+      console.log('📊 Firebase service status:', status);
+      
+      if (!status.isEnabled) {
+        alert('⚠️ Firebase chưa được cấu hình. Kiểm tra file environment.ts');
+        return;
+      }
+      
+      if (!status.isConnected) {
+        alert('❌ Không thể kết nối Firebase. Kiểm tra mạng internet.');
+        return;
+      }
+      
+      // Force refresh Firebase data
+      await this.firebaseHistoryService.refreshHistory();
+      
+      // Get current Firebase data
+      const firebaseHistory = this.firebaseHistoryService.getCurrentHistory();
+      console.log(`📥 Found ${firebaseHistory.length} records in Firebase`);
+      
+      if (firebaseHistory.length === 0) {
+        alert('ℹ️ Không tìm thấy dữ liệu trong Firebase Realtime Database');
+        return;
+      }
+      
+      // Show confirmation dialog
+      const confirmSync = confirm(
+        `Tìm thấy ${firebaseHistory.length} bản ghi trong Firebase.\n\n` +
+        `Bạn có muốn đồng bộ dữ liệu này không?\n\n` +
+        `Lưu ý: Dữ liệu hiện tại sẽ được ghi đè.`
+      );
+      
+      if (!confirmSync) return;
+      
+      // Convert Firebase data to local format
+      const convertedHistory = firebaseHistory.map(entry => this.convertFirebaseToLocal(entry));
+      
+      // Update local data
+      this.history = convertedHistory;
+      this.cdr.markForCheck();
+      
+      // Save to localStorage as backup
+      localStorage.setItem('matchHistory', JSON.stringify(convertedHistory));
+      
+      console.log('✅ Firebase sync completed successfully');
+      alert(`✅ Đã đồng bộ ${convertedHistory.length} trận đấu từ Firebase thành công!`);
+      
+    } catch (error) {
+      console.error('❌ Error syncing from Firebase:', error);
+      alert('❌ Lỗi khi đồng bộ từ Firebase: ' + error.message);
+    }
+  }
+
+  // Convert Firebase history entry to local MatchData format
+  private convertFirebaseToLocal(firebaseEntry: any): MatchData {
+    // Convert team string arrays to Player objects if needed
+    const convertTeam = (team: string[] | Player[] | undefined): Player[] => {
+      if (!team) return [];
+      return team.map((item: any) => {
+        if (typeof item === 'string') {
+          return { id: item, firstName: item, lastName: '', position: '' } as Player;
+        }
+        return item as Player;
+      });
+    };
+    
+    // Convert timestamp to string
+    const convertTimestamp = (timestamp: any): string => {
+      if (!timestamp) return new Date().toISOString();
+      if (typeof timestamp === 'string') return timestamp;
+      if (typeof timestamp === 'number') return new Date(timestamp).toISOString();
+      if (timestamp instanceof Date) return timestamp.toISOString();
+      return new Date().toISOString();
+    };
+
+    return {
+      id: firebaseEntry.id || Date.now().toString(),
+      date: firebaseEntry.date || new Date().toISOString(),
+      teamA: convertTeam(firebaseEntry.teamA),
+      teamB: convertTeam(firebaseEntry.teamB),
+      scoreA: firebaseEntry.scoreA || 0,
+      scoreB: firebaseEntry.scoreB || 0,
+      scorerA: firebaseEntry.scorerA || '',
+      scorerB: firebaseEntry.scorerB || '',
+      assistA: firebaseEntry.assistA || '',
+      assistB: firebaseEntry.assistB || '',
+      yellowA: firebaseEntry.yellowA || '',
+      yellowB: firebaseEntry.yellowB || '',
+      redA: firebaseEntry.redA || '',
+      redB: firebaseEntry.redB || '',
+      
+      // Financial data
+      thu: firebaseEntry.thu || 0,
+      thuMode: firebaseEntry.thuMode || 'auto',
+      thu_main: firebaseEntry.thu_main || 0,
+      thu_penalties: firebaseEntry.thu_penalties || 0,
+      thu_other: firebaseEntry.thu_other || 0,
+      
+      chi_trongtai: firebaseEntry.chi_trongtai || 0,
+      chi_nuoc: firebaseEntry.chi_nuoc || 0,
+      chi_san: firebaseEntry.chi_san || 0,
+      chi_dilai: firebaseEntry.chi_dilai || 0,
+      chi_anuong: firebaseEntry.chi_anuong || 0,
+      chi_khac: firebaseEntry.chi_khac || 0,
+      chi_total: firebaseEntry.chi_total || 0,
+      
+      // Metadata
+      lastSaved: convertTimestamp(firebaseEntry.updatedAt || firebaseEntry.lastSaved),
+      updatedBy: firebaseEntry.updatedBy || 'firebase-sync'
+    };
+  }
+
+  // Get Firebase service status for UI indicators
+  getFirebaseStatusClass(): string {
+    const status = this.firebaseHistoryService.getStatus();
+    
+    if (!status.isEnabled) return 'bg-secondary';
+    if (!status.isConnected) return 'bg-danger';
+    if (status.hasData) return 'bg-success';
+    return 'bg-warning';
+  }
+
+  getFirebaseStatusText(): string {
+    const status = this.firebaseHistoryService.getStatus();
+    
+    if (!status.isEnabled) return 'Chưa cấu hình';
+    if (!status.isConnected) return 'Ngắt kết nối';
+    if (status.hasData) return `${status.recordCount} bản ghi`;
+    return 'Kết nối OK';
+  }
+
   // Enhanced save functionality with Firebase integration
   saveMatchData(match: MatchData, changeType: 'thu' | 'chi' | 'all' = 'all'): void {
     // Clear existing timeout for this match
@@ -1582,6 +1742,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   
   private firebaseAuthService = inject(FirebaseAuthService);
   private firebaseService = inject(FirebaseService);
+  private firebaseHistoryService = inject(FirebaseHistoryService);
   
   // TrackBy functions for better performance
   trackByMatch = (index: number, match: MatchData) => match.id || match.date || index;
@@ -1647,6 +1808,23 @@ export class HistoryComponent implements OnInit, OnDestroy {
   private async loadHistoryData() {
     try {
       console.log('📡 Loading match history using MatchService...');
+      
+      // Also sync with Firebase history service
+      this.firebaseHistoryService.history$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(firebaseHistory => {
+          console.log('🔥 Firebase history received:', firebaseHistory.length, 'entries');
+          if (firebaseHistory.length > 0) {
+            console.log('📋 Sample Firebase entry:', firebaseHistory[0]);
+          }
+        });
+      
+      // Subscribe to Firebase connection status
+      this.firebaseHistoryService.connected$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(connected => {
+          console.log('🔗 Firebase connection status:', connected ? 'Connected' : 'Disconnected');
+        });
       
       // Subscribe to completed matches from MatchService
       this.matchService.completedMatches$

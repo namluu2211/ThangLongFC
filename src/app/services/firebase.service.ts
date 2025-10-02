@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { 
   getDatabase, 
   ref, 
@@ -41,7 +41,7 @@ export interface PlayerStats {
 
 export interface HistoryEntry {
   id?: string;
-  date: string;
+  date?: string;
   description?: string;
   
   // Team data
@@ -162,7 +162,15 @@ export class FirebaseService {
 
   private initializeFirebaseService() {
     try {
-      this.app = initializeApp(firebaseConfig);
+      // Check if Firebase app already exists
+      const existingApps = getApps();
+      if (existingApps.length > 0) {
+        console.log('🔥 Using existing Firebase app instance in firebase.service');
+        this.app = existingApps[0];
+      } else {
+        console.log('🔥 Initializing new Firebase app in firebase.service');
+        this.app = initializeApp(firebaseConfig);
+      }
       this.database = getDatabase(this.app, firebaseConfig.databaseURL);
       this.isEnabled = true;
       console.log('✅ Firebase service initialized successfully');

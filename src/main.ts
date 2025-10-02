@@ -3,21 +3,29 @@ import { AppComponent } from './app/app.component';
 import { importProvidersFrom } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { isFirebaseConfigValid } from './app/config/firebase.config';
+import { environment } from './environments/environment';
 
 console.log('🚀 Starting application bootstrap...');
-console.log('Firebase config valid:', isFirebaseConfigValid);
 
-// Create providers array based on Firebase config validity
+// Check if Firebase config is valid (not placeholder values)
+const isFirebaseConfigValid = environment.firebase.databaseURL && 
+                              environment.firebase.projectId && 
+                              !environment.firebase.apiKey.includes('fake') &&
+                              !environment.firebase.databaseURL.includes('placeholder');
+
+console.log('Firebase config valid:', isFirebaseConfigValid);
+console.log('Database URL:', environment.firebase.databaseURL);
+
+// Create providers array
 const providers = [
   importProvidersFrom(CommonModule, FormsModule)
 ];
 
 // Only add Firebase providers if config is valid
 if (isFirebaseConfigValid) {
-  console.log('✅ Firebase enabled - adding providers');
+  console.log('✅ Firebase enabled - services will initialize automatically');
 } else {
-  console.log('⚠️ Firebase disabled - running in offline mode');
+  console.log('⚠️ Firebase config needs updating - check environment files');
 }
 
 bootstrapApplication(AppComponent, {
