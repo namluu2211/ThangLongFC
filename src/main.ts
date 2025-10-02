@@ -1,17 +1,35 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
-import { PerformanceService } from './app/services/performance.service';
-import { LazyLoadingService } from './app/services/lazy-loading.service';
-import { AssetOptimizationService } from './app/services/asset-optimization.service';
+import { importProvidersFrom } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { environment } from './environments/environment';
 
 console.log('🚀 Starting application bootstrap...');
 
+// Check if Firebase config is valid (not placeholder values)
+const isFirebaseConfigValid = environment.firebase.databaseURL && 
+                              environment.firebase.projectId && 
+                              !environment.firebase.apiKey.includes('fake') &&
+                              !environment.firebase.databaseURL.includes('placeholder');
+
+console.log('Firebase config valid:', isFirebaseConfigValid);
+console.log('Database URL:', environment.firebase.databaseURL);
+
+// Create providers array
+const providers = [
+  importProvidersFrom(CommonModule, FormsModule)
+];
+
+// Only add Firebase providers if config is valid
+if (isFirebaseConfigValid) {
+  console.log('✅ Firebase enabled - services will initialize automatically');
+} else {
+  console.log('⚠️ Firebase config needs updating - check environment files');
+}
+
 bootstrapApplication(AppComponent, {
-  providers: [
-    PerformanceService,
-    LazyLoadingService,
-    AssetOptimizationService
-  ]
+  providers: providers
 }).then(() => {
   console.log('✅ Application bootstrap successful');
   // Remove loading screen if it exists

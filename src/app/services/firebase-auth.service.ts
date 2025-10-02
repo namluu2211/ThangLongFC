@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
@@ -24,7 +24,7 @@ export interface AuthUser {
   providedIn: 'root'
 })
 export class FirebaseAuthService {
-  private app = initializeApp(firebaseConfig);
+  private app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
   private auth: Auth = getAuth(this.app);
   
   private currentUserSubject = new BehaviorSubject<AuthUser | null>(null);
