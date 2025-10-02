@@ -1,17 +1,27 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
-import { PerformanceService } from './app/services/performance.service';
-import { LazyLoadingService } from './app/services/lazy-loading.service';
-import { AssetOptimizationService } from './app/services/asset-optimization.service';
+import { importProvidersFrom } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { isFirebaseConfigValid } from './app/config/firebase.config';
 
 console.log('🚀 Starting application bootstrap...');
+console.log('Firebase config valid:', isFirebaseConfigValid);
+
+// Create providers array based on Firebase config validity
+const providers = [
+  importProvidersFrom(CommonModule, FormsModule)
+];
+
+// Only add Firebase providers if config is valid
+if (isFirebaseConfigValid) {
+  console.log('✅ Firebase enabled - adding providers');
+} else {
+  console.log('⚠️ Firebase disabled - running in offline mode');
+}
 
 bootstrapApplication(AppComponent, {
-  providers: [
-    PerformanceService,
-    LazyLoadingService,
-    AssetOptimizationService
-  ]
+  providers: providers
 }).then(() => {
   console.log('✅ Application bootstrap successful');
   // Remove loading screen if it exists

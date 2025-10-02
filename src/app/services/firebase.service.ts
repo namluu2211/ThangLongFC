@@ -148,26 +148,29 @@ export class FirebaseService {
   private networkStatus = new BehaviorSubject<'online' | 'offline' | 'slow'>('online');
 
   constructor() {
-    this.initializeFirebaseService();
-    this.setupNetworkMonitoring();
+    // Only initialize if config is valid to prevent bootstrap errors
+    if (isFirebaseConfigValid) {
+      this.initializeFirebaseService();
+      this.setupNetworkMonitoring();
+    } else {
+      console.log('🔄 Firebase service running in offline mode (invalid config)');
+      this.isEnabled = false;
+      // Still set up network monitoring for potential future initialization
+      this.setupNetworkMonitoring();
+    }
   }
 
   private initializeFirebaseService() {
-    if (isFirebaseConfigValid) {
-      try {
-        this.app = initializeApp(firebaseConfig);
-        this.database = getDatabase(this.app, firebaseConfig.databaseURL);
-        this.isEnabled = true;
-        console.log('✅ Firebase service initialized successfully');
-        this.initializeOptimizedListeners();
-        this.setupConnectionMonitoring();
-        this.enableOfflineSupport();
-      } catch (error) {
-        console.error('❌ Firebase service initialization failed:', error);
-        this.isEnabled = false;
-      }
-    } else {
-      console.log('🔄 Firebase service running in offline mode (invalid config)');
+    try {
+      this.app = initializeApp(firebaseConfig);
+      this.database = getDatabase(this.app, firebaseConfig.databaseURL);
+      this.isEnabled = true;
+      console.log('✅ Firebase service initialized successfully');
+      this.initializeOptimizedListeners();
+      this.setupConnectionMonitoring();
+      this.enableOfflineSupport();
+    } catch (error) {
+      console.error('❌ Firebase service initialization failed:', error);
       this.isEnabled = false;
     }
   }

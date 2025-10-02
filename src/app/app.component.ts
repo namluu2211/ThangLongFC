@@ -124,18 +124,20 @@ export class AppComponent implements OnInit, OnDestroy {
   currentFund = 0;
   isLoading = false;
 
-  private readonly firebaseService = inject(FirebaseService);
-  private readonly performanceService = inject(PerformanceService);
-  private readonly lazyLoadingService = inject(LazyLoadingService);
-  private readonly assetOptimizationService = inject(AssetOptimizationService);
   private readonly dataStore = inject(DataStoreService);
   private readonly cdr = inject(ChangeDetectorRef);
+  
+  // Optional services - try to inject with optional flag
+  private readonly firebaseService = inject(FirebaseService, { optional: true });
+  private readonly performanceService = inject(PerformanceService, { optional: true });
+  private readonly lazyLoadingService = inject(LazyLoadingService, { optional: true });
+  private readonly assetOptimizationService = inject(AssetOptimizationService, { optional: true });
 
   ngOnInit() {
     // App component initialization
     
-    // Initialize performance monitoring
-    this.initializePerformanceServices();
+    // Initialize optional services
+    this.initializeOptionalServices();
     
     // Initialize DataStore and subscribe to fund changes
     this.initializeDataStore();
@@ -171,6 +173,19 @@ export class AppComponent implements OnInit, OnDestroy {
       if (loadingElement) {
         loadingElement.remove();
       }
+    }
+  }
+
+  private initializeOptionalServices() {
+    try {
+      // Initialize performance monitoring if available
+      if (this.performanceService) {
+        this.initializePerformanceServices();
+      }
+      
+      console.log('✅ Optional services initialized');
+    } catch (error) {
+      console.warn('⚠️ Some optional services not available:', error);
     }
   }
 
@@ -219,39 +234,45 @@ export class AppComponent implements OnInit, OnDestroy {
     
     try {
       // Performance monitoring is automatically started in constructor
-      console.log('✅ Performance monitoring active');
+      if (this.performanceService) {
+        console.log('✅ Performance monitoring active');
+        
+        // Monitor performance metrics with heavy throttling to reduce overhead
+        this.performanceService.metrics$
+          .pipe(
+            debounceTime(10000), // Increased throttle to 10 seconds to reduce monitoring frequency
+            takeUntil(this.destroy$)
+          )
+          .subscribe(metrics => {
+            if (metrics && (metrics.memoryUsage > 50 || metrics.renderingTime > 5000)) {
+              console.warn('⚠️ Performance issues detected:', {
+                memoryUsage: metrics.memoryUsage,
+                renderingTime: metrics.renderingTime,
+                componentCount: metrics.componentLoadTimes.size
+              });
+              // Automatically trigger memory optimization when issues detected
+              this.performanceService?.optimizeMemoryUsage();
+            }
+          });
+      }
       
       // Preload critical assets for player avatars
-      this.assetOptimizationService.preloadCriticalAssets();
-      console.log('✅ Asset optimization started');
+      if (this.assetOptimizationService) {
+        this.assetOptimizationService.preloadCriticalAssets();
+        console.log('✅ Asset optimization started');
+      }
       
       // Preload critical components after service initialization
-      setTimeout(() => {
-        // Only preload truly lazy-loaded components like match-info
-        this.lazyLoadingService.preloadComponent('match-info');
-        console.log('✅ Component preloading started');
-      }, 100);
-      
-      // Monitor performance metrics with heavy throttling to reduce overhead
-      this.performanceService.metrics$
-        .pipe(
-          debounceTime(10000), // Increased throttle to 10 seconds to reduce monitoring frequency
-          takeUntil(this.destroy$)
-        )
-        .subscribe(metrics => {
-          if (metrics && (metrics.memoryUsage > 50 || metrics.renderingTime > 5000)) {
-            console.warn('⚠️ Performance issues detected:', {
-              memoryUsage: metrics.memoryUsage,
-              renderingTime: metrics.renderingTime,
-              componentCount: metrics.componentLoadTimes.size
-            });
-            // Automatically trigger memory optimization when issues detected
-            this.performanceService.optimizeMemoryUsage();
-          }
-        });
+      if (this.lazyLoadingService) {
+        setTimeout(() => {
+          // Only preload truly lazy-loaded components like match-info
+          this.lazyLoadingService?.preloadComponent('match-info');
+          console.log('✅ Component preloading started');
+        }, 100);
+      }
         
     } catch (error) {
-      console.warn('⚠️ Performance services initialization failed:', error.message);
+      console.warn('⚠️ Performance services initialization failed:', error);
     }
   }
 
@@ -262,47 +283,49 @@ export class AppComponent implements OnInit, OnDestroy {
         // Initialize Firebase listeners
         
         // Combine Firebase subscriptions with takeUntil for proper cleanup
-        // Firebase integration with DataStore
-        this.firebaseService.matchResults$
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: () => {
-              // Trigger data refresh in DataStore when Firebase updates
-              this.dataStore.refreshAllData().catch(error => {
-                console.warn('Data refresh after Firebase update failed:', error);
-              });
-            },
-            error: (error) => {
-              console.warn('Firebase match results not available:', error.message);
-            }
-          });
+        // Firebase integration with DataStore (only if service available)
+        if (this.firebaseService) {
+          this.firebaseService.matchResults$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: () => {
+                // Trigger data refresh in DataStore when Firebase updates
+                this.dataStore.refreshAllData().catch(error => {
+                  console.warn('Data refresh after Firebase update failed:', error);
+                });
+              },
+              error: (error) => {
+                console.warn('Firebase match results not available:', error.message);
+              }
+            });
 
-        this.firebaseService.playerStats$
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: (playerStats) => {
-              console.log('Real-time player stats update:', Object.keys(playerStats || {}).length, 'players');
-              this.cdr.markForCheck();
-            },
-            error: (error) => {
-              console.warn('Firebase player stats not available:', error.message);
-            }
-          });
+          this.firebaseService.playerStats$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: (playerStats) => {
+                console.log('Real-time player stats update:', Object.keys(playerStats || {}).length, 'players');
+                this.cdr.markForCheck();
+              },
+              error: (error) => {
+                console.warn('Firebase player stats not available:', error.message);
+              }
+            });
 
-        this.firebaseService.history$
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: (history) => {
-              console.log('Real-time history update:', history?.length || 0, 'matches');
-              // Trigger data refresh when history updates
-              this.dataStore.refreshAllData().catch(error => {
-                console.warn('Data refresh after history update failed:', error);
-              });
-            },
-            error: (error) => {
-              console.warn('Firebase history not available:', error.message);
-            }
-          });
+          this.firebaseService.history$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: (history) => {
+                console.log('Real-time history update:', history?.length || 0, 'matches');
+                // Trigger data refresh when history updates
+                this.dataStore.refreshAllData().catch(error => {
+                  console.warn('Data refresh after history update failed:', error);
+                });
+              },
+              error: (error) => {
+                console.warn('Firebase history not available:', error.message);
+              }
+            });
+        }
       } catch (error) {
         console.warn('⚠️ Firebase listeners not available:', error.message);
       }
@@ -366,16 +389,17 @@ export class AppComponent implements OnInit, OnDestroy {
 
   
   ngOnDestroy(): void {
-    // Log final performance report
-    this.performanceService.logPerformanceReport();
-    this.assetOptimizationService.logAssetReport();
+    // Log final performance report (if services available)
+    if (this.performanceService) {
+      this.performanceService.logPerformanceReport();
+      this.performanceService.optimizeMemoryUsage();
+      this.performanceService.destroy();
+    }
     
-    // Final memory cleanup
-    this.performanceService.optimizeMemoryUsage();
-    
-    // Clean up performance services
-    this.performanceService.destroy();
-    this.assetOptimizationService.destroy();
+    if (this.assetOptimizationService) {
+      this.assetOptimizationService.logAssetReport();
+      this.assetOptimizationService.destroy();
+    }
     
     // Complete all subscriptions
     this.destroy$.next();

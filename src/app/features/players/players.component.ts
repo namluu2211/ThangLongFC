@@ -8,7 +8,7 @@ import { Player } from './player-utils';
 import { PlayerService } from '../../core/services/player.service';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
-import { PlayerInfo } from '../../core/models/player.model';
+import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalType, CardType } from '../../core/models/match.model';
 
 @Component({
@@ -30,7 +30,7 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
 
       <!-- Action Buttons Section -->
       <div class="action-section">
-        <div class="action-buttons">
+          <div class="action-buttons">
           <button 
             class="modern-btn btn-info"
             (click)="togglePlayerListView()"
@@ -38,6 +38,34 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
             <i class="fas fa-list me-2"></i>
             {{ showPlayerList ? 'Ẩn danh sách' : 'Hiện danh sách' }}
           </button>
+          
+          <!-- Admin Controls -->
+          <div *ngIf="isAdmin()" class="admin-controls">
+            <button 
+              class="modern-btn btn-success"
+              (click)="openCreatePlayerModal()"
+              title="Thêm cầu thủ mới">
+              <i class="fas fa-user-plus me-2"></i>
+              Thêm cầu thủ
+            </button>
+            
+            <button 
+              class="modern-btn btn-info"
+              (click)="syncPlayersToFirebase()"
+              title="Đồng bộ cầu thủ lên Firebase"
+              [disabled]="isSyncing">
+              <i [class]="isSyncing ? 'fas fa-spinner fa-spin me-2' : 'fas fa-cloud-upload-alt me-2'"></i>
+              {{ isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ Firebase' }}
+            </button>
+            
+            <button 
+              class="modern-btn btn-warning"
+              (click)="exportPlayersData()"
+              title="Xuất dữ liệu cầu thủ">
+              <i class="fas fa-download me-2"></i>
+              Xuất dữ liệu
+            </button>
+          </div>
           
           <button 
             class="modern-btn btn-warning"
@@ -61,9 +89,7 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
             title="Lưu thông tin trận đấu">
             <i class="fas fa-save me-2"></i>
             Lưu trận đấu
-          </button>
-          
-          <div *ngIf="matchSaveMessage" class="status-message success">
+          </button>          <div *ngIf="matchSaveMessage" class="status-message success">
             {{ matchSaveMessage }}
           </div>
           <div *ngIf="saveMessage" class="status-message success">
@@ -107,6 +133,22 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
                   [title]="isRegistered(player) ? 'Hủy đăng ký' : 'Đăng ký'">
                   <i class="fas" [class.fa-plus]="!isRegistered(player)" [class.fa-minus]="isRegistered(player)"></i>
                 </button>
+                
+                <!-- Admin Actions -->
+                <div *ngIf="isAdmin()" class="admin-player-actions">
+                  <button 
+                    class="action-btn btn-edit"
+                    (click)="openEditPlayerModal(player)"
+                    title="Chỉnh sửa cầu thủ">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button 
+                    class="action-btn btn-delete"
+                    (click)="confirmDeletePlayer(player)"
+                    title="Xóa cầu thủ">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -122,6 +164,161 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
           
           <div *ngIf="saveRegisteredMessage" class="status-message success mt-3">
             {{ saveRegisteredMessage }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Player Management Modal -->
+      <div *ngIf="showPlayerModal" class="modal-overlay" (click)="closePlayerFormModal()">
+        <div class="player-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-user-edit me-2"></i>
+              {{ isEditMode ? 'Chỉnh sửa cầu thủ' : 'Thêm cầu thủ mới' }}
+            </h3>
+            <button class="close-btn" (click)="closePlayerFormModal()">×</button>
+          </div>
+          
+          <div class="modal-content">
+            <form #playerForm="ngForm" (ngSubmit)="savePlayerData()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="firstName">Tên *</label>
+                  <input 
+                    type="text" 
+                    id="firstName"
+                    name="firstName"
+                    [(ngModel)]="playerFormData.firstName" 
+                    required 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="lastName">Họ</label>
+                  <input 
+                    type="text" 
+                    id="lastName"
+                    name="lastName"
+                    [(ngModel)]="playerFormData.lastName" 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="position">Vị trí *</label>
+                  <select 
+                    id="position"
+                    name="position"
+                    [(ngModel)]="playerFormData.position" 
+                    required 
+                    class="form-control">
+                    <option value="">Chọn vị trí</option>
+                    <option value="Thủ môn">Thủ môn</option>
+                    <option value="Hậu vệ">Hậu vệ</option>
+                    <option value="Trung vệ">Trung vệ</option>
+                    <option value="Tiền vệ">Tiền vệ</option>
+                    <option value="Tiền đạo">Tiền đạo</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="dateOfBirth">Ngày sinh</label>
+                  <input 
+                    type="date" 
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    [(ngModel)]="playerFormData.dateOfBirth" 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="height">Chiều cao (cm)</label>
+                  <input 
+                    type="number" 
+                    id="height"
+                    name="height"
+                    [(ngModel)]="playerFormData.height" 
+                    min="0"
+                    max="250"
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="weight">Cân nặng (kg)</label>
+                  <input 
+                    type="number" 
+                    id="weight"
+                    name="weight"
+                    [(ngModel)]="playerFormData.weight" 
+                    min="0"
+                    max="200"
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-group full-width">
+                <label for="notes">Ghi chú</label>
+                <textarea 
+                  id="notes"
+                  name="notes"
+                  [(ngModel)]="playerFormData.notes" 
+                  rows="3"
+                  class="form-control"
+                  placeholder="Thông tin thêm về cầu thủ..."></textarea>
+              </div>
+              
+              <div class="form-group full-width">
+                <label for="avatar">Avatar URL</label>
+                <input 
+                  type="url" 
+                  id="avatar"
+                  name="avatar"
+                  [(ngModel)]="playerFormData.avatar" 
+                  class="form-control"
+                  placeholder="https://example.com/avatar.jpg">
+              </div>
+              
+              <div class="modal-actions">
+                <button type="button" class="btn-cancel" (click)="closePlayerFormModal()">
+                  <i class="fas fa-times me-1"></i>Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  class="btn-save" 
+                  [disabled]="!playerForm.form.valid || isSaving">
+                  <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-save me-1'"></i>
+                  {{ isSaving ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Thêm mới') }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div *ngIf="showDeleteConfirm" class="modal-overlay" (click)="closeDeleteConfirm()">
+        <div class="confirm-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              Xác nhận xóa
+            </h3>
+          </div>
+          <div class="modal-content">
+            <p>Bạn có chắc chắn muốn xóa cầu thủ <strong>{{ playerToDelete?.firstName }} {{ playerToDelete?.lastName }}</strong>?</p>
+            <p class="warning-text">Hành động này không thể hoàn tác!</p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeDeleteConfirm()">
+              <i class="fas fa-times me-1"></i>Hủy
+            </button>
+            <button 
+              type="button" 
+              class="btn-delete" 
+              (click)="executeDeletePlayer()"
+              [disabled]="isSaving">
+              <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-trash me-1'"></i>
+              {{ isSaving ? 'Đang xóa...' : 'Xóa' }}
+            </button>
           </div>
         </div>
       </div>
@@ -1754,11 +1951,217 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
         text-align: left;
       }
     }
+
+    /* Admin Controls */
+    .admin-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .admin-player-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .admin-player-actions button {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .btn-edit {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-edit:hover {
+      background: #0056b3;
+    }
+
+    .btn-delete {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-delete:hover {
+      background: #c82333;
+    }
+
+    /* Modal Styles */
+    .confirm-modal {
+      background: white;
+      border-radius: 12px;
+      padding: 0;
+      width: 90%;
+      max-width: 400px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      transform: scale(0.9);
+      animation: modalEnter 0.2s ease forwards;
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8f9fa;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: #333;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .modal-content {
+      padding: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+      font-size: 14px;
+    }
+
+    .form-control {
+      padding: 10px 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      background: white;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .form-control:invalid {
+      border-color: #dc3545;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+
+    .btn-cancel {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+    }
+
+    .btn-cancel:hover {
+      background: #545b62;
+    }
+
+    .btn-save {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+    }
+
+    .btn-save:hover:not(:disabled) {
+      background: #218838;
+    }
+
+    .btn-save:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+
+    .warning-text {
+      color: #dc3545;
+      font-style: italic;
+      margin: 10px 0;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .admin-controls {
+        justify-content: center;
+      }
+      
+      .modal-actions {
+        flex-direction: column;
+      }
+    }
   `]
 })
 export class PlayersComponent implements OnInit, OnDestroy {
   @Input() canEdit = false;
-  @Input() isAdmin = false;
   
   private destroy$ = new Subject<void>();
   private readonly playerService = inject(PlayerService);
@@ -1801,6 +2204,14 @@ export class PlayersComponent implements OnInit, OnDestroy {
   analysisStep = 0;
   saveMessage = '';
   saveRegisteredMessage = '';
+  
+  // Admin modal state
+  showPlayerModal = false;
+  showDeleteConfirm = false;
+  isEditMode = false;
+  isSaving = false;
+  playerToDelete: PlayerInfo | null = null;
+  playerFormData: Partial<PlayerInfo> = {};
 
   trackByPlayerId: TrackByFunction<Player> = (index: number, player: Player) => {
     return player.id;
@@ -1809,20 +2220,83 @@ export class PlayersComponent implements OnInit, OnDestroy {
   async loadPlayers() {
     try {
       this.isLoadingPlayers = true;
+      console.log('🔄 Loading players from PlayerService...');
+      
+      // Force PlayerService to reload data
+      console.log('⚡ Triggering PlayerService refresh...');
+      await this.playerService.refreshPlayers();
       
       // Subscribe to core players data
       this.playerService.players$
         .pipe(takeUntil(this.destroy$))
-        .subscribe(corePlayersData => {
-          this.corePlayersData = corePlayersData;
-          this.convertCorePlayersToLegacyFormat(corePlayersData);
-          this.updateFilteredPlayers();
-          this.isLoadingPlayers = false;
+        .subscribe({
+          next: (corePlayersData) => {
+            console.log('📥 Received players data from PlayerService:', corePlayersData.length);
+            this.corePlayersData = corePlayersData;
+            this.convertCorePlayersToLegacyFormat(corePlayersData);
+            this.updateFilteredPlayers();
+            this.isLoadingPlayers = false;
+            
+            // If still no players after 1 second, try fallback
+            if (this.allPlayers.length === 0) {
+              setTimeout(() => {
+                if (this.allPlayers.length === 0) {
+                  console.log('🔧 No players loaded, trying fallback method...');
+                  this.loadPlayersDirectly();
+                }
+              }, 1000);
+            }
+          },
+          error: (error) => {
+            console.error('❌ Error in PlayerService subscription:', error);
+            this.loadPlayersDirectly();
+          }
         });
       
-      console.log('✅ Players loaded from PlayerService');
+      // Also try direct load immediately as fallback
+      setTimeout(() => {
+        if (this.allPlayers.length === 0) {
+          console.log('🔧 Fallback: Loading directly as PlayerService seems slow...');
+          this.loadPlayersDirectly();
+        }
+      }, 500);
+      
+      console.log('✅ PlayerService subscription established');
     } catch (error) {
       console.error('❌ Error loading players:', error);
+      this.loadPlayersDirectly();
+    }
+  }
+
+  private async loadPlayersDirectly() {
+    try {
+      console.log('🔧 Loading players directly from assets...');
+      const response = await fetch('assets/players.json');
+      if (response.ok) {
+        const legacyPlayers = await response.json();
+        console.log('📁 Direct load successful:', legacyPlayers.length);
+        
+        // Convert directly to allPlayers format
+        this.allPlayers = legacyPlayers.map((player: { id: number; firstName: string; lastName?: string; position: string; DOB: number | string; height?: number; weight?: number; avatar?: string; note?: string }) => ({
+          id: player.id,
+          firstName: player.firstName,
+          lastName: player.lastName || '',
+          position: player.position || 'Chưa xác định',
+          DOB: typeof player.DOB === 'number' ? player.DOB : 0,
+          height: player.height || 0,
+          weight: player.weight || 0,
+          avatar: player.avatar || 'assets/images/default-avatar.svg',
+          note: player.note || ''
+        }));
+        
+        this.updateFilteredPlayers();
+        this.isLoadingPlayers = false;
+        console.log('✅ Direct load completed:', this.allPlayers.length);
+      } else {
+        throw new Error('Failed to fetch players.json');
+      }
+    } catch (error) {
+      console.error('❌ Direct load failed:', error);
       this.allPlayers = [];
       this.isLoadingPlayers = false;
     }
@@ -2188,6 +2662,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
+    console.log('🔄 Converting core players to legacy format:', corePlayers.length);
+    
     this.allPlayers = corePlayers.map(player => ({
       id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
       firstName: player.firstName,
@@ -2199,6 +2675,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
       avatar: player.avatar || 'assets/images/default-avatar.svg',
       note: player.notes || ''
     }));
+    
+    console.log('✅ Converted to allPlayers:', this.allPlayers.length);
+    console.log('📋 Sample player:', this.allPlayers[0]);
   }
 
   private showTemporaryMessage(messageProperty: keyof Pick<PlayersComponent, 'matchSaveMessage' | 'saveMessage' | 'saveRegisteredMessage'>, message: string) {
@@ -2458,5 +2937,156 @@ export class PlayersComponent implements OnInit, OnDestroy {
     
     // You could show a modal or toast message here
     alert(`✅ Phân tích hoàn thành!\n\nCân bằng đội hình: ${balanceScore}\nĐội Xanh: ${this.teamA.length} cầu thủ\nĐội Cam: ${this.teamB.length} cầu thủ`);
+  }
+
+  // Admin utility methods
+  isAdmin(): boolean {
+    // For now, return true. In a real app, check user role
+    return true;
+  }
+
+  // Player Modal Methods
+  openCreatePlayerModal(): void {
+    this.isEditMode = false;
+    this.playerFormData = {
+      firstName: '',
+      lastName: '',
+      position: '',
+      dateOfBirth: '',
+      height: undefined,
+      weight: undefined,
+      notes: '',
+      avatar: ''
+    };
+    this.showPlayerModal = true;
+  }
+
+  openEditPlayerModal(player: Player): void {
+    // Find the corresponding PlayerInfo from corePlayersData
+    const playerInfo = this.corePlayersData.find(p => 
+      p.firstName === player.firstName && 
+      p.lastName === player.lastName
+    );
+    
+    if (playerInfo) {
+      this.isEditMode = true;
+      this.playerFormData = { ...playerInfo };
+      this.showPlayerModal = true;
+    }
+  }
+
+  closePlayerFormModal(): void {
+    this.showPlayerModal = false;
+    this.playerFormData = {};
+    this.isEditMode = false;
+    this.isSaving = false;
+  }
+
+  async savePlayerData(): Promise<void> {
+    if (!this.playerFormData.firstName || !this.playerFormData.position) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      if (this.isEditMode && this.playerFormData.id) {
+        // Update existing player
+        await this.playerService.updatePlayer(this.playerFormData.id, this.playerFormData);
+        alert('Cập nhật cầu thủ thành công!');
+      } else {
+        // Create new player
+        const newPlayer = {
+          firstName: this.playerFormData.firstName!,
+          lastName: this.playerFormData.lastName || '',
+          position: this.playerFormData.position!,
+          dateOfBirth: this.playerFormData.dateOfBirth || '',
+          height: this.playerFormData.height || 0,
+          weight: this.playerFormData.weight || 0,
+          notes: this.playerFormData.notes || '',
+          avatar: this.playerFormData.avatar || '',
+          isRegistered: true,
+          status: PlayerStatus.ACTIVE
+        };
+        await this.playerService.createPlayer(newPlayer);
+        alert('Thêm cầu thủ mới thành công!');
+      }
+      
+      this.closePlayerFormModal();
+    } catch (error) {
+      console.error('Error saving player:', error);
+      alert('Có lỗi xảy ra khi lưu thông tin cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  // Delete Modal Methods
+  openDeletePlayerModal(player: Player): void {
+    // Find the corresponding PlayerInfo from corePlayersData
+    const playerInfo = this.corePlayersData.find(p => 
+      p.firstName === player.firstName && 
+      p.lastName === player.lastName
+    );
+    
+    if (playerInfo) {
+      this.playerToDelete = playerInfo;
+      this.showDeleteConfirm = true;
+    }
+  }
+
+  closeDeleteConfirm(): void {
+    this.showDeleteConfirm = false;
+    this.playerToDelete = null;
+    this.isSaving = false;
+  }
+
+  async executeDeletePlayer(): Promise<void> {
+    if (!this.playerToDelete?.id) {
+      alert('Không tìm thấy thông tin cầu thủ để xóa!');
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      await this.playerService.deletePlayer(this.playerToDelete.id);
+      alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
+      this.closeDeleteConfirm();
+    } catch (error) {
+      console.error('Error deleting player:', error);
+      alert('Có lỗi xảy ra khi xóa cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  // Admin Action Methods
+  async syncWithFirebase(): Promise<void> {
+    try {
+      console.log('🔄 Syncing with Firebase...');
+      await this.playerService.refreshPlayers();
+      alert('Đồng bộ Firebase thành công!');
+    } catch (error) {
+      console.error('Error syncing with Firebase:', error);
+      alert('Có lỗi khi đồng bộ với Firebase!');
+    }
+  }
+
+  exportPlayerData(): void {
+    try {
+      const dataStr = JSON.stringify(this.corePlayersData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `players-export-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert('Xuất dữ liệu thành công!');
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Có lỗi khi xuất dữ liệu!');
+    }
   }
 }
