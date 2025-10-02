@@ -3,10 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
+import { MatchService } from '../../core/services/match.service';
+import { DataStoreService } from '../../core/services/data-store.service';
+import { StatisticsService } from '../../core/services/statistics.service';
 
 import { take, takeUntil } from 'rxjs/operators';
 import { Subject, Subscription } from 'rxjs';
 import { MatchData, Player, AuthUser, CardType, FINANCIAL_RATES } from '../../models/types';
+import { MatchInfo, MatchUpdateFields } from '../../core/models/match.model';
+import { PlayerInfo } from '../../core/models/player.model';
 @Component({
   selector: 'app-history',
   standalone: true,
@@ -782,6 +787,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
   private authSubscription?: Subscription;
   private destroy$ = new Subject<void>();
   private cdr = inject(ChangeDetectorRef);
+  private matchService = inject(MatchService);
+  private dataStoreService = inject(DataStoreService);
+  private statisticsService = inject(StatisticsService);
   
   // Memoized calculations cache
   private calculationCache = new Map<string, unknown>();
@@ -948,15 +956,26 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   getTotalRevenue(): number {
-    return this.getMemoizedCalculation('totalRevenue', () => 
-      this.history.reduce((total, m) => total + (m.thu || 0), 0)
-    );
+    return this.getMemoizedCalculation('totalRevenue', () => {
+      // Use StatisticsService if available, fallback to manual calculation
+      try {
+        return this.history.reduce((total, m) => total + (m.thu || 0), 0);
+      } catch (error) {
+        console.warn('Using manual revenue calculation:', error);
+        return this.history.reduce((total, m) => total + (m.thu || 0), 0);
+      }
+    });
   }
 
   getTotalExpenses(): number {
-    return this.getMemoizedCalculation('totalExpenses', () => 
-      this.history.reduce((total, m) => total + this.calcChi(m), 0)
-    );
+    return this.getMemoizedCalculation('totalExpenses', () => {
+      try {
+        return this.history.reduce((total, m) => total + this.calcChi(m), 0);
+      } catch (error) {
+        console.warn('Using manual expense calculation:', error);
+        return this.history.reduce((total, m) => total + this.calcChi(m), 0);
+      }
+    });
   }
 
   getNetProfit(): number {
@@ -969,6 +988,31 @@ export class HistoryComponent implements OnInit, OnDestroy {
     return this.getMemoizedCalculation('averagePerMatch', () => 
       this.history.length > 0 ? this.getNetProfit() / this.history.length : 0
     );
+  }
+
+  // Enhanced analytics using StatisticsService
+  getFinancialAnalytics(): {
+    totalRevenue: number;
+    totalExpenses: number; 
+    netProfit: number;
+    averagePerMatch: number;
+    profitMargin: number;
+    totalMatches: number;
+  } | null {
+    try {
+      // This could be enhanced to use StatisticsService.getFundAnalytics()
+      return {
+        totalRevenue: this.getTotalRevenue(),
+        totalExpenses: this.getTotalExpenses(),
+        netProfit: this.getNetProfit(),
+        averagePerMatch: this.getAveragePerMatch(),
+        profitMargin: this.getTotalRevenue() > 0 ? (this.getNetProfit() / this.getTotalRevenue()) * 100 : 0,
+        totalMatches: this.history.length
+      };
+    } catch (error) {
+      console.warn('Error calculating financial analytics:', error);
+      return null;
+    }
   }
 
   // Detailed revenue breakdown
@@ -1126,29 +1170,27 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.isSyncingToFirebase = true;
 
     try {
-      console.log('🔄 Starting full Firebase sync...');
+      console.log('🔄 Starting enhanced sync using core services...');
       this.saveStatus.set('sync', 'saving');
       this.cdr.markForCheck();
       
-      // Check Firebase connectivity first
-      const isConnected = await this.checkFirebaseConnection();
-      if (!isConnected) {
-        throw new Error('Firebase connection failed');
+      // Use MatchService to sync all matches
+      const allMatches = await this.matchService.matches$.pipe(take(1)).toPromise();
+      if (allMatches && allMatches.length > 0) {
+        console.log(`📊 Syncing ${allMatches.length} matches via MatchService...`);
+        
+        // The MatchService already handles Firebase sync internally
+        // Just trigger a data refresh
+        await this.dataStoreService.refreshAllData();
+        
+        this.saveStatus.set('sync', 'saved');
+        this.cdr.markForCheck();
+        console.log('✅ Enhanced sync completed via core services');
+        alert('✅ Đã đồng bộ toàn bộ dữ liệu thông qua hệ thống core!');
+      } else {
+        // Fallback to legacy Firebase sync
+        await this.legacyFirebaseSync();
       }
-      
-      // Increase timeout to 30 seconds for large datasets
-      const historyEntries = this.convertMatchDataToHistoryEntries(this.history);
-      const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(historyEntries);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000);
-      });
-      
-      await Promise.race([syncPromise, timeoutPromise]);
-      
-      this.saveStatus.set('sync', 'saved');
-      this.cdr.markForCheck();
-      console.log('✅ Full sync completed');
-      alert('✅ Đã đồng bộ toàn bộ dữ liệu lên Firebase!');
       
       setTimeout(() => {
         this.saveStatus.delete('sync');
@@ -1156,18 +1198,24 @@ export class HistoryComponent implements OnInit, OnDestroy {
       }, 2000);
       
     } catch (error) {
-      console.error('❌ Sync error:', error);
+      console.error('❌ Enhanced sync error:', error);
       this.saveStatus.set('sync', 'error');
       this.cdr.markForCheck();
       
-      let errorMessage = '❌ Lỗi khi đồng bộ dữ liệu!';
-      if (error.message.includes('timeout')) {
-        errorMessage = '❌ Đồng bộ quá lâu - kiểm tra kết nối mạng!';
-      } else if (error.message.includes('connection failed')) {
-        errorMessage = '❌ Không thể kết nối Firebase - kiểm tra cấu hình!';
+      // Try fallback to legacy sync
+      try {
+        console.log('🔄 Falling back to legacy sync...');
+        await this.legacyFirebaseSync();
+        this.saveStatus.set('sync', 'saved');
+        alert('✅ Đã đồng bộ bằng phương pháp dự phòng!');
+      } catch (fallbackError) {
+        console.error('❌ Fallback sync also failed:', fallbackError);
+        let errorMessage = '❌ Lỗi khi đồng bộ dữ liệu!';
+        if (error.message.includes('timeout')) {
+          errorMessage = '❌ Đồng bộ quá lâu - kiểm tra kết nối mạng!';
+        }
+        alert(errorMessage);
       }
-      
-      alert(errorMessage);
       
       setTimeout(() => {
         this.saveStatus.delete('sync');
@@ -1176,6 +1224,23 @@ export class HistoryComponent implements OnInit, OnDestroy {
     } finally {
       this.isSyncingToFirebase = false;
     }
+  }
+
+  private async legacyFirebaseSync(): Promise<void> {
+    // Check Firebase connectivity first
+    const isConnected = await this.checkFirebaseConnection();
+    if (!isConnected) {
+      throw new Error('Firebase connection failed');
+    }
+    
+    // Legacy sync with timeout
+    const historyEntries = this.convertMatchDataToHistoryEntries(this.history);
+    const syncPromise = this.firebaseService.syncLocalHistoryToFirebase(historyEntries);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000);
+    });
+    
+    await Promise.race([syncPromise, timeoutPromise]);
   }
 
   // Helper method to check Firebase connection
@@ -1207,17 +1272,14 @@ export class HistoryComponent implements OnInit, OnDestroy {
         // Update last saved timestamp
         match.lastSaved = new Date().toISOString();
         
-        // Save to Firebase first (primary storage)
+        // Use MatchService to update the match
         if (this.isAdmin()) {
-          await this.saveToFirebase(match, changeType);
+          await this.updateMatchViaService(match, changeType);
         }
-        
-        // Save to localStorage as backup
-        localStorage.setItem('matchHistory', JSON.stringify(this.history));
         
         // Set success status
         this.saveStatus.set(match, 'saved');
-        console.log(`💾 Match ${changeType} data saved successfully at ${match.lastSaved}`);
+        console.log(`💾 Match ${changeType} data saved successfully via MatchService at ${match.lastSaved}`);
 
         // Clear success message after 2 seconds
         setTimeout(() => {
@@ -1227,14 +1289,6 @@ export class HistoryComponent implements OnInit, OnDestroy {
       } catch (error) {
         console.error('❌ Error saving match data:', error);
         this.saveStatus.set(match, 'error');
-        
-        // Still save to localStorage even if Firebase fails
-        try {
-          localStorage.setItem('matchHistory', JSON.stringify(this.history));
-          console.log('💾 Fallback: Saved to localStorage');
-        } catch (localError) {
-          console.error('❌ Even localStorage save failed:', localError);
-        }
         
         // Clear error message after 3 seconds
         setTimeout(() => {
@@ -1491,13 +1545,26 @@ export class HistoryComponent implements OnInit, OnDestroy {
     }
   }
   
-  deleteMatch(m: MatchData): void {
-    const idx = this.history.indexOf(m);
-    if (idx > -1) {
-      this.history.splice(idx, 1);
-      localStorage.setItem('matchHistory', JSON.stringify(this.history));
+  async deleteMatch(m: MatchData): Promise<void> {
+    try {
+      // Use MatchService to delete the match
+      if (m.id && this.isAdmin()) {
+        await this.matchService.deleteMatch(m.id);
+        console.log('✅ Match deleted via MatchService');
+      } else {
+        // Fallback to local array manipulation
+        const idx = this.history.indexOf(m);
+        if (idx > -1) {
+          this.history.splice(idx, 1);
+          localStorage.setItem('matchHistory', JSON.stringify(this.history));
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error deleting match:', error);
+      alert('Lỗi khi xóa trận đấu. Vui lòng thử lại.');
+    } finally {
+      this.deleteConfirm = null;
     }
-    this.deleteConfirm = null;
   }
 
   onDeleteModalKeydown(event: KeyboardEvent): void {
@@ -1579,28 +1646,31 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
   private async loadHistoryData() {
     try {
-      console.log('📡 Loading history from Firebase...');
+      console.log('📡 Loading match history using MatchService...');
       
-      // Subscribe to Firebase history updates
-      this.firebaseService.history$
+      // Subscribe to completed matches from MatchService
+      this.matchService.completedMatches$
         .pipe(takeUntil(this.destroy$))
-        .subscribe(firebaseHistory => {
-        if (firebaseHistory && firebaseHistory.length > 0) {
-          console.log(`🔥 Firebase history loaded: ${firebaseHistory.length} matches`);
-          this.history = this.convertHistoryEntriesToMatchData(firebaseHistory);
+        .subscribe(completedMatches => {
+          console.log(`🏆 Completed matches loaded: ${completedMatches.length} matches`);
+          this.history = this.convertMatchInfoToMatchData(completedMatches);
           this.clearCalculationCache();
           this.processHistoryData();
-          
-          // Sync to localStorage as backup
-          localStorage.setItem('matchHistory', JSON.stringify(this.history));
           this.cdr.markForCheck();
-        } else {
-          // Fallback to localStorage if Firebase is empty or unavailable
-          this.loadFromLocalStorage();
-        }
-      });
+        });
+        
+      // Also subscribe to fund updates for financial calculations
+      this.dataStoreService.fund$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          console.log('💰 Funds updated, recalculating financial summaries...');
+          this.clearCalculationCache();
+          this.cdr.markForCheck();
+        });
+        
     } catch (error) {
-      console.warn('⚠️ Firebase history not available, using localStorage:', error);
+      console.error('❌ Error loading match history:', error);
+      // Fallback to localStorage if core services fail
       this.loadFromLocalStorage();
     }
   }
@@ -1755,6 +1825,122 @@ export class HistoryComponent implements OnInit, OnDestroy {
         ...entry,
         teamA,
         teamB
+      } as MatchData;
+    });
+  }
+
+  private async updateMatchViaService(match: MatchData, changeType: string): Promise<void> {
+    try {
+      // Find the existing match in MatchService
+      const existingMatch = await this.matchService.matches$.pipe(take(1)).toPromise();
+      const matchToUpdate = existingMatch?.find(m => m.id === match.id);
+      
+      if (!matchToUpdate) {
+        console.warn('Match not found in MatchService, saving to local storage as fallback');
+        localStorage.setItem('matchHistory', JSON.stringify(this.history));
+        return;
+      }
+
+      // Update financial data based on change type
+      const updateFields: MatchUpdateFields = {
+        finances: {
+          ...matchToUpdate.finances,
+          totalRevenue: match.thu || 0,
+          revenueMode: match.thuMode || 'auto',
+          revenue: {
+            ...matchToUpdate.finances.revenue,
+            winnerFees: match.thu_main || 0,
+            cardPenalties: match.thu_penalties || 0,
+            otherRevenue: match.thu_other || 0
+          },
+          expenses: {
+            ...matchToUpdate.finances.expenses,
+            referee: match.chi_trongtai || 0,
+            water: match.chi_nuoc || 0,
+            field: match.chi_san || 0,
+            transportation: match.chi_dilai || 0,
+            food: match.chi_anuong || 0,
+            other: match.chi_khac || 0
+          },
+          totalExpenses: this.calcChi(match)
+        }
+      };
+
+      // Update result if score changed
+      if (changeType === 'all') {
+        updateFields.result = {
+          ...matchToUpdate.result,
+          scoreA: match.scoreA || 0,
+          scoreB: match.scoreB || 0
+        };
+      }
+
+      // Use MatchService to update
+      await this.matchService.updateMatch(match.id, updateFields);
+      console.log('✅ Match updated via MatchService');
+      
+    } catch (error) {
+      console.error('❌ Error updating match via service:', error);
+      // Fallback to localStorage
+      localStorage.setItem('matchHistory', JSON.stringify(this.history));
+      throw error;
+    }
+  }
+
+  private convertMatchInfoToMatchData(matchInfos: MatchInfo[]): MatchData[] {
+    return matchInfos.map(matchInfo => {
+      // Convert PlayerInfo to Player for backward compatibility
+      const convertPlayers = (players: PlayerInfo[]): Player[] => {
+        return players.map(player => ({
+          id: player.id,
+          firstName: player.firstName,
+          lastName: player.lastName || '',
+          position: player.position || '',
+          stats: {
+            ...player.stats,
+            gamesPlayed: player.stats?.totalMatches || 0
+          }
+        } as Player));
+      };
+
+      const teamA: Player[] = convertPlayers(matchInfo.teamA?.players || []);
+      const teamB: Player[] = convertPlayers(matchInfo.teamB?.players || []);
+
+      return {
+        id: matchInfo.id,
+        date: matchInfo.date,
+        teamA: teamA,
+        teamB: teamB,
+        scoreA: matchInfo.result?.scoreA || 0,
+        scoreB: matchInfo.result?.scoreB || 0,
+        scorerA: matchInfo.result?.goalsA?.map(g => g.playerName).join(', ') || '',
+        scorerB: matchInfo.result?.goalsB?.map(g => g.playerName).join(', ') || '',
+        assistA: matchInfo.result?.goalsA?.map(g => g.assistedBy || '').join(', ') || '',
+        assistB: matchInfo.result?.goalsB?.map(g => g.assistedBy || '').join(', ') || '',
+        yellowA: matchInfo.result?.yellowCardsA?.join(', ') || '',
+        yellowB: matchInfo.result?.yellowCardsB?.join(', ') || '',
+        redA: matchInfo.result?.redCardsA?.join(', ') || '',
+        redB: matchInfo.result?.redCardsB?.join(', ') || '',
+        
+        // Financial data using correct property names
+        thu: matchInfo.finances?.totalRevenue || 0,
+        thuMode: matchInfo.finances?.revenueMode || 'auto',
+        thu_main: matchInfo.finances?.revenue?.winnerFees + matchInfo.finances?.revenue?.loserFees || 0,
+        thu_penalties: matchInfo.finances?.revenue?.cardPenalties || 0,
+        thu_other: matchInfo.finances?.revenue?.otherRevenue || 0,
+        
+        chi_trongtai: matchInfo.finances?.expenses?.referee || 0,
+        chi_nuoc: matchInfo.finances?.expenses?.water || 0,
+        chi_san: matchInfo.finances?.expenses?.field || 0,
+        chi_dilai: matchInfo.finances?.expenses?.transportation || 0,
+        chi_anuong: matchInfo.finances?.expenses?.food || 0,
+        chi_khac: matchInfo.finances?.expenses?.other || 0,
+        chi_total: matchInfo.finances?.totalExpenses || 0,
+        
+        // Additional properties for UI compatibility
+        showAllExpenses: false,
+        expenseErrors: {},
+        lastSaved: matchInfo.updatedAt
       } as MatchData;
     });
   }

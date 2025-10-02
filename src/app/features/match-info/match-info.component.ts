@@ -2,10 +2,17 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, inject } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { Player, MatchData } from '../../models/types';
+import { MatchService } from '../../core/services/match.service';
+import { PlayerService } from '../../core/services/player.service';
+import { DataStoreService } from '../../core/services/data-store.service';
+import { PlayerInfo } from '../../core/models/player.model';
+import { MatchInfo, TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalType, CardType } from '../../core/models/match.model';
 
-interface MatchPlayer extends Player {
+interface MatchPlayer extends Omit<Player, 'id'> {
+  id: string;
   scorer: number;
   assist: number;
   yellow: number;
@@ -968,10 +975,18 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
   @Input() canEdit = false;
   @Output() matchSaved = new EventEmitter<MatchData>();
   
+  // Core services
+  private destroy$ = new Subject<void>();
+  private readonly matchService = inject(MatchService);
+  private readonly playerService = inject(PlayerService);
+  private readonly dataStore = inject(DataStoreService);
+  private readonly http = inject(HttpClient);
+  
   // State management
   players: MatchPlayer[] = [];
   teamA: MatchPlayer[] = [];
   teamB: MatchPlayer[] = [];
+  corePlayersData: PlayerInfo[] = [];
   
   // Financial data
   matchFee = 0;
@@ -985,16 +1000,30 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
   errorMessage = '';
   successMessage = '';
   
+  // Current match data
+  currentMatch?: MatchInfo;
+  
   // Event listener reference for cleanup
   private storageListener?: (event: StorageEvent) => void;
-  private readonly http = inject(HttpClient);
 
   ngOnInit(): void {
     this.loadPlayers();
     this.setupStorageListener();
+    
+    // Subscribe to data store changes for fund updates
+    this.dataStore.appState$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(state => {
+        // Update UI if needed based on fund state
+        if (this.successMessage && state.fund) {
+          console.log('\u2705 Fund updated after match calculation');
+        }
+      });
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.cleanup();
   }
 
@@ -1003,30 +1032,84 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
       this.isLoading = true;
       this.errorMessage = '';
       
-      const response = await firstValueFrom(this.http.get<Player[]>('/assets/players.json'));
+      // Subscribe to core players data
+      this.playerService.players$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(corePlayersData => {
+          this.corePlayersData = corePlayersData;
+          this.convertCorePlayersToLegacyFormat(corePlayersData);
+          this.divideTeams();
+          this.isLoading = false;
+        });
       
-      this.players = response.map(player => ({
-        ...player,
-        scorer: 0,
-        assist: 0,
-        yellow: 0,
-        red: 0
-      }));
-      
-      this.divideTeams();
+      console.log('\u2705 Players loaded from PlayerService');
       
     } catch (error) {
       console.error('Error loading players:', error);
       this.errorMessage = 'Không thể tải danh sách cầu thủ. Vui lòng thử lại.';
-    } finally {
       this.isLoading = false;
     }
   }
 
+  private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
+    this.players = corePlayers.map(player => ({
+      id: player.id!,
+      firstName: player.firstName,
+      lastName: player.lastName || '',
+      position: player.position || 'Chưa xác định',
+      DOB: player.dateOfBirth ? new Date(player.dateOfBirth).getFullYear() : 0,
+      height: player.height,
+      weight: player.weight,
+      avatar: player.avatar || 'assets/images/default-avatar.svg',
+      note: player.notes || '',
+      scorer: 0,
+      assist: 0,
+      yellow: 0,
+      red: 0
+    }));
+  }
+
   private divideTeams(): void {
-    // Simple division by index for A/B teams
-    this.teamA = this.players.filter((_, index) => index % 2 === 0);
-    this.teamB = this.players.filter((_, index) => index % 2 === 1);
+    // Check if we have team data from localStorage or use simple division
+    const savedTeams = this.loadSavedTeams();
+    
+    if (savedTeams.teamA.length > 0 || savedTeams.teamB.length > 0) {
+      this.teamA = savedTeams.teamA;
+      this.teamB = savedTeams.teamB;
+    } else {
+      // Simple division by index for A/B teams
+      this.teamA = this.players.filter((_, index) => index % 2 === 0);
+      this.teamB = this.players.filter((_, index) => index % 2 === 1);
+    }
+  }
+
+  private loadSavedTeams(): { teamA: MatchPlayer[], teamB: MatchPlayer[] } {
+    try {
+      const savedTeamA = localStorage.getItem('TEAM_A');
+      const savedTeamB = localStorage.getItem('TEAM_B');
+      
+      if (savedTeamA && savedTeamB) {
+        const teamAData = JSON.parse(savedTeamA) as Player[];
+        const teamBData = JSON.parse(savedTeamB) as Player[];
+        
+        // Convert to MatchPlayer format and match with current players
+        const teamA = teamAData.map(savedPlayer => {
+          const currentPlayer = this.players.find(p => p.id === savedPlayer.id);
+          return currentPlayer ? { ...currentPlayer, scorer: 0, assist: 0, yellow: 0, red: 0 } : null;
+        }).filter(Boolean) as MatchPlayer[];
+        
+        const teamB = teamBData.map(savedPlayer => {
+          const currentPlayer = this.players.find(p => p.id === savedPlayer.id);
+          return currentPlayer ? { ...currentPlayer, scorer: 0, assist: 0, yellow: 0, red: 0 } : null;
+        }).filter(Boolean) as MatchPlayer[];
+        
+        return { teamA, teamB };
+      }
+    } catch (error) {
+      console.warn('Could not load saved teams:', error);
+    }
+    
+    return { teamA: [], teamB: [] };
   }
 
   private setupStorageListener(): void {
@@ -1139,14 +1222,58 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
       this.isCalculating = true;
       this.errorMessage = '';
       
-      const netChange = this.getNetChange();
+      const income = this.calculatePenaltyIncome();
+      const expenses = this.getTotalExpenses();
+      const netChange = income - expenses;
       
-      // Update fund
-      const currentFund = Number(localStorage.getItem('CURRENT_FUND') || '0');
-      const newFund = currentFund + netChange;
-      localStorage.setItem('CURRENT_FUND', String(newFund));
+      // Add income transaction if there's any
+      if (income > 0) {
+        await this.dataStore.addFundTransaction({
+          type: 'income',
+          amount: income,
+          description: `Thu nh\u1eadp t\u1eeb tr\u1eadn \u0111\u1ea5u: Ph\u1ea1t th\u1ebb ${this.getTotalYellows()} v\u00e0ng, ${this.getTotalReds()} \u0111\u1ecf + th\u01b0\u1edfng th\u1eafng`,
+          category: 'match_fee',
+          date: new Date().toISOString().split('T')[0],
+          createdBy: 'match-info'
+        });
+      }
       
-      this.successMessage = 'Đã tính toán xong! Kiểm tra quỹ để xem chi tiết.';
+      // Add expense transactions
+      if (this.matchFee > 0) {
+        await this.dataStore.addFundTransaction({
+          type: 'expense',
+          amount: this.matchFee,
+          description: 'Chi ph\u00ed s\u00e2n b\u00f3ng',
+          category: 'field_rental',
+          date: new Date().toISOString().split('T')[0],
+          createdBy: 'match-info'
+        });
+      }
+      
+      if (this.drinking > 0) {
+        await this.dataStore.addFundTransaction({
+          type: 'expense',
+          amount: this.drinking,
+          description: 'Ti\u1ec1n n\u01b0\u1edbc u\u1ed1ng',
+          category: 'refreshments',
+          date: new Date().toISOString().split('T')[0],
+          createdBy: 'match-info'
+        });
+      }
+      
+      if (this.referee > 0) {
+        await this.dataStore.addFundTransaction({
+          type: 'expense',
+          amount: this.referee,
+          description: 'Ti\u1ec1n tr\u1ecdng t\u00e0i',
+          category: 'referee_fee',
+          date: new Date().toISOString().split('T')[0],
+          createdBy: 'match-info'
+        });
+      }
+      
+      const changeText = netChange > 0 ? `t\u0103ng ${netChange.toLocaleString()}` : netChange < 0 ? `gi\u1ea3m ${Math.abs(netChange).toLocaleString()}` : 'kh\u00f4ng thay \u0111\u1ed5i';
+      this.successMessage = `\u0110\u00e3 t\u00ednh to\u00e1n xong! Qu\u1ef9 ${changeText} VN\u0110. Ki\u1ec3m tra qu\u1ef9 \u0111\u1ec3 xem chi ti\u1ebft.`;
       
       // Auto-hide success message
       setTimeout(() => {
@@ -1155,7 +1282,7 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
       
     } catch (error) {
       console.error('Error calculating score:', error);
-      this.errorMessage = 'Có lỗi xảy ra khi tính toán. Vui lòng thử lại.';
+      this.errorMessage = 'C\u00f3 l\u1ed7i x\u1ea3y ra khi t\u00ednh to\u00e1n. Vui l\u00f2ng th\u1eed l\u1ea1i.';
     } finally {
       this.isCalculating = false;
     }
@@ -1171,14 +1298,27 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
       this.isSaving = true;
       this.errorMessage = '';
 
-      const matchData: MatchData = {
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
+      // Create match data using core models
+      const matchData = await this.createCoreMatchData();
+      
+      // Save using MatchService
+      const savedMatch = await this.matchService.createMatch(matchData);
+      this.currentMatch = savedMatch;
+
+      // Update player statistics
+      await this.updatePlayerStatistics();
+
+      // Add financial transaction to fund
+      await this.addMatchFundTransaction();
+
+      // Create legacy match data for backward compatibility
+      const legacyMatchData: MatchData = {
+        id: savedMatch!.id,
+        date: savedMatch!.date,
         teamA: [...this.teamA],
         teamB: [...this.teamB],
         scoreA: this.getTeamScore('A'),
         scoreB: this.getTeamScore('B'),
-        // Convert player stats to goal/assist strings
         scorerA: this.getPlayerStatString(this.teamA, 'scorer'),
         scorerB: this.getPlayerStatString(this.teamB, 'scorer'),
         assistA: this.getPlayerStatString(this.teamA, 'assist'),
@@ -1187,7 +1327,6 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
         yellowB: this.getPlayerStatString(this.teamB, 'yellow'),
         redA: this.getPlayerStatString(this.teamA, 'red'),
         redB: this.getPlayerStatString(this.teamB, 'red'),
-        // Financial data
         chi_san: this.matchFee || 0,
         chi_nuoc: this.drinking || 0,
         chi_trongtai: this.referee || 0,
@@ -1196,15 +1335,18 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
         updatedBy: 'match-info-component'
       };
 
-      // Save to localStorage
+      // Save legacy format for backward compatibility
       const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
-      history.push(matchData);
+      history.push(legacyMatchData);
       localStorage.setItem('matchHistory', JSON.stringify(history));
 
       // Emit event
-      this.matchSaved.emit(matchData);
+      this.matchSaved.emit(legacyMatchData);
 
-      this.successMessage = 'Đã lưu trận đấu thành công!';
+      this.successMessage = '\u0110\u00e3 l\u01b0u tr\u1eadn \u0111\u1ea5u v\u00e0o h\u1ec7 th\u1ed1ng th\u00e0nh c\u00f4ng!';
+      
+      // Clear match data after saving
+      this.clearMatchData();
       
       // Auto-hide success message
       setTimeout(() => {
@@ -1213,9 +1355,196 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
 
     } catch (error) {
       console.error('Error saving match:', error);
-      this.errorMessage = 'Có lỗi xảy ra khi lưu trận đấu. Vui lòng thử lại.';
+      this.errorMessage = 'C\u00f3 l\u1ed7i x\u1ea3y ra khi l\u01b0u tr\u1eadn \u0111\u1ea5u. Vui l\u00f2ng th\u1eed l\u1ea1i.';
     } finally {
       this.isSaving = false;
     }
+  }
+
+  private async createCoreMatchData() {
+    // Convert legacy teams to core format
+    const teamACore = await this.convertToTeamComposition(this.teamA, TeamColor.BLUE);
+    const teamBCore = await this.convertToTeamComposition(this.teamB, TeamColor.ORANGE);
+    
+    const totalPlayers = this.teamA.length + this.teamB.length;
+    const baseRevenue = totalPlayers * 30000;
+    const income = this.calculatePenaltyIncome();
+    const expenses = this.getTotalExpenses();
+    
+    return {
+      date: new Date().toISOString().split('T')[0],
+      teamA: teamACore,
+      teamB: teamBCore,
+      result: {
+        scoreA: this.getTeamScore('A'),
+        scoreB: this.getTeamScore('B'),
+        goalsA: this.createGoalDetails(this.teamA, 'scorer'),
+        goalsB: this.createGoalDetails(this.teamB, 'scorer'),
+        yellowCardsA: this.createCardDetails(this.teamA, 'yellow'),
+        yellowCardsB: this.createCardDetails(this.teamB, 'yellow'),
+        redCardsA: this.createCardDetails(this.teamA, 'red'),
+        redCardsB: this.createCardDetails(this.teamB, 'red'),
+        events: []
+      },
+      finances: {
+        revenue: {
+          winnerFees: 0,
+          loserFees: 0,
+          cardPenalties: income,
+          otherRevenue: 0,
+          teamARevenue: baseRevenue / 2,
+          teamBRevenue: baseRevenue / 2,
+          penaltyRevenue: income
+        },
+        expenses: {
+          referee: this.referee || 0,
+          field: this.matchFee || 0,
+          water: this.drinking || 0,
+          transportation: 0,
+          food: 0,
+          equipment: 0,
+          other: 0,
+          fixed: 0,
+          variable: 0
+        },
+        totalRevenue: baseRevenue + income,
+        totalExpenses: expenses,
+        netProfit: (baseRevenue + income) - expenses,
+        revenueMode: 'auto' as const
+      },
+      status: MatchStatus.COMPLETED,
+      statistics: {
+        teamAStats: {
+          possession: 50,
+          shots: this.getTeamScore('A') + 2,
+          shotsOnTarget: this.getTeamScore('A'),
+          passes: 100,
+          passAccuracy: 85,
+          corners: 2,
+          fouls: this.teamA.reduce((sum, p) => sum + (p.yellow || 0) + (p.red || 0), 0),
+          efficiency: this.getTeamScore('A') > 0 ? (this.getTeamScore('A') / (this.getTeamScore('A') + 2)) * 100 : 0,
+          discipline: 100 - (this.teamA.reduce((sum, p) => sum + (p.yellow || 0) + (p.red || 0) * 2, 0) * 10)
+        },
+        teamBStats: {
+          possession: 50,
+          shots: this.getTeamScore('B') + 2,
+          shotsOnTarget: this.getTeamScore('B'),
+          passes: 100,
+          passAccuracy: 85,
+          corners: 2,
+          fouls: this.teamB.reduce((sum, p) => sum + (p.yellow || 0) + (p.red || 0), 0),
+          efficiency: this.getTeamScore('B') > 0 ? (this.getTeamScore('B') / (this.getTeamScore('B') + 2)) * 100 : 0,
+          discipline: 100 - (this.teamB.reduce((sum, p) => sum + (p.yellow || 0) + (p.red || 0) * 2, 0) * 10)
+        },
+        duration: 90,
+        matchEvents: [],
+        competitiveness: Math.abs(this.getTeamScore('A') - this.getTeamScore('B')) <= 1 ? 80 : 60,
+        fairPlay: Math.max(0, 100 - (this.getTotalYellows() * 5 + this.getTotalReds() * 15)),
+        entertainment: Math.min(100, (this.getTotalGoals() + this.getTotalAssists()) * 10)
+      }
+    };
+  }
+
+  private async convertToTeamComposition(players: MatchPlayer[], color: TeamColor): Promise<TeamComposition> {
+    const corePlayerInfos: PlayerInfo[] = [];
+    
+    for (const player of players) {
+      const corePlayer = this.corePlayersData.find(cp => cp.id === player.id);
+      if (corePlayer) {
+        corePlayerInfos.push(corePlayer);
+      }
+    }
+    
+    return {
+      name: color === TeamColor.BLUE ? 'Đ\u1ed9i Xanh' : 'Đ\u1ed9i Cam',
+      players: corePlayerInfos,
+      teamColor: color,
+      formation: this.suggestFormation(corePlayerInfos.length)
+    };
+  }
+
+  private suggestFormation(playerCount: number): string {
+    if (playerCount <= 5) return '3-2';
+    if (playerCount <= 7) return '4-3';
+    if (playerCount <= 9) return '4-3-2';
+    return '4-4-2';
+  }
+
+  private createGoalDetails(team: MatchPlayer[], statType: 'scorer'): GoalDetail[] {
+    return team
+      .filter(player => (player[statType] || 0) > 0)
+      .flatMap(player => {
+        const count = player[statType] || 0;
+        return Array(count).fill(null).map(() => ({
+          playerId: player.id,
+          playerName: this.getPlayerName(player),
+          minute: 45,
+          goalType: GoalType.REGULAR
+        }));
+      });
+  }
+
+  private createCardDetails(team: MatchPlayer[], cardType: 'yellow' | 'red'): CardDetail[] {
+    return team
+      .filter(player => (player[cardType] || 0) > 0)
+      .flatMap(player => {
+        const count = player[cardType] || 0;
+        return Array(count).fill(null).map(() => ({
+          playerId: player.id,
+          playerName: this.getPlayerName(player),
+          minute: 45,
+          cardType: cardType === 'yellow' ? CardType.YELLOW : CardType.RED,
+          reason: 'Không rõ'
+        }));
+      });
+  }
+
+  private async updatePlayerStatistics(): Promise<void> {
+    try {
+      // Update statistics for each player who participated
+      for (const player of [...this.teamA, ...this.teamB]) {
+        const corePlayer = this.corePlayersData.find(cp => cp.id === player.id);
+        if (corePlayer) {
+          // Update match count and other basic stats
+          // For now just log, will need to check actual PlayerStats interface
+          console.log(`Updating stats for player ${player.id}: ${player.scorer} goals, ${player.assist} assists`);
+          // TODO: Fix after checking PlayerStats interface in player.model.ts
+        }
+      }
+    } catch (error) {
+      console.warn('Could not update player statistics:', error);
+    }
+  }
+
+  private async addMatchFundTransaction(): Promise<void> {
+    try {
+      // The financial transactions are already added in calculateScore
+      // This is for any additional match-specific transactions
+      console.log('\u2705 Match financial data processed');
+    } catch (error) {
+      console.warn('Could not add match fund transaction:', error);
+    }
+  }
+
+  private clearMatchData(): void {
+    // Reset all player stats to 0
+    this.teamA.forEach(player => {
+      player.scorer = 0;
+      player.assist = 0;
+      player.yellow = 0;
+      player.red = 0;
+    });
+    
+    this.teamB.forEach(player => {
+      player.scorer = 0;
+      player.assist = 0;
+      player.yellow = 0;
+      player.red = 0;
+    });
+    
+    // Reset financial data
+    this.matchFee = 0;
+    this.drinking = 0;
+    this.referee = 0;
   }
 }

@@ -11,10 +11,11 @@ import { FirebaseService } from './services/firebase.service';
 import { PerformanceService } from './services/performance.service';
 import { LazyLoadingService } from './services/lazy-loading.service';
 import { AssetOptimizationService } from './services/asset-optimization.service';
+import { DataStoreService } from './core/services/data-store.service';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
 import { takeUntil, debounceTime } from 'rxjs/operators';
-import { MatchData } from './models/types';
+
 
 @Component({
   selector: 'app-root',
@@ -89,12 +90,13 @@ import { MatchData } from './models/types';
         <div *ngIf="show==='fund'" class="fund-header-card glass interactive slide-up">
           <div class="fund-info">
             <div class="fund-icon">
-              <i class="fas fa-coins"></i>
+              <i class="fas fa-coins" [class.spinning]="isLoading"></i>
             </div>
             <div class="fund-details">
               <h2 class="fund-title">Quỹ Hiện Tại</h2>
-              <div class="fund-amount">{{currentFund | number}} VNĐ</div>
-              <div class="fund-status">
+              <div class="fund-amount" *ngIf="!isLoading">{{currentFund | number}} VNĐ</div>
+              <div class="fund-amount" *ngIf="isLoading">Đang tải...</div>
+              <div class="fund-status" *ngIf="!isLoading">
                 <span class="status-indicator" [class.positive]="currentFund > 0" [class.negative]="currentFund <= 0"></span>
                 <span class="status-text">{{getFundStatus()}}</span>
               </div>
@@ -114,18 +116,19 @@ import { MatchData } from './models/types';
 })
 export class AppComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
-  private fundCache: { value: number; timestamp: number } | null = null;
-  private readonly CACHE_DURATION = 30000; // 30 seconds
   
   loggedIn = false;
   role = '';
   show = 'players'; // default to team division for better UX
   canEdit = false;
+  currentFund = 0;
+  isLoading = false;
 
   private readonly firebaseService = inject(FirebaseService);
   private readonly performanceService = inject(PerformanceService);
   private readonly lazyLoadingService = inject(LazyLoadingService);
   private readonly assetOptimizationService = inject(AssetOptimizationService);
+  private readonly dataStore = inject(DataStoreService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   ngOnInit() {
@@ -133,6 +136,9 @@ export class AppComponent implements OnInit, OnDestroy {
     
     // Initialize performance monitoring
     this.initializePerformanceServices();
+    
+    // Initialize DataStore and subscribe to fund changes
+    this.initializeDataStore();
     
     // Remove loading screen immediately when app component initializes
     setTimeout(() => {
@@ -145,7 +151,7 @@ export class AppComponent implements OnInit, OnDestroy {
     
     try {
       // Initialize app state - the header component will emit the initial login state
-      console.log('App component initialized with Firebase service');
+      console.log('App component initialized with core services');
       
       // Initialize Firebase real-time listeners with error handling
       setTimeout(() => {
@@ -165,6 +171,46 @@ export class AppComponent implements OnInit, OnDestroy {
       if (loadingElement) {
         loadingElement.remove();
       }
+    }
+  }
+
+  private initializeDataStore() {
+    console.log('🚀 Initializing DataStore integration...');
+    
+    try {
+      // Subscribe to fund changes
+      this.dataStore.fund$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(fund => {
+          this.currentFund = fund;
+          this.cdr.markForCheck();
+        });
+
+      // Subscribe to loading state
+      this.dataStore.isLoading$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(loading => {
+          this.isLoading = loading;
+          this.cdr.markForCheck();
+        });
+
+      // Subscribe to sync status for connection monitoring
+      this.dataStore.syncStatus$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(status => {
+          if (!status.isConnected) {
+            console.warn('⚠️ Offline mode - data will sync when connection is restored');
+          }
+        });
+
+      // Initialize data refresh
+      this.dataStore.refreshAllData().catch(error => {
+        console.warn('Initial data refresh failed:', error);
+      });
+
+      console.log('✅ DataStore integration completed');
+    } catch (error) {
+      console.error('❌ DataStore initialization failed:', error);
     }
   }
 
@@ -216,12 +262,15 @@ export class AppComponent implements OnInit, OnDestroy {
         // Initialize Firebase listeners
         
         // Combine Firebase subscriptions with takeUntil for proper cleanup
+        // Firebase integration with DataStore
         this.firebaseService.matchResults$
           .pipe(takeUntil(this.destroy$))
           .subscribe({
             next: () => {
-              this.invalidateFundCache();
-              this.cdr.markForCheck();
+              // Trigger data refresh in DataStore when Firebase updates
+              this.dataStore.refreshAllData().catch(error => {
+                console.warn('Data refresh after Firebase update failed:', error);
+              });
             },
             error: (error) => {
               console.warn('Firebase match results not available:', error.message);
@@ -245,8 +294,10 @@ export class AppComponent implements OnInit, OnDestroy {
           .subscribe({
             next: (history) => {
               console.log('Real-time history update:', history?.length || 0, 'matches');
-              this.invalidateFundCache();
-              this.cdr.markForCheck();
+              // Trigger data refresh when history updates
+              this.dataStore.refreshAllData().catch(error => {
+                console.warn('Data refresh after history update failed:', error);
+              });
             },
             error: (error) => {
               console.warn('Firebase history not available:', error.message);
@@ -285,44 +336,18 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  get currentFund(): number {
-    // Use cache if available and not expired
-    if (this.fundCache && (Date.now() - this.fundCache.timestamp) < this.CACHE_DURATION) {
-      return this.fundCache.value;
+  // Fund status calculation based on current fund value
+  getFundStatus(): string {
+    const fund = this.currentFund;
+    if (fund > 5000000) {
+      return 'Tình hình tài chính tốt';
+    } else if (fund > 2000000) {
+      return 'Tình hình tài chính ổn định';
+    } else if (fund > 0) {
+      return 'Cần tiết kiệm chi tiêu';
+    } else {
+      return 'Cần bổ sung quỹ';
     }
-    
-    // Calculate fund value
-    const fund = this.calculateCurrentFund();
-    
-    // Update cache
-    this.fundCache = {
-      value: fund,
-      timestamp: Date.now()
-    };
-    
-    return fund;
-  }
-  
-  private calculateCurrentFund(): number {
-    try {
-      const historyData = localStorage.getItem('matchHistory');
-      if (!historyData) return 2795000;
-      
-      const history = JSON.parse(historyData) as MatchData[];
-      const totalThu = history.reduce((sum, m) => sum + Number(m.thu || 0), 0);
-      const totalChi = history.reduce((sum, m) => {
-        return sum + (Number(m.chi_trongtai || 0) + Number(m.chi_nuoc || 0) + Number(m.chi_san || 0));
-      }, 0);
-      
-      return 2795000 + totalThu - totalChi;
-    } catch (error) {
-      console.error('Error calculating fund:', error);
-      return 2795000;
-    }
-  }
-  
-  private invalidateFundCache(): void {
-    this.fundCache = null;
   }
 
   getCurrentUsername(): string {
@@ -338,18 +363,7 @@ export class AppComponent implements OnInit, OnDestroy {
     return '';
   }
 
-  getFundStatus(): string {
-    const fund = this.currentFund;
-    if (fund > 5000) {
-      return 'Tình hình tài chính tốt';
-    } else if (fund > 2000) {
-      return 'Tình hình tài chính ổn định';
-    } else if (fund > 0) {
-      return 'Cần tiết kiệm chi tiêu';
-    } else {
-      return 'Cần bổ sung quỹ';
-    }
-  }
+
   
   ngOnDestroy(): void {
     // Log final performance report
@@ -366,9 +380,6 @@ export class AppComponent implements OnInit, OnDestroy {
     // Complete all subscriptions
     this.destroy$.next();
     this.destroy$.complete();
-    
-    // Clear cache
-    this.fundCache = null;
     
     console.log('🧹 App component cleanup completed');
   }
