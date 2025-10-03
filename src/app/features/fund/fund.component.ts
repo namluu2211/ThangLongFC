@@ -38,80 +38,131 @@ interface CategoryStats {
       <!-- Header Section -->
       <div class="fund-header mb-4">
         <div class="row align-items-center">
-          <div class="col-md-8">
+          <div class="col-12">
             <h2 class="fund-title mb-0">
               <i class="fas fa-wallet me-2"></i>
               💰 Quản lý Quỹ Đội Bóng
             </h2>
             <p class="text-muted mb-0">Theo dõi thu chi và tài chính đội bóng</p>
           </div>
-          <div class="col-md-4 text-end">
-            <div class="balance-display">
-              <div class="balance-label">Số dư hiện tại</div>
-              <div class="balance-amount" [class.negative]="fundSummary.currentBalance < 0">
-                {{formatCurrency(fundSummary.currentBalance)}}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      <!-- Summary Cards -->
-      <div class="row mb-4 g-3">
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card income">
-            <div class="summary-icon">📈</div>
-            <div class="summary-content">
-              <div class="summary-value">{{formatCurrency(fundSummary.totalIncome)}}</div>
-              <div class="summary-label">Tổng thu</div>
-              <div class="summary-change" *ngIf="fundSummary.thisMonthIncome > 0">
-                <i class="fas fa-arrow-up"></i>
-                +{{formatCurrency(fundSummary.thisMonthIncome)}} tháng này
-              </div>
+      <!-- Summary Table -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="summary-table-card">
+            <div class="summary-table-header">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                📊 Tổng quan tài chính
+              </h5>
             </div>
-          </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card expense">
-            <div class="summary-icon">📉</div>
-            <div class="summary-content">
-              <div class="summary-value">{{formatCurrency(fundSummary.totalExpenses)}}</div>
-              <div class="summary-label">Tổng chi</div>
-              <div class="summary-change" *ngIf="fundSummary.thisMonthExpenses > 0">
-                <i class="fas fa-arrow-down"></i>
-                -{{formatCurrency(fundSummary.thisMonthExpenses)}} tháng này
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card transactions">
-            <div class="summary-icon">📝</div>
-            <div class="summary-content">
-              <div class="summary-value">{{fundSummary.transactionCount}}</div>
-              <div class="summary-label">Giao dịch</div>
-              <div class="summary-change">
-                <i class="fas fa-calendar-alt"></i>
-                Tổng số lần
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card profit">
-            <div class="summary-icon">⚖️</div>
-            <div class="summary-content">
-              <div class="summary-value" [class.negative]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
-                {{formatCurrency(fundSummary.totalIncome - fundSummary.totalExpenses)}}
-              </div>
-              <div class="summary-label">Lợi nhuận</div>
-              <div class="summary-change">
-                <i class="fas fa-chart-line"></i>
-                Thu - Chi
-              </div>
+            <div class="summary-table-body">
+              <table class="summary-table">
+                <thead>
+                  <tr>
+                    <th class="metric-header">Chỉ số</th>
+                    <th class="value-header">Giá trị</th>
+                    <th class="detail-header">Chi tiết</th>
+                    <th class="status-header">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="income-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon income">📈</div>
+                        <div class="metric-name">Tổng thu</div>
+                      </div>
+                    </td>
+                    <td class="value-cell income">
+                      <div class="metric-value">{{formatCurrency(fundSummary.totalIncome)}}</div>
+                    </td>
+                    <td class="detail-cell">
+                      <div class="metric-detail" *ngIf="fundSummary.thisMonthIncome > 0">
+                        <i class="fas fa-arrow-up text-success"></i>
+                        +{{formatCurrency(fundSummary.thisMonthIncome)}} tháng này
+                      </div>
+                      <div class="metric-detail" *ngIf="fundSummary.thisMonthIncome === 0">
+                        <i class="fas fa-minus text-muted"></i>
+                        Chưa có thu nhập tháng này
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge income">Tích cực</span>
+                    </td>
+                  </tr>
+                  <tr class="expense-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon expense">📉</div>
+                        <div class="metric-name">Tổng chi</div>
+                      </div>
+                    </td>
+                    <td class="value-cell expense">
+                      <div class="metric-value">{{formatCurrency(fundSummary.totalExpenses)}}</div>
+                    </td>
+                    <td class="detail-cell">
+                      <div class="metric-detail" *ngIf="fundSummary.thisMonthExpenses > 0">
+                        <i class="fas fa-arrow-down text-danger"></i>
+                        -{{formatCurrency(fundSummary.thisMonthExpenses)}} tháng này
+                      </div>
+                      <div class="metric-detail" *ngIf="fundSummary.thisMonthExpenses === 0">
+                        <i class="fas fa-check text-success"></i>
+                        Chưa có chi tiêu tháng này
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge expense">Chi tiêu</span>
+                    </td>
+                  </tr>
+                  <tr class="transaction-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon transaction">📝</div>
+                        <div class="metric-name">Giao dịch</div>
+                      </div>
+                    </td>
+                    <td class="value-cell transaction">
+                      <div class="metric-value">{{fundSummary.transactionCount}}</div>
+                    </td>
+                    <td class="detail-cell">
+                      <div class="metric-detail">
+                        <i class="fas fa-calendar-alt text-info"></i>
+                        Tổng số lần giao dịch
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge transaction">Hoạt động</span>
+                    </td>
+                  </tr>
+                  <tr class="profit-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon profit">⚖️</div>
+                        <div class="metric-name">Lợi nhuận</div>
+                      </div>
+                    </td>
+                    <td class="value-cell profit" [class.negative]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
+                      <div class="metric-value">{{formatCurrency(fundSummary.totalIncome - fundSummary.totalExpenses)}}</div>
+                    </td>
+                    <td class="detail-cell">
+                      <div class="metric-detail">
+                        <i class="fas fa-calculator text-primary"></i>
+                        Thu - Chi
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge" 
+                            [class.profit]="(fundSummary.totalIncome - fundSummary.totalExpenses) >= 0"
+                            [class.loss]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
+                        {{(fundSummary.totalIncome - fundSummary.totalExpenses) >= 0 ? 'Lãi' : 'Lỗ'}}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -184,35 +235,42 @@ interface CategoryStats {
         <div class="col-lg-4">
           <div class="filter-card">
             <div class="filter-header">
-              <h6 class="mb-0">
-                <i class="fas fa-filter me-2"></i>
-                🔍 Bộ lọc
-              </h6>
+              <div class="filter-title">
+                <i class="fas fa-filter filter-icon"></i>
+                <span>🔍 Bộ lọc</span>
+              </div>
             </div>
             <div class="filter-body">
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label-sm" for="filter-type">Loại giao dịch</label>
-                  <select id="filter-type" class="form-select form-select-sm" [(ngModel)]="filter.type" (change)="applyFilters()">
+              <div class="filter-section">
+                <label class="filter-label" for="filter-type">Loại giao dịch</label>
+                <div class="custom-select-wrapper">
+                  <select id="filter-type" class="custom-select" [(ngModel)]="filter.type" (change)="applyFilters()">
                     <option value="">Tất cả</option>
-                    <option value="income">Thu</option>
-                    <option value="expense">Chi</option>
+                    <option value="income">📈 Thu nhập</option>
+                    <option value="expense">📉 Chi tiêu</option>
                   </select>
-                </div>
-                <div class="col-6">
-                  <label class="form-label-sm" for="filter-period">Thời gian</label>
-                  <select id="filter-period" class="form-select form-select-sm" [(ngModel)]="filter.period" (change)="applyFilters()">
-                    <option value="all">Tất cả</option>
-                    <option value="today">Hôm nay</option>
-                    <option value="week">Tuần này</option>
-                    <option value="month">Tháng này</option>
-                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
                 </div>
               </div>
-              <div class="row g-2 mt-2">
-                <div class="col-12">
-                  <label class="form-label-sm" for="filter-search">Tìm kiếm</label>
-                  <input id="filter-search" type="text" class="form-control form-control-sm" [(ngModel)]="filter.search" 
+              
+              <div class="filter-section">
+                <label class="filter-label" for="filter-period">Thời gian</label>
+                <div class="custom-select-wrapper">
+                  <select id="filter-period" class="custom-select" [(ngModel)]="filter.period" (change)="applyFilters()">
+                    <option value="all">Tất cả</option>
+                    <option value="today">📅 Hôm nay</option>
+                    <option value="week">📊 Tuần này</option>
+                    <option value="month">🗓️ Tháng này</option>
+                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+              
+              <div class="filter-section">
+                <label class="filter-label" for="filter-search">Tìm kiếm</label>
+                <div class="search-input-wrapper">
+                  <i class="fas fa-search search-icon"></i>
+                  <input id="filter-search" type="text" class="search-input" [(ngModel)]="filter.search" 
                          (input)="applyFilters()" placeholder="Tìm theo mô tả...">
                 </div>
               </div>
@@ -455,80 +513,191 @@ interface CategoryStats {
       color: #ff6b6b;
     }
 
-    /* Summary Cards */
-    .summary-card {
+    /* Summary Table */
+    .summary-table-card {
       background: white;
       border-radius: 20px;
-      padding: 2rem;
       box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .summary-table-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+    }
+
+    .summary-table-body {
+      padding: 0;
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+    }
+
+    .summary-table thead th {
+      background: #f8f9fa;
+      padding: 1.25rem 1.5rem;
+      font-weight: 700;
+      color: #2c3e50;
+      text-align: left;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .metric-header {
+      width: 25%;
+    }
+
+    .value-header {
+      width: 25%;
+    }
+
+    .detail-header {
+      width: 30%;
+    }
+
+    .status-header {
+      width: 20%;
+    }
+
+    .summary-table tbody tr {
       transition: all 0.3s ease;
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    .summary-table tbody tr:hover {
+      background: linear-gradient(135deg, #f8fcff 0%, #f0f8ff 100%);
+      transform: translateX(5px);
+    }
+
+    .income-row {
+      border-left: 4px solid #27ae60;
+    }
+
+    .expense-row {
+      border-left: 4px solid #e74c3c;
+    }
+
+    .transaction-row {
+      border-left: 4px solid #3498db;
+    }
+
+    .profit-row {
+      border-left: 4px solid #f39c12;
+    }
+
+    .summary-table td {
+      padding: 1.5rem;
+      vertical-align: middle;
+    }
+
+    .metric-info {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
-      height: 140px;
+      gap: 1rem;
     }
 
-    .summary-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(0,0,0,0.15);
-    }
-
-    .summary-card.income {
-      border-left: 5px solid #27ae60;
-    }
-
-    .summary-card.expense {
-      border-left: 5px solid #e74c3c;
-    }
-
-    .summary-card.transactions {
-      border-left: 5px solid #3498db;
-    }
-
-    .summary-card.profit {
-      border-left: 5px solid #f39c12;
-    }
-
-    .summary-icon {
-      font-size: 3rem;
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border-radius: 50%;
+    .metric-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #495057;
+      font-size: 1.5rem;
+      color: white;
+      font-weight: 600;
     }
 
-    .summary-content {
-      flex: 1;
+    .metric-icon.income {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
     }
 
-    .summary-value {
-      font-size: 2rem;
+    .metric-icon.expense {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    }
+
+    .metric-icon.transaction {
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    }
+
+    .metric-icon.profit {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    }
+
+    .metric-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
       font-weight: 800;
       color: #2c3e50;
-      margin-bottom: 0.5rem;
     }
 
-    .summary-value.negative {
+    .value-cell.income .metric-value {
+      color: #27ae60;
+    }
+
+    .value-cell.expense .metric-value {
       color: #e74c3c;
     }
 
-    .summary-label {
-      font-size: 1rem;
-      color: #7f8c8d;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
+    .value-cell.transaction .metric-value {
+      color: #3498db;
     }
 
-    .summary-change {
-      font-size: 0.8rem;
-      color: #95a5a6;
+    .value-cell.profit .metric-value {
+      color: #f39c12;
+    }
+
+    .value-cell.profit.negative .metric-value {
+      color: #e74c3c;
+    }
+
+    .metric-detail {
+      font-size: 0.9rem;
+      color: #7f8c8d;
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+      color: white;
+    }
+
+    .status-badge.income {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    }
+
+    .status-badge.expense {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    }
+
+    .status-badge.transaction {
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    }
+
+    .status-badge.profit {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    }
+
+    .status-badge.loss {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
     }
 
     /* Action Card */
@@ -580,27 +749,147 @@ interface CategoryStats {
     /* Filter Card */
     .filter-card {
       background: white;
-      border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.12);
       overflow: hidden;
       height: fit-content;
+      border: 1px solid #e3f2fd;
     }
 
     .filter-header {
-      background: #f8f9fa;
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid #e9ecef;
+      background: linear-gradient(135deg, #1976d2 0%, #2196f3 100%);
+      padding: 1.25rem 1.5rem;
+      color: white;
+    }
+
+    .filter-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .filter-icon {
+      font-size: 1rem;
+      opacity: 0.9;
     }
 
     .filter-body {
       padding: 1.5rem;
+      background: #fafbfc;
     }
 
-    .form-label-sm {
-      font-size: 0.8rem;
+    .filter-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .filter-label {
+      display: block;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: #495057;
-      margin-bottom: 0.25rem;
+      color: #37474f;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Custom Select Styling */
+    .custom-select-wrapper {
+      position: relative;
+    }
+
+    .custom-select {
+      width: 100%;
+      padding: 0.75rem 2.5rem 0.75rem 1rem;
+      border: 2px solid #e1f5fe;
+      border-radius: 12px;
+      background: white;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #37474f;
+      transition: all 0.3s ease;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .custom-select:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+      background: #fafbfc;
+    }
+
+    .custom-select:hover {
+      border-color: #42a5f5;
+      background: #f8fcff;
+    }
+
+    .select-arrow {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #78909c;
+      font-size: 0.8rem;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .custom-select:focus + .select-arrow {
+      color: #1976d2;
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    /* Search Input Styling */
+    .search-input-wrapper {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border: 2px solid #e1f5fe;
+      border-radius: 12px;
+      background: white;
+      font-size: 0.9rem;
+      color: #37474f;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+      background: #fafbfc;
+    }
+
+    .search-input:hover {
+      border-color: #42a5f5;
+      background: #f8fcff;
+    }
+
+    .search-input::placeholder {
+      color: #90a4ae;
+      font-style: italic;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #78909c;
+      font-size: 0.85rem;
+      pointer-events: none;
+    }
+
+    .search-input:focus ~ .search-icon {
+      color: #1976d2;
     }
 
     /* Stats Card */

@@ -103,49 +103,119 @@ interface TeamMetrics {
         </div>
       </div>
 
-      <!-- Quick Stats Overview Cards -->
-      <div class="row mb-4 g-3">
-        <div class="col-lg-3 col-md-6">
-          <div class="stat-card matches">
-            <div class="stat-card-body">
-              <div class="stat-icon">⚽</div>
-              <div class="stat-info">
-                <div class="stat-number">{{overallStats.totalMatches}}</div>
-                <div class="stat-label">Trận đấu</div>
-              </div>
+      <!-- Quick Stats Overview Table -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="stats-overview-table-card">
+            <div class="stats-overview-header">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                📊 Tổng quan thống kê
+              </h5>
             </div>
-          </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="stat-card goals">
-            <div class="stat-card-body">
-              <div class="stat-icon">🥅</div>
-              <div class="stat-info">
-                <div class="stat-number">{{overallStats.totalGoals}}</div>
-                <div class="stat-label">Bàn thắng</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="stat-card assists">
-            <div class="stat-card-body">
-              <div class="stat-icon">🎯</div>
-              <div class="stat-info">
-                <div class="stat-number">{{overallStats.totalAssists}}</div>
-                <div class="stat-label">Kiến tạo</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="stat-card cards">
-            <div class="stat-card-body">
-              <div class="stat-icon">🟨</div>
-              <div class="stat-info">
-                <div class="stat-number">{{overallStats.totalYellowCards + overallStats.totalRedCards}}</div>
-                <div class="stat-label">Tổng thẻ phạt</div>
-              </div>
+            <div class="stats-overview-body">
+              <table class="stats-overview-table">
+                <thead>
+                  <tr>
+                    <th class="metric-header">Chỉ số</th>
+                    <th class="value-header">Giá trị</th>
+                    <th class="description-header">Mô tả</th>
+                    <th class="status-header">Đánh giá</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="matches-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon matches">⚽</div>
+                        <div class="metric-name">Trận đấu</div>
+                      </div>
+                    </td>
+                    <td class="value-cell matches">
+                      <div class="metric-value">{{overallStats.totalMatches}}</div>
+                    </td>
+                    <td class="description-cell">
+                      <div class="metric-description">
+                        <i class="fas fa-calendar-alt text-primary"></i>
+                        Tổng số trận đã diễn ra
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge matches" 
+                            [class.high]="overallStats.totalMatches > 20"
+                            [class.medium]="overallStats.totalMatches > 10 && overallStats.totalMatches <= 20"
+                            [class.low]="overallStats.totalMatches <= 10">
+                        {{getMatchesStatus()}}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="goals-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon goals">🥅</div>
+                        <div class="metric-name">Bàn thắng</div>
+                      </div>
+                    </td>
+                    <td class="value-cell goals">
+                      <div class="metric-value">{{overallStats.totalGoals}}</div>
+                    </td>
+                    <td class="description-cell">
+                      <div class="metric-description">
+                        <i class="fas fa-target text-success"></i>
+                        Tổng bàn thắng ghi được
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge goals">Tấn công</span>
+                    </td>
+                  </tr>
+                  <tr class="assists-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon assists">🎯</div>
+                        <div class="metric-name">Kiến tạo</div>
+                      </div>
+                    </td>
+                    <td class="value-cell assists">
+                      <div class="metric-value">{{overallStats.totalAssists}}</div>
+                    </td>
+                    <td class="description-cell">
+                      <div class="metric-description">
+                        <i class="fas fa-hand-point-right text-info"></i>
+                        Tổng số kiến tạo thành công
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge assists">Hỗ trợ</span>
+                    </td>
+                  </tr>
+                  <tr class="cards-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon cards">🟨</div>
+                        <div class="metric-name">Thẻ phạt</div>
+                      </div>
+                    </td>
+                    <td class="value-cell cards">
+                      <div class="metric-value">{{overallStats.totalYellowCards + overallStats.totalRedCards}}</div>
+                    </td>
+                    <td class="description-cell">
+                      <div class="metric-description">
+                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                        {{overallStats.totalYellowCards}} thẻ vàng + {{overallStats.totalRedCards}} thẻ đỏ
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge cards" 
+                            [class.high]="(overallStats.totalYellowCards + overallStats.totalRedCards) > 20"
+                            [class.medium]="(overallStats.totalYellowCards + overallStats.totalRedCards) > 10"
+                            [class.low]="(overallStats.totalYellowCards + overallStats.totalRedCards) <= 10">
+                        {{getCardsStatus()}}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -154,51 +224,71 @@ interface TeamMetrics {
       <!-- Filter Controls -->
       <div class="row mb-4">
         <div class="col-12">
-          <div class="filter-card">
-            <div class="filter-header">
-              <h5 class="mb-0">
-                <i class="fas fa-filter me-2"></i>
-                🎯 Bộ lọc & Sắp xếp
-              </h5>
+          <div class="enhanced-filter-card">
+            <div class="enhanced-filter-header">
+              <div class="filter-title-section">
+                <i class="fas fa-filter filter-icon"></i>
+                <span>🎯 Bộ lọc & Sắp xếp</span>
+              </div>
             </div>
-            <div class="filter-body">
-              <div class="row g-3">
-                <div class="col-lg-3 col-md-4">
-                  <label class="form-label fw-semibold" for="viewModeSelect">
-                    <i class="fas fa-eye me-1"></i>
-                    Xem theo:
+            <div class="enhanced-filter-body">
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label class="enhanced-filter-label" for="viewModeSelect">
+                    <i class="fas fa-eye label-icon"></i>
+                    Xem theo
                   </label>
-                  <select id="viewModeSelect" class="form-select modern-select" [(ngModel)]="viewMode" (change)="updateStats()">
-                    <option value="all">🌍 Tất cả thời gian</option>
-                    <option value="monthly">📅 Theo tháng</option>
-                  </select>
+                  <div class="enhanced-select-wrapper">
+                    <select id="viewModeSelect" class="enhanced-select" [(ngModel)]="viewMode" (change)="updateStats()">
+                      <option value="all">🌍 Tất cả thời gian</option>
+                      <option value="monthly">📅 Theo tháng</option>
+                    </select>
+                    <i class="fas fa-chevron-down enhanced-select-arrow"></i>
+                  </div>
                 </div>
-                <div class="col-lg-3 col-md-4" *ngIf="viewMode === 'monthly'">
-                  <label class="form-label fw-semibold" for="monthSelect">
-                    <i class="fas fa-calendar me-1"></i>
-                    Chọn tháng:
+                
+                <div class="filter-group" *ngIf="viewMode === 'monthly'">
+                  <label class="enhanced-filter-label" for="monthSelect">
+                    <i class="fas fa-calendar label-icon"></i>
+                    Chọn tháng
                   </label>
-                  <select id="monthSelect" class="form-select modern-select" [(ngModel)]="selectedMonth" (change)="updateStats()">
-                    <option value="">-- Chọn tháng --</option>
-                    <option *ngFor="let month of availableMonths" [value]="month">{{formatMonth(month)}}</option>
-                  </select>
+                  <div class="enhanced-select-wrapper">
+                    <select id="monthSelect" class="enhanced-select" [(ngModel)]="selectedMonth" (change)="updateStats()">
+                      <option value="">-- Chọn tháng --</option>
+                      <option *ngFor="let month of availableMonths" [value]="month">{{formatMonth(month)}}</option>
+                    </select>
+                    <i class="fas fa-chevron-down enhanced-select-arrow"></i>
+                  </div>
                 </div>
-                <div class="col-lg-3 col-md-4">
-                  <label class="form-label fw-semibold" for="sortBySelect">
-                    <i class="fas fa-sort me-1"></i>
-                    Sắp xếp theo:
+                
+                <div class="filter-group">
+                  <label class="enhanced-filter-label" for="sortBySelect">
+                    <i class="fas fa-sort label-icon"></i>
+                    Sắp xếp theo
                   </label>
-                  <select id="sortBySelect" class="form-select modern-select" [(ngModel)]="sortBy" (change)="updateStats()">
-                    <option value="goals">⚽ Bàn thắng</option>
-                    <option value="assists">🎯 Kiến tạo</option>
-                    <option value="yellowCards">🟨 Thẻ vàng</option>
-                    <option value="redCards">🟥 Thẻ đỏ</option>
-                    <option value="matches">🏟️ Số trận</option>
-                  </select>
+                  <div class="enhanced-select-wrapper">
+                    <select id="sortBySelect" class="enhanced-select" [(ngModel)]="sortBy" (change)="updateStats()">
+                      <option value="goals">⚽ Bàn thắng</option>
+                      <option value="assists">🎯 Kiến tạo</option>
+                      <option value="yellowCards">🟨 Thẻ vàng</option>
+                      <option value="redCards">🟥 Thẻ đỏ</option>
+                      <option value="matches">🏟️ Số trận</option>
+                    </select>
+                    <i class="fas fa-chevron-down enhanced-select-arrow"></i>
+                  </div>
                 </div>
-                <div class="col-lg-3 col-md-12">
-                  <label class="form-label fw-semibold text-muted" for="statusField">Tình trạng:</label>
-                  <input id="statusField" type="text" class="form-control-plaintext mt-2" value="Đã cập nhật" readonly aria-label="Tình trạng: Đã cập nhật">
+                
+                <div class="filter-group status-group">
+                  <div class="enhanced-filter-label">
+                    <i class="fas fa-info-circle label-icon"></i>
+                    Tình trạng
+                  </div>
+                  <div class="status-display">
+                    <div class="status-badge-display">
+                      <i class="fas fa-check-circle status-icon"></i>
+                      <span>Đã cập nhật</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -738,100 +828,356 @@ interface TeamMetrics {
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
 
-    /* Stat Cards */
-    .stat-card {
+    /* Stats Overview Table */
+    .stats-overview-table-card {
+      background: white;
       border-radius: 20px;
-      overflow: hidden;
       box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .stats-overview-header {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+    }
+
+    .stats-overview-body {
+      padding: 0;
+    }
+
+    .stats-overview-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+    }
+
+    .stats-overview-table thead th {
+      background: #f8f9fa;
+      padding: 1.25rem 1.5rem;
+      font-weight: 700;
+      color: #2c3e50;
+      text-align: left;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .metric-header {
+      width: 25%;
+    }
+
+    .value-header {
+      width: 20%;
+    }
+
+    .description-header {
+      width: 35%;
+    }
+
+    .status-header {
+      width: 20%;
+    }
+
+    .stats-overview-table tbody tr {
       transition: all 0.3s ease;
-      height: 120px;
+      border-bottom: 1px solid #f1f3f4;
     }
 
-    .stat-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    .stats-overview-table tbody tr:hover {
+      background: linear-gradient(135deg, #f8fcff 0%, #f0f8ff 100%);
+      transform: translateX(5px);
     }
 
-    .stat-card.matches {
+    .matches-row {
+      border-left: 4px solid #11998e;
+    }
+
+    .goals-row {
+      border-left: 4px solid #ff6b6b;
+    }
+
+    .assists-row {
+      border-left: 4px solid #4fc3f7;
+    }
+
+    .cards-row {
+      border-left: 4px solid #f093fb;
+    }
+
+    .stats-overview-table td {
+      padding: 1.5rem;
+      vertical-align: middle;
+    }
+
+    .metric-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .metric-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      font-weight: 600;
+    }
+
+    .metric-icon.matches {
       background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     }
 
-    .stat-card.goals {
+    .metric-icon.goals {
       background: linear-gradient(135deg, #ff6b6b 0%, #ffa726 100%);
     }
 
-    .stat-card.assists {
+    .metric-icon.assists {
       background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
     }
 
-    .stat-card.cards {
+    .metric-icon.cards {
       background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     }
 
-    .stat-card-body {
+    .metric-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #2c3e50;
+    }
+
+    .value-cell.matches .metric-value {
+      color: #11998e;
+    }
+
+    .value-cell.goals .metric-value {
+      color: #ff6b6b;
+    }
+
+    .value-cell.assists .metric-value {
+      color: #4fc3f7;
+    }
+
+    .value-cell.cards .metric-value {
+      color: #f093fb;
+    }
+
+    .metric-description {
+      font-size: 0.9rem;
+      color: #7f8c8d;
       display: flex;
       align-items: center;
-      padding: 1.5rem;
-      height: 100%;
+      gap: 0.5rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
       color: white;
     }
 
-    .stat-icon {
-      font-size: 3rem;
-      margin-right: 1.5rem;
+    .status-badge.matches {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .status-badge.matches.high {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    }
+
+    .status-badge.matches.medium {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    }
+
+    .status-badge.matches.low {
+      background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+    }
+
+    .status-badge.goals {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ffa726 100%);
+    }
+
+    .status-badge.assists {
+      background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+    }
+
+    .status-badge.cards {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .status-badge.cards.high {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    }
+
+    .status-badge.cards.medium {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    }
+
+    .status-badge.cards.low {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    }
+
+    /* Enhanced Filter Card */
+    .enhanced-filter-card {
+      background: white;
+      border-radius: 25px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+      overflow: hidden;
+      border: 2px solid #e8f4fd;
+    }
+
+    .enhanced-filter-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1.75rem 2rem;
+      color: white;
+    }
+
+    .filter-title-section {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .filter-icon {
+      font-size: 1.1rem;
       opacity: 0.9;
     }
 
-    .stat-number {
-      font-size: 2.5rem;
-      font-weight: 800;
-      line-height: 1;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    .enhanced-filter-body {
+      padding: 2.5rem;
+      background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%);
     }
 
-    .stat-label {
-      font-size: 1rem;
-      font-weight: 500;
-      opacity: 0.9;
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: end;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .status-group {
+      min-width: 150px;
+    }
+
+    .enhanced-filter-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #2c3e50;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      margin-bottom: 0;
     }
 
-    /* Filter Card */
-    .filter-card {
+    .label-icon {
+      color: #667eea;
+      font-size: 0.85rem;
+    }
+
+    /* Enhanced Select Styling */
+    .enhanced-select-wrapper {
+      position: relative;
+    }
+
+    .enhanced-select {
+      width: 100%;
+      padding: 1rem 2.5rem 1rem 1.25rem;
+      border: 2px solid #e1f5fe;
+      border-radius: 15px;
       background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-      overflow: hidden;
-      border: 1px solid rgba(0,0,0,0.05);
-    }
-
-    .filter-header {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      padding: 1.5rem;
-      color: white;
-    }
-
-    .filter-header h5 {
-      font-weight: 600;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-
-    .filter-body {
-      padding: 2rem;
-    }
-
-    .modern-select {
-      border-radius: 12px;
-      border: 2px solid #e9ecef;
-      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #2c3e50;
       transition: all 0.3s ease;
-      background: white;
+      appearance: none;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
-    .modern-select:focus {
+    .enhanced-select:focus {
+      outline: none;
       border-color: #667eea;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15), 0 4px 12px rgba(0,0,0,0.1);
+      background: #fafbff;
+      transform: translateY(-1px);
+    }
+
+    .enhanced-select:hover {
+      border-color: #42a5f5;
+      background: #f8fcff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .enhanced-select-arrow {
+      position: absolute;
+      right: 1.25rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #78909c;
+      font-size: 0.9rem;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .enhanced-select:focus + .enhanced-select-arrow {
+      color: #667eea;
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    .enhanced-select:hover + .enhanced-select-arrow {
+      color: #42a5f5;
+    }
+
+    /* Status Display */
+    .status-display {
+      display: flex;
+      align-items: center;
+    }
+
+    .status-badge-display {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%);
+      color: #27ae60;
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: 2px solid #c8e6c9;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.1);
+    }
+
+    .status-icon {
+      color: #27ae60;
+      font-size: 1rem;
     }
 
     /* Monthly Stats Card */
@@ -1158,27 +1504,71 @@ interface TeamMetrics {
       font-size: 1rem;
     }
 
-    /* Responsive */
+    /* Enhanced Filter Responsive */
+    @media (max-width: 1200px) {
+      .filter-row {
+        gap: 1.25rem;
+      }
+      
+      .filter-group {
+        min-width: 180px;
+      }
+    }
+
+    @media (max-width: 992px) {
+      .enhanced-filter-body {
+        padding: 2rem;
+      }
+      
+      .filter-row {
+        gap: 1rem;
+      }
+      
+      .filter-group {
+        min-width: 160px;
+        flex: 1 1 48%;
+      }
+      
+      .status-group {
+        flex: 1 1 100%;
+      }
+    }
+
     @media (max-width: 768px) {
       .stats-title {
         font-size: 1.8rem;
       }
       
-      .stat-card-body {
-        padding: 1rem;
-      }
-      
-      .stat-icon {
-        font-size: 2rem;
-        margin-right: 1rem;
-      }
-      
-      .stat-number {
-        font-size: 1.8rem;
-      }
-      
-      .filter-body {
+      .enhanced-filter-header {
         padding: 1.5rem;
+      }
+      
+      .enhanced-filter-body {
+        padding: 1.5rem;
+      }
+      
+      .filter-row {
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      
+      .filter-group {
+        min-width: 100%;
+        flex: 1;
+      }
+      
+      .enhanced-select {
+        padding: 0.875rem 2.25rem 0.875rem 1rem;
+        font-size: 0.9rem;
+      }
+      
+      .enhanced-select-arrow {
+        right: 1rem;
+        font-size: 0.8rem;
+      }
+      
+      .filter-title-section {
+        font-size: 1.1rem;
       }
       
       .monthly-body {
@@ -1210,6 +1600,20 @@ interface TeamMetrics {
         height: 100%;
         object-fit: cover;
         border-radius: 50%;
+      }
+      
+      .stats-overview-table td {
+        padding: 1rem;
+      }
+      
+      .metric-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+      }
+      
+      .metric-value {
+        font-size: 1.5rem;
       }
     }
 
@@ -2761,5 +3165,20 @@ export class StatsComponent implements OnInit, OnDestroy {
     } finally {
       this.isAnalyzing = false;
     }
+  }
+
+  // Helper methods for status badges
+  getMatchesStatus(): string {
+    const total = this.overallStats.totalMatches;
+    if (total > 20) return 'Nhiều kinh nghiệm';
+    if (total > 10) return 'Có kinh nghiệm';
+    return 'Mới bắt đầu';
+  }
+
+  getCardsStatus(): string {
+    const totalCards = this.overallStats.totalYellowCards + this.overallStats.totalRedCards;
+    if (totalCards > 20) return 'Cần cải thiện';
+    if (totalCards > 10) return 'Bình thường';
+    return 'Kỷ luật tốt';
   }
 }
