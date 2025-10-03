@@ -895,6 +895,25 @@ app-root {
   border-radius: var(--border-radius-lg);
 }
 
+/* Fix for faded/transparent appearance */
+.content-area,
+.fade-in,
+app-history,
+.modern-container {
+  opacity: 1 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Completely disable fadeIn animation */
+.content-area.fade-in {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+}
+
 /* Professional Fund Display */
 .fund-header-card {
   padding: var(--space-8);
