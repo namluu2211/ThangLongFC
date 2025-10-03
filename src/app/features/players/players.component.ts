@@ -158,7 +158,7 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
           </div>
           
           <div class="modal-content">
-            <form #playerForm="ngForm" (ngSubmit)="savePlayerData()">
+            <form #playerForm="ngForm" novalidate>
               <div class="form-grid">
                 <div class="form-group">
                   <label for="firstName">Tên *</label>
@@ -243,33 +243,34 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
                   class="form-control"
                   placeholder="Thông tin thêm về cầu thủ..."></textarea>
               </div>
-              
-              <div class="form-group full-width">
-                <label for="avatar">Avatar URL (tùy chọn)</label>
-                <input 
-                  type="text" 
-                  id="avatar"
-                  name="avatar"
-                  [(ngModel)]="playerFormData.avatar" 
-                  class="form-control"
-                  pattern="^$|^https?://.*"
-                  title="Để trống hoặc nhập URL hợp lệ (http:// hoặc https://)"
-                  placeholder="https://example.com/avatar.jpg (tùy chọn)">
-              </div>
-              
-              <div class="modal-actions">
-                <button type="button" class="btn-cancel" (click)="closePlayerFormModal()">
-                  <i class="fas fa-times me-1"></i>Hủy
-                </button>
-                <button 
-                  type="submit" 
-                  class="btn-save" 
-                  [disabled]="!playerForm.form.valid || isSaving">
-                  <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-save me-1'"></i>
-                  {{ isSaving ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Thêm mới') }}
-                </button>
-              </div>
             </form>
+            
+            <!-- Avatar field completely outside the form -->
+            <div class="form-group full-width" style="padding: 0 30px;">
+              <label for="avatar">Avatar URL (tùy chọn)</label>
+              <input 
+                type="text" 
+                id="avatar"
+                [value]="playerFormData.avatar || ''"
+                (input)="playerFormData.avatar = $any($event.target).value"
+                class="form-control"
+                autocomplete="off"
+                placeholder="https://example.com/avatar.jpg hoặc assets/images/avatar_players/TenCauThu.png">
+            </div>
+            
+            <div class="modal-actions" style="padding: 0 30px 30px 30px;">
+              <button type="button" class="btn-cancel" (click)="closePlayerFormModal()">
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button 
+                type="button" 
+                class="btn-save" 
+                [disabled]="isSaving || !playerFormData.firstName || !playerFormData.position"
+                (click)="savePlayerData()">
+                <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-save me-1'"></i>
+                {{ isSaving ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Thêm mới') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3018,16 +3019,25 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   async savePlayerData(): Promise<void> {
+    console.log('🔍 savePlayerData called with:', this.playerFormData);
+    
     if (!this.playerFormData.firstName || !this.playerFormData.position) {
       alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
       return;
     }
 
+    console.log('✅ Validation passed, starting save...');
     this.isSaving = true;
     try {
       if (this.isEditMode && this.playerFormData.id) {
-        // Update existing player
-        await this.playerService.updatePlayer(this.playerFormData.id, this.playerFormData);
+        // Update existing player - preserve original avatar if field is empty
+        const originalPlayer = this.corePlayersData.find(p => p.id === this.playerFormData.id);
+        const playerDataToUpdate = {
+          ...this.playerFormData,
+          // Only update avatar if a new value is provided, otherwise keep original
+          avatar: (this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '').replace(/\\/g, '/')
+        };
+        await this.playerService.updatePlayer(this.playerFormData.id, playerDataToUpdate);
         alert('Cập nhật cầu thủ thành công!');
       } else {
         // Create new player
@@ -3039,7 +3049,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
           height: this.playerFormData.height || 0,
           weight: this.playerFormData.weight || 0,
           notes: this.playerFormData.notes || '',
-          avatar: this.playerFormData.avatar || '',
+          avatar: (this.playerFormData.avatar || '').replace(/\\/g, '/'),
           isRegistered: true,
           status: PlayerStatus.ACTIVE
         };
