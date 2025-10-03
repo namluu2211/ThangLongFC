@@ -268,6 +268,7 @@ interface TeamMetrics {
                   </label>
                   <div class="enhanced-select-wrapper">
                     <select id="sortBySelect" class="enhanced-select" [(ngModel)]="sortBy" (change)="updateStats()">
+                      <option value="score">⭐ Điểm số</option>
                       <option value="goals">⚽ Bàn thắng</option>
                       <option value="assists">🎯 Kiến tạo</option>
                       <option value="yellowCards">🟨 Thẻ vàng</option>
@@ -368,10 +369,6 @@ interface TeamMetrics {
                 <span class="badge bg-primary fs-6 px-3 py-2">{{getDisplayTitle()}}</span>
               </div>
               <div class="table-badge" *ngIf="enhancedStats">
-                <span class="badge bg-success fs-6 px-2 py-1">
-                  <i class="fas fa-chart-line me-1"></i>
-                  Enhanced Analytics
-                </span>
               </div>
             </div>
           </div>
@@ -596,12 +593,6 @@ interface TeamMetrics {
                 <i class="fas fa-brain me-2"></i>
                 🤖 AI Phân Tích Dự Đoán
               </h4>
-              <div class="ai-badge">
-                <span class="badge bg-gradient-ai fs-6 px-3 py-2">
-                  <i class="fas fa-robot me-1"></i>
-                  Machine Learning
-                </span>
-              </div>
             </div>
             <p class="ai-subtitle mt-2 mb-0">Dự đoán tỷ lệ thắng/thua giữa đội Xanh và Cam dựa trên dữ liệu lịch sử</p>
           </div>
@@ -615,10 +606,10 @@ interface TeamMetrics {
                     <h5 class="team-title">🔵 Đội Xanh</h5>
                     <div class="player-selection">
                       <label class="form-label" for="xanh-players">Chọn cầu thủ đội Xanh:</label>
-                      <select multiple class="form-select" id="xanh-players" [(ngModel)]="selectedXanhPlayers" (change)="runAIAnalysis()">
-                        <option *ngFor="let player of allPlayers" [value]="player">
-                          {{player}}
-                          <span *ngIf="getPlayerFromCore(player)" class="text-muted"> ✓</span>
+                      <select multiple class="modern-multi-select xanh-select" id="xanh-players" [(ngModel)]="selectedXanhPlayers" (change)="runAIAnalysis()">
+                        <option *ngFor="let player of allPlayers" [value]="player" class="player-option">
+                          <span class="player-name">{{player}}</span>
+                          <span *ngIf="getPlayerFromCore(player)" class="verified-badge"> ✓</span>
                         </option>
                       </select>
                     </div>
@@ -640,10 +631,10 @@ interface TeamMetrics {
                     <h5 class="team-title">🟠 Đội Cam</h5>
                     <div class="player-selection">
                       <label class="form-label" for="cam-players">Chọn cầu thủ đội Cam:</label>
-                      <select multiple class="form-select" id="cam-players" [(ngModel)]="selectedCamPlayers" (change)="runAIAnalysis()">
-                        <option *ngFor="let player of allPlayers" [value]="player">
-                          {{player}}
-                          <span *ngIf="getPlayerFromCore(player)" class="text-muted"> ✓</span>
+                      <select multiple class="modern-multi-select cam-select" id="cam-players" [(ngModel)]="selectedCamPlayers" (change)="runAIAnalysis()">
+                        <option *ngFor="let player of allPlayers" [value]="player" class="player-option">
+                          <span class="player-name">{{player}}</span>
+                          <span *ngIf="getPlayerFromCore(player)" class="verified-badge"> ✓</span>
                         </option>
                       </select>
                     </div>
@@ -954,27 +945,27 @@ interface TeamMetrics {
     .metric-value {
       font-size: 1.8rem;
       font-weight: 800;
-      color: #2c3e50;
+      color: #000000;
     }
 
     .value-cell.matches .metric-value {
-      color: #2c3e50 !important;
+      color: #000000 !important;
       text-shadow: 0 1px 2px rgba(255,255,255,0.5);
     }
 
     .value-cell.goals .metric-value {
-      color: #ffffff !important;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      color: #000000 !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     .value-cell.assists .metric-value {
-      color: #ffffff !important;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      color: #000000 !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     .value-cell.cards .metric-value {
-      color: #ffeb3b !important;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      color: #000000 !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     .metric-description {
@@ -1037,11 +1028,37 @@ interface TeamMetrics {
 
     /* Enhanced Filter Card */
     .enhanced-filter-card {
-      background: white;
-      border-radius: 25px;
-      box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%);
+      border-radius: 30px;
+      box-shadow: 0 15px 45px rgba(0,0,0,0.18), 
+                  inset 0 1px 0 rgba(255,255,255,0.8);
       overflow: hidden;
-      border: 2px solid #e8f4fd;
+      border: 3px solid transparent;
+      background-image: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%), 
+                        linear-gradient(135deg, #e8f4fd 0%, #bbdefb 100%);
+      background-origin: border-box;
+      background-clip: content-box, border-box;
+      backdrop-filter: blur(20px);
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .enhanced-filter-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.02) 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .enhanced-filter-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25), 
+                  inset 0 1px 0 rgba(255,255,255,0.9);
     }
 
     .enhanced-filter-header {
@@ -1065,104 +1082,181 @@ interface TeamMetrics {
 
     .enhanced-filter-body {
       padding: 2.5rem;
-      background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%);
+      background: transparent;
+      position: relative;
+      z-index: 2;
     }
 
     .filter-row {
       display: flex;
       flex-wrap: wrap;
       gap: 1.5rem;
-      align-items: end;
+      align-items: stretch;
     }
 
     .filter-group {
       flex: 1;
-      min-width: 200px;
+      min-width: 220px;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      justify-content: flex-end;
+      gap: 1rem;
+      padding: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .filter-group:hover {
+      transform: translateY(-2px);
     }
 
     .status-group {
-      min-width: 150px;
+      min-width: 180px;
+      justify-content: center;
     }
 
     .enhanced-filter-label {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
+      gap: 0.75rem;
+      font-size: 1rem;
       font-weight: 700;
       color: #2c3e50;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 0;
+      letter-spacing: 0.8px;
+      margin-bottom: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+      backdrop-filter: blur(5px);
+      position: relative;
+    }
+
+    .enhanced-filter-label::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 60%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 2px;
+      transition: all 0.3s ease;
+    }
+
+    .enhanced-filter-label:hover::before {
+      height: 80%;
+      box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
     }
 
     .label-icon {
       color: #667eea;
-      font-size: 0.85rem;
+      font-size: 1rem;
+      text-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .enhanced-filter-label:hover .label-icon {
+      color: #42a5f5;
+      transform: scale(1.1);
+      text-shadow: 0 2px 4px rgba(66, 165, 245, 0.3);
     }
 
     /* Enhanced Select Styling */
     .enhanced-select-wrapper {
       position: relative;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
     }
 
     .enhanced-select {
       width: 100%;
-      padding: 1rem 2.5rem 1rem 1.25rem;
-      border: 2px solid #e1f5fe;
-      border-radius: 15px;
-      background: white;
-      font-size: 0.95rem;
-      font-weight: 500;
+      height: 58px;
+      min-height: 58px;
+      padding: 1.25rem 3rem 1.25rem 1.5rem;
+      border: 3px solid transparent;
+      border-radius: 18px;
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) border-box;
+      font-size: 1rem;
+      font-weight: 600;
       color: #2c3e50;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       appearance: none;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+      position: relative;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+    }
+
+    .enhanced-select::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 18px;
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.4s ease;
     }
 
     .enhanced-select:focus {
       outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15), 0 4px 12px rgba(0,0,0,0.1);
-      background: #fafbff;
-      transform: translateY(-1px);
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, #667eea 0%, #764ba2 100%) border-box;
+      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.25), 
+                  0 0 0 0.3rem rgba(102, 126, 234, 0.15),
+                  inset 0 1px 0 rgba(255,255,255,0.8);
+      transform: translateY(-2px) scale(1.02);
+      color: #1a202c;
     }
 
     .enhanced-select:hover {
-      border-color: #42a5f5;
-      background: #f8fcff;
+      background: linear-gradient(#f8fcff, #f0f8ff) padding-box, 
+                  linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%) border-box;
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 6px 24px rgba(66, 165, 245, 0.2), 
+                  inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
     .enhanced-select-arrow {
       position: absolute;
-      right: 1.25rem;
+      right: 1.5rem;
       top: 50%;
       transform: translateY(-50%);
-      color: #78909c;
-      font-size: 0.9rem;
+      color: #667eea;
+      font-size: 1.1rem;
       pointer-events: none;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      z-index: 10;
     }
 
     .enhanced-select:focus + .enhanced-select-arrow {
       color: #667eea;
-      transform: translateY(-50%) rotate(180deg);
+      transform: translateY(-50%) rotate(180deg) scale(1.1);
+      text-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
     }
 
     .enhanced-select:hover + .enhanced-select-arrow {
       color: #42a5f5;
+      transform: translateY(-50%) scale(1.05);
+      text-shadow: 0 2px 4px rgba(66, 165, 245, 0.3);
     }
 
     /* Status Display */
     .status-display {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
+      height: 100%;
+      margin-top: auto;
     }
 
     .status-badge-display {
@@ -1171,12 +1265,18 @@ interface TeamMetrics {
       gap: 0.5rem;
       background: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%);
       color: #27ae60;
-      padding: 0.75rem 1.25rem;
-      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      border-radius: 15px;
       font-weight: 600;
-      font-size: 0.9rem;
-      border: 2px solid #c8e6c9;
-      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.1);
+      font-size: 1rem;
+      border: 3px solid transparent;
+      background-image: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%), 
+                        linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+      background-origin: border-box;
+      background-clip: content-box, border-box;
+      box-shadow: 0 4px 20px rgba(39, 174, 96, 0.15);
+      height: 58px;
+      min-height: 58px;
     }
 
     .status-icon {
@@ -1225,7 +1325,7 @@ interface TeamMetrics {
     .monthly-stat-value {
       font-size: 2rem;
       font-weight: 800;
-      color: #2c3e50;
+      color: #000000;
       margin-bottom: 0.25rem;
     }
 
@@ -1525,22 +1625,47 @@ interface TeamMetrics {
       }
       
       .filter-row {
-        gap: 1rem;
+        gap: 1.25rem;
+        align-items: stretch;
       }
       
       .filter-group {
-        min-width: 160px;
+        min-width: 180px;
         flex: 1 1 48%;
+        justify-content: flex-end;
       }
       
       .status-group {
         flex: 1 1 100%;
+        justify-content: center;
+      }
+      
+      .enhanced-select {
+        height: 52px;
+        min-height: 52px;
+        padding: 1rem 2.5rem 1rem 1.25rem;
+      }
+      
+      .status-badge-display {
+        height: 52px;
+        min-height: 52px;
+        padding: 1rem 1.25rem;
+        font-size: 0.95rem;
+      }
+      
+      .enhanced-filter-label {
+        font-size: 0.95rem;
       }
     }
 
     @media (max-width: 768px) {
       .stats-title {
         font-size: 1.8rem;
+      }
+      
+      .enhanced-filter-card {
+        border-radius: 20px;
+        margin: 0 0.5rem;
       }
       
       .enhanced-filter-header {
@@ -1553,22 +1678,35 @@ interface TeamMetrics {
       
       .filter-row {
         flex-direction: column;
-        gap: 1.25rem;
+        gap: 1.5rem;
+        align-items: stretch;
       }
       
       .filter-group {
         min-width: 100%;
         flex: 1;
+        padding: 0.25rem;
+        justify-content: flex-start;
+      }
+      
+      .status-group {
+        justify-content: flex-start;
       }
       
       .enhanced-select {
-        padding: 0.875rem 2.25rem 0.875rem 1rem;
-        font-size: 0.9rem;
+        padding: 1rem 2.5rem 1rem 1.25rem;
+        font-size: 0.95rem;
+        border-radius: 15px;
       }
       
       .enhanced-select-arrow {
-        right: 1rem;
-        font-size: 0.8rem;
+        right: 1.25rem;
+        font-size: 1rem;
+      }
+      
+      .enhanced-filter-label {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
       }
       
       .filter-title-section {
@@ -1704,6 +1842,7 @@ interface TeamMetrics {
       font-size: 1.2rem;
       font-weight: 700;
       margin-bottom: 2px;
+      color: #000000;
     }
 
     .stat-value.goals {
@@ -1938,24 +2077,71 @@ interface TeamMetrics {
     }
 
     .team-selector {
-      background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 
+                  inset 0 1px 0 rgba(255,255,255,0.8);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.3);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .team-selector::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      z-index: 1;
+    }
+
+    .team-selector:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18), 
+                  inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .xanh-team::before {
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
     }
 
     .xanh-team {
-      border-left: 4px solid #3498db;
+      border-left: 6px solid #3498db;
+      box-shadow: 0 8px 32px rgba(52, 152, 219, 0.2), 
+                  inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    .cam-team::before {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
     }
 
     .cam-team {
-      border-left: 4px solid #f39c12;
+      border-left: 6px solid #f39c12;
+      box-shadow: 0 8px 32px rgba(243, 156, 18, 0.2), 
+                  inset 0 1px 0 rgba(255,255,255,0.8);
     }
 
     .team-title {
       color: #2c3e50;
-      font-weight: 700;
-      margin-bottom: 1rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      font-size: 1.3rem;
+      text-shadow: 0 1px 3px rgba(44, 62, 80, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .team-title::after {
+      content: '';
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, rgba(44, 62, 80, 0.1) 50%, transparent 100%);
+      margin-left: 1rem;
     }
 
     .vs-section {
@@ -2123,7 +2309,7 @@ interface TeamMetrics {
     .metric-value {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #2c3e50;
+      color: #000000;
     }
 
     .metric-label {
@@ -2153,6 +2339,7 @@ interface TeamMetrics {
       font-size: 2rem;
       font-weight: 700;
       margin-bottom: 0.5rem;
+      color: #000000;
     }
 
     .xanh-wins .stat-number {
@@ -2199,6 +2386,204 @@ interface TeamMetrics {
       font-size: 0.95rem;
     }
 
+    /* Modern Multi-Select Styling */
+    .modern-multi-select {
+      width: 100%;
+      min-height: 140px;
+      padding: 1rem;
+      border: 3px solid transparent;
+      border-radius: 16px;
+      background: linear-gradient(white, white) padding-box;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #2c3e50;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+      backdrop-filter: blur(10px);
+      cursor: pointer;
+    }
+
+    .modern-multi-select:focus {
+      outline: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15), 
+                  0 0 0 0.3rem rgba(102, 126, 234, 0.15),
+                  inset 0 1px 0 rgba(255,255,255,0.8);
+      transform: translateY(-2px);
+    }
+
+    .modern-multi-select:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.12), 
+                  inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    .xanh-select {
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, rgba(52, 152, 219, 0.3) 0%, rgba(41, 128, 185, 0.2) 100%) border-box;
+    }
+
+    .xanh-select:focus {
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, #3498db 0%, #2980b9 100%) border-box;
+    }
+
+    .xanh-select:hover {
+      background: linear-gradient(#f8fcff, #f0f8ff) padding-box, 
+                  linear-gradient(135deg, rgba(52, 152, 219, 0.5) 0%, rgba(41, 128, 185, 0.3) 100%) border-box;
+    }
+
+    .cam-select {
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, rgba(243, 156, 18, 0.3) 0%, rgba(230, 126, 34, 0.2) 100%) border-box;
+    }
+
+    .cam-select:focus {
+      background: linear-gradient(white, white) padding-box, 
+                  linear-gradient(135deg, #f39c12 0%, #e67e22 100%) border-box;
+    }
+
+    .cam-select:hover {
+      background: linear-gradient(#fffdf8, #fff8f0) padding-box, 
+                  linear-gradient(135deg, rgba(243, 156, 18, 0.5) 0%, rgba(230, 126, 34, 0.3) 100%) border-box;
+    }
+
+    .player-option {
+      padding: 0.75rem 1rem;
+      margin: 0.25rem 0;
+      border-radius: 8px;
+      background: white;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .player-option:hover {
+      background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+      color: #2c3e50;
+    }
+
+    .player-option:checked,
+    .player-option:selected {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 600;
+    }
+
+    .player-name {
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .verified-badge {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      color: white;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 50%;
+      font-weight: 600;
+      margin-left: 0.5rem;
+      box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
+      min-width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Player Selection Form Labels */
+    .player-selection .form-label {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .player-selection .form-label::before {
+      content: '👥';
+      font-size: 1.1rem;
+    }
+
+    /* VS Section Enhancement */
+    .vs-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 2rem;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.03) 100%);
+      border-radius: 20px;
+      border: 2px dashed rgba(102, 126, 234, 0.2);
+    }
+
+    .vs-icon {
+      font-size: 3rem;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .prediction-trigger {
+      margin-top: 1rem;
+    }
+
+    /* Enhanced Button Styling */
+    .btn-ai {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      font-weight: 700;
+      padding: 1rem 2rem;
+      border-radius: 25px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-ai::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.6s;
+    }
+
+    .btn-ai:hover::before {
+      left: 100%;
+    }
+
+    .btn-ai:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+      color: white;
+    }
+
+    .btn-ai:disabled {
+      opacity: 0.7;
+      transform: none;
+      cursor: not-allowed;
+    }
+
+    .btn-ai:disabled:hover {
+      transform: none;
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
     /* Responsive AI Styles */
     @media (max-width: 768px) {
       .ai-header,
@@ -2211,12 +2596,34 @@ interface TeamMetrics {
       }
 
       .team-selector {
-        padding: 1rem;
-        margin-bottom: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
       }
 
       .vs-section {
-        margin: 1rem 0;
+        margin: 1.5rem 0;
+        padding: 1.5rem;
+      }
+
+      .vs-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .modern-multi-select {
+        min-height: 120px;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+      }
+
+      .team-title {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+      }
+
+      .btn-ai {
+        padding: 0.875rem 1.5rem;
+        font-size: 0.95rem;
       }
 
       .metric-card {
@@ -2291,7 +2698,7 @@ export class StatsComponent implements OnInit, OnDestroy {
   // UI State
   viewMode: 'all' | 'monthly' = 'all';
   selectedMonth = '';
-  sortBy: 'goals' | 'assists' | 'yellowCards' | 'redCards' | 'matches' = 'goals';
+  sortBy: 'score' | 'goals' | 'assists' | 'yellowCards' | 'redCards' | 'matches' = 'score';
 
   // AI/ML Analysis Properties
   allPlayers: string[] = [];
@@ -2663,6 +3070,7 @@ export class StatsComponent implements OnInit, OnDestroy {
 
     // Sort by selected criteria
     return playerStats.sort((a, b) => {
+      if (this.sortBy === 'score') return this.calculatePlayerScore(b) - this.calculatePlayerScore(a);
       if (this.sortBy === 'goals') return b.goals - a.goals;
       if (this.sortBy === 'assists') return b.assists - a.assists;
       if (this.sortBy === 'yellowCards') return b.yellowCards - a.yellowCards;
@@ -3208,5 +3616,11 @@ export class StatsComponent implements OnInit, OnDestroy {
     if (totalCards > 20) return 'Cần cải thiện';
     if (totalCards > 10) return 'Bình thường';
     return 'Kỷ luật tốt';
+  }
+
+  getPlayerFromCore(playerName: string): PlayerInfo | undefined {
+    return this.corePlayersData.find(player => 
+      `${player.firstName} ${player.lastName || ''}`.trim() === playerName
+    );
   }
 }

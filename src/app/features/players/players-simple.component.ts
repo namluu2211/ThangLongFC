@@ -600,20 +600,22 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 
     /* Modal Styles */
     .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: rgba(0, 0, 0, 0.7);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
+      z-index: 99999;
       padding: 20px;
-      backdrop-filter: blur(5px);
-      overflow-y: auto;
-      overflow-x: hidden;
+      backdrop-filter: blur(8px);
+      overflow: hidden;
+      margin: 0 !important;
     }
 
     .player-detail-modal {
@@ -1172,61 +1174,80 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 
     .player-modal, .confirm-modal {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 600px;
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-      animation: modalSlideIn 0.3s ease;
+      border-radius: 20px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+      max-width: 500px;
+      width: 95%;
+      max-height: 85vh;
+      overflow: hidden;
+      animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transform: translateZ(0);
+      margin: 0 auto;
     }
 
     @keyframes modalSlideIn {
-      from {
+      0% {
         opacity: 0;
-        transform: translateY(-50px) scale(0.95);
+        transform: scale(0.8) translateY(-30px);
       }
-      to {
+      60% {
+        opacity: 0.8;
+        transform: scale(1.05) translateY(-10px);
+      }
+      100% {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: scale(1) translateY(0);
       }
     }
 
     .modal-header {
-      padding: 20px 24px;
-      border-bottom: 1px solid #e0e0e0;
+      padding: 20px 24px 15px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(135deg, #f5f5f5, #fafafa);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 20px 20px 0 0;
+      position: relative;
     }
 
     .modal-header h3 {
       margin: 0;
-      color: #333;
-      font-size: 1.3rem;
+      color: white;
+      font-size: 1.4rem;
+      font-weight: 600;
       display: flex;
       align-items: center;
     }
 
     .close-btn {
-      background: none;
+      background: rgba(255, 255, 255, 0.2);
       border: none;
-      font-size: 24px;
+      font-size: 20px;
       cursor: pointer;
-      color: #666;
-      padding: 4px;
-      border-radius: 4px;
-      transition: all 0.2s ease;
+      color: white;
+      padding: 8px;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
     }
 
     .close-btn:hover {
-      background: rgba(0, 0, 0, 0.1);
-      color: #333;
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(90deg);
     }
 
     .modal-content {
       padding: 24px;
+      flex: 1;
+      overflow-y: auto;
     }
 
     .form-grid {
@@ -1252,17 +1273,26 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
     }
 
     .form-control {
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
+      padding: 14px 16px;
+      border: 2px solid #e8eaed;
+      border-radius: 10px;
       font-size: 1rem;
       transition: all 0.3s ease;
+      background: #fafbfc;
     }
 
     .form-control:focus {
-      border-color: #2196F3;
+      border-color: #667eea;
       outline: none;
-      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+      background: white;
+    }
+
+    .form-group label {
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.95rem;
     }
 
     .modal-actions {
@@ -1339,11 +1369,36 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
     .me-1 { margin-right: 4px; }
     .me-2 { margin-right: 8px; }
 
+    /* Force modal to always be in viewport */
+    .modal-overlay {
+      transform: translate3d(0, 0, 0) !important;
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
+      .modal-overlay {
+        padding: 15px;
+      }
+      
       .player-modal, .confirm-modal {
-        width: 95%;
-        max-height: 85vh;
+        width: 98%;
+        max-width: none;
+        max-height: 90vh;
+        margin: 0;
+      }
+      
+      .modal-header {
+        padding: 16px 20px 12px 20px;
+      }
+      
+      .modal-header h3 {
+        font-size: 1.2rem;
+      }
+      
+      .modal-content {
+        padding: 20px;
       }
       
       .form-grid {
@@ -1353,12 +1408,45 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       
       .modal-actions {
         flex-direction: column;
+        gap: 8px;
       }
       
       .btn-cancel, .btn-save, .btn-delete {
         width: 100%;
         justify-content: center;
       }
+    }
+
+    /* Ensure modal stays centered and doesn't scroll */
+    @media (max-height: 600px) {
+      .player-modal, .confirm-modal {
+        max-height: 95vh;
+      }
+    }
+
+    /* Global body styles for modal */
+    :host ::ng-deep body.modal-open {
+      overflow: hidden !important;
+      position: fixed !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Prevent background scrolling on mobile */
+    :host ::ng-deep .modal-overlay {
+      touch-action: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ensure modal container doesn't affect positioning */
+    :host {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Force viewport positioning */
+    .modal-overlay {
+      transform: translate3d(0, 0, 0) !important;
     }
   `]
 })
@@ -1922,6 +2010,8 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
       avatar: ''
     };
     this.showPlayerModal = true;
+    this.preventBodyScroll();
+    this.ensureModalVisible();
   }
 
   openEditPlayerModal(player: Player): void {
@@ -1939,8 +2029,8 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     if (playerInfo) {
       this.isEditMode = true;
       this.playerFormData = { ...playerInfo };
-      this.showPlayerModal = true;
-      console.log('✅ Modal should be shown now');
+      this.openDynamicEditModal(playerInfo);
+      console.log('✅ Edit modal should be shown now');
     } else {
       console.error('❌ No matching PlayerInfo found for:', player);
       alert('Could not find player data for editing. Please try refreshing the page.');
@@ -1952,6 +2042,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.playerFormData = {};
     this.isEditMode = false;
     this.isSaving = false;
+    this.allowBodyScroll();
   }
 
   async savePlayerData(): Promise<void> {
@@ -2009,7 +2100,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     
     if (playerInfo) {
       this.playerToDelete = playerInfo;
-      this.showDeleteConfirm = true;
+      this.openDynamicDeleteModal(playerInfo);
       console.log('✅ Delete confirmation modal should be shown now');
     } else {
       console.error('❌ No matching PlayerInfo found for deletion:', player);
@@ -2021,6 +2112,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.showDeleteConfirm = false;
     this.playerToDelete = null;
     this.isSaving = false;
+    this.allowBodyScroll();
   }
 
   async executeDeletePlayer(): Promise<void> {
@@ -2035,7 +2127,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
       alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
       this.closeDeleteConfirm();
       // Refresh the player list
-      await this.testLoadPlayers();
+      await this.loadPlayersFromService();
     } catch (error) {
       console.error('Error deleting player:', error);
       alert('Có lỗi xảy ra khi xóa cầu thủ!');
@@ -2044,10 +2136,534 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Helper methods for body scroll management
+  preventBodyScroll(): void {
+    // Store current scroll position
+    const scrollY = window.scrollY;
+    
+    document.body.classList.add('modal-open');
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    
+    const scrollbarWidth = this.getScrollbarWidth();
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = scrollbarWidth + 'px';
+    }
+    
+    // Store scroll position for restoration
+    document.body.setAttribute('data-scroll-y', scrollY.toString());
+  }
+
+  allowBodyScroll(): void {
+    document.body.classList.remove('modal-open');
+    
+    // Restore scroll position
+    const scrollY = document.body.getAttribute('data-scroll-y');
+    
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.paddingRight = '';
+    
+    // Restore scroll position
+    if (scrollY) {
+      window.scrollTo(0, parseInt(scrollY, 10));
+      document.body.removeAttribute('data-scroll-y');
+    }
+  }
+
+  private getScrollbarWidth(): number {
+    // Simple method to get scrollbar width
+    return window.innerWidth - document.documentElement.clientWidth;
+  }
+
+  private ensureModalVisible(): void {
+    // Use setTimeout to ensure DOM is updated
+    setTimeout(() => {
+      // Force the modal to appear in viewport
+      const modalElement = document.querySelector('.modal-overlay') as HTMLElement;
+      if (modalElement) {
+        modalElement.scrollIntoView({ 
+          behavior: 'instant', 
+          block: 'center',
+          inline: 'center'
+        });
+        
+        // Double check by forcing viewport position
+        modalElement.style.position = 'fixed';
+        modalElement.style.top = '0';
+        modalElement.style.left = '0';
+        modalElement.style.width = '100vw';
+        modalElement.style.height = '100vh';
+        modalElement.style.zIndex = '99999';
+      }
+    }, 0);
+  }
+
+  openDynamicEditModal(playerInfo: PlayerInfo): void {
+    // Remove any existing modal
+    this.closeDynamicModal();
+
+    const modalHTML = `
+      <div class="modal-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        padding: 20px;
+        backdrop-filter: blur(8px);
+      ">
+        <div class="player-modal" style="
+          background: white;
+          border-radius: 20px;
+          max-width: 500px;
+          width: 95%;
+          max-height: 85vh;
+          overflow: hidden;
+          box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+          position: relative;
+          display: flex;
+          flex-direction: column;
+        ">
+          <div class="modal-header" style="
+            padding: 20px 24px 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+          ">
+            <h3 style="margin: 0; color: white; font-size: 1.4rem; font-weight: 600;">
+              <i class="fas fa-user-edit" style="margin-right: 8px;"></i>
+              Chỉnh sửa cầu thủ
+            </h3>
+            <button class="close-btn" style="
+              background: rgba(255, 255, 255, 0.2);
+              border: none;
+              font-size: 20px;
+              cursor: pointer;
+              color: white;
+              padding: 8px;
+              border-radius: 50%;
+              width: 36px;
+              height: 36px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: all 0.3s ease;
+            " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">×</button>
+          </div>
+          
+          <div class="modal-content" style="padding: 24px; flex: 1; overflow-y: auto;">
+            <form id="editPlayerForm">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div style="display: flex; flex-direction: column;">
+                  <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Tên *</label>
+                  <input type="text" name="firstName" value="${playerInfo.firstName || ''}" required style="
+                    padding: 14px 16px;
+                    border: 2px solid #e8eaed;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    background: #fafbfc;
+                  " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                  <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Họ</label>
+                  <input type="text" name="lastName" value="${playerInfo.lastName || ''}" style="
+                    padding: 14px 16px;
+                    border: 2px solid #e8eaed;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    background: #fafbfc;
+                  " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                  <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Vị trí *</label>
+                  <select name="position" required style="
+                    padding: 14px 16px;
+                    border: 2px solid #e8eaed;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    background: #fafbfc;
+                  " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+                    <option value="">Chọn vị trí</option>
+                    <option value="Thủ môn" ${playerInfo.position === 'Thủ môn' ? 'selected' : ''}>Thủ môn</option>
+                    <option value="Hậu vệ" ${playerInfo.position === 'Hậu vệ' ? 'selected' : ''}>Hậu vệ</option>
+                    <option value="Trung vệ" ${playerInfo.position === 'Trung vệ' ? 'selected' : ''}>Trung vệ</option>
+                    <option value="Tiền vệ" ${playerInfo.position === 'Tiền vệ' ? 'selected' : ''}>Tiền vệ</option>
+                    <option value="Tiền đạo" ${playerInfo.position === 'Tiền đạo' ? 'selected' : ''}>Tiền đạo</option>
+                  </select>
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                  <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Ngày sinh</label>
+                  <input type="date" name="dateOfBirth" value="${playerInfo.dateOfBirth || ''}" style="
+                    padding: 14px 16px;
+                    border: 2px solid #e8eaed;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    background: #fafbfc;
+                  " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                  <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Chiều cao (cm)</label>
+                  <input type="number" name="height" value="${playerInfo.height || ''}" min="0" max="250" style="
+                    padding: 14px 16px;
+                    border: 2px solid #e8eaed;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    background: #fafbfc;
+                  " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                  <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Cân nặng (kg)</label>
+                  <input type="number" name="weight" value="${playerInfo.weight || ''}" min="0" max="200" style="
+                    padding: 14px 16px;
+                    border: 2px solid #e8eaed;
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    background: #fafbfc;
+                  " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+                </div>
+              </div>
+              
+              <div style="display: flex; flex-direction: column; margin-bottom: 20px;">
+                <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Ghi chú</label>
+                <textarea name="notes" rows="3" placeholder="Thông tin thêm về cầu thủ..." style="
+                  padding: 14px 16px;
+                  border: 2px solid #e8eaed;
+                  border-radius: 10px;
+                  font-size: 1rem;
+                  transition: all 0.3s ease;
+                  background: #fafbfc;
+                  resize: vertical;
+                " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">${playerInfo.notes || ''}</textarea>
+              </div>
+              
+              <div style="display: flex; flex-direction: column; margin-bottom: 20px;">
+                <label style="margin-bottom: 10px; font-weight: 600; color: #374151; font-size: 0.95rem;">Avatar URL</label>
+                <input type="url" name="avatar" value="${playerInfo.avatar || ''}" placeholder="https://example.com/avatar.jpg" style="
+                  padding: 14px 16px;
+                  border: 2px solid #e8eaed;
+                  border-radius: 10px;
+                  font-size: 1rem;
+                  transition: all 0.3s ease;
+                  background: #fafbfc;
+                " onfocus="this.style.borderColor='#667eea'; this.style.background='white';" onblur="this.style.borderColor='#e8eaed'; this.style.background='#fafbfc';">
+              </div>
+              
+              <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                <button type="button" class="btn-cancel" style="
+                  padding: 12px 24px;
+                  border: 2px solid #e0e0e0;
+                  background: #f5f5f5;
+                  color: #666;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 1rem;
+                  font-weight: 500;
+                  transition: all 0.3s ease;
+                " onmouseover="this.style.background='#eeeeee'; this.style.color='#333';" onmouseout="this.style.background='#f5f5f5'; this.style.color='#666';">
+                  <i class="fas fa-times" style="margin-right: 4px;"></i>Hủy
+                </button>
+                <button type="submit" class="btn-save" style="
+                  padding: 12px 24px;
+                  border: none;
+                  background: linear-gradient(135deg, #4CAF50, #45a049);
+                  color: white;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 1rem;
+                  font-weight: 500;
+                  transition: all 0.3s ease;
+                " onmouseover="this.style.background='linear-gradient(135deg, #45a049, #3d8b40)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='linear-gradient(135deg, #4CAF50, #45a049)'; this.style.transform='translateY(0)';">
+                  <i class="fas fa-save" style="margin-right: 4px;"></i>Cập nhật
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Create modal element
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHTML;
+    modalDiv.id = 'edit-player-modal';
+    
+    // Add to document body
+    document.body.appendChild(modalDiv);
+    
+    // Prevent body scrolling
+    document.body.style.overflow = 'hidden';
+    
+    // Add event listeners
+    this.setupModalEventListeners(modalDiv, playerInfo);
+  }
+
+  openDynamicDeleteModal(playerInfo: PlayerInfo): void {
+    // Remove any existing modal
+    this.closeDynamicModal();
+
+    const modalHTML = `
+      <div class="modal-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        padding: 20px;
+        backdrop-filter: blur(8px);
+      ">
+        <div class="confirm-modal" style="
+          background: white;
+          border-radius: 20px;
+          max-width: 400px;
+          width: 95%;
+          overflow: hidden;
+          box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+          position: relative;
+          display: flex;
+          flex-direction: column;
+        ">
+          <div class="modal-header" style="
+            padding: 20px 24px 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+            border-radius: 20px 20px 0 0;
+          ">
+            <h3 style="margin: 0; color: white; font-size: 1.3rem; font-weight: 600;">
+              <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+              Xác nhận xóa
+            </h3>
+          </div>
+          
+          <div class="modal-content" style="padding: 24px;">
+            <p style="margin: 0 0 10px 0; color: #374151; font-size: 1rem;">
+              Bạn có chắc chắn muốn xóa cầu thủ <strong>${playerInfo.firstName} ${playerInfo.lastName}</strong>?
+            </p>
+            <p style="margin: 0; color: #f44336; font-weight: 500; font-style: italic; font-size: 0.9rem;">
+              Hành động này không thể hoàn tác!
+            </p>
+          </div>
+          
+          <div style="display: flex; gap: 12px; justify-content: flex-end; padding: 0 24px 24px 24px;">
+            <button type="button" class="btn-cancel" style="
+              padding: 12px 24px;
+              border: 2px solid #e0e0e0;
+              background: #f5f5f5;
+              color: #666;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 1rem;
+              font-weight: 500;
+              transition: all 0.3s ease;
+            " onmouseover="this.style.background='#eeeeee'; this.style.color='#333';" onmouseout="this.style.background='#f5f5f5'; this.style.color='#666';">
+              <i class="fas fa-times" style="margin-right: 4px;"></i>Hủy
+            </button>
+            <button type="button" class="btn-delete" style="
+              padding: 12px 24px;
+              border: none;
+              background: linear-gradient(135deg, #f44336, #d32f2f);
+              color: white;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 1rem;
+              font-weight: 500;
+              transition: all 0.3s ease;
+            " onmouseover="this.style.background='linear-gradient(135deg, #d32f2f, #c62828)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='linear-gradient(135deg, #f44336, #d32f2f)'; this.style.transform='translateY(0)';">
+              <i class="fas fa-trash" style="margin-right: 4px;"></i>Xóa
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Create modal element
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHTML;
+    modalDiv.id = 'delete-player-modal';
+    
+    // Add to document body
+    document.body.appendChild(modalDiv);
+    
+    // Prevent body scrolling
+    document.body.style.overflow = 'hidden';
+    
+    // Add event listeners for delete modal
+    this.setupDeleteModalEventListeners(modalDiv, playerInfo);
+  }
+
+  private closeDynamicModal(): void {
+    // Remove any existing modals
+    const existingEditModal = document.getElementById('edit-player-modal');
+    const existingDeleteModal = document.getElementById('delete-player-modal');
+    const existingDetailModal = document.getElementById('player-modal');
+    
+    if (existingEditModal) {
+      existingEditModal.remove();
+    }
+    if (existingDeleteModal) {
+      existingDeleteModal.remove();
+    }
+    if (existingDetailModal) {
+      existingDetailModal.remove();
+    }
+    
+    // Restore body scrolling
+    document.body.style.overflow = '';
+  }
+
+  private setupModalEventListeners(modalDiv: HTMLElement, playerInfo: PlayerInfo): void {
+    // Close button event
+    const closeBtn = modalDiv.querySelector('.close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.closeDynamicModal();
+      });
+    }
+
+    // Cancel button event
+    const cancelBtn = modalDiv.querySelector('.btn-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        this.closeDynamicModal();
+      });
+    }
+
+    // Form submission event
+    const form = modalDiv.querySelector('#editPlayerForm') as HTMLFormElement;
+    if (form) {
+      form.addEventListener('submit', (e: Event) => {
+        e.preventDefault();
+        this.handleEditFormSubmission(form, playerInfo);
+      });
+    }
+
+    // Click outside modal to close
+    const overlay = modalDiv.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e: Event) => {
+        if (e.target === overlay) {
+          this.closeDynamicModal();
+        }
+      });
+    }
+  }
+
+  private setupDeleteModalEventListeners(modalDiv: HTMLElement, playerInfo: PlayerInfo): void {
+    // Cancel button event
+    const cancelBtn = modalDiv.querySelector('.btn-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        this.closeDynamicModal();
+      });
+    }
+
+    // Delete button event
+    const deleteBtn = modalDiv.querySelector('.btn-delete');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', () => {
+        this.handleDeleteConfirmation(playerInfo);
+      });
+    }
+
+    // Click outside modal to close
+    const overlay = modalDiv.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e: Event) => {
+        if (e.target === overlay) {
+          this.closeDynamicModal();
+        }
+      });
+    }
+  }
+
+  private async handleEditFormSubmission(form: HTMLFormElement, originalPlayer: PlayerInfo): Promise<void> {
+    const formData = new FormData(form);
+    
+    // Create updated player object
+    const updatedPlayer: PlayerInfo = {
+      ...originalPlayer,
+      firstName: formData.get('firstName') as string || '',
+      lastName: formData.get('lastName') as string || '',
+      position: formData.get('position') as string || '',
+      dateOfBirth: formData.get('dateOfBirth') as string || undefined,
+      height: formData.get('height') ? Number(formData.get('height')) : undefined,
+      weight: formData.get('weight') ? Number(formData.get('weight')) : undefined,
+      notes: formData.get('notes') as string || undefined,
+      avatar: formData.get('avatar') as string || undefined
+    };
+
+    console.log('Updating player:', updatedPlayer);
+
+    try {
+      // Call the service to update player
+      const result = await this.playerService.updatePlayer(updatedPlayer.id, updatedPlayer);
+      console.log('Player updated successfully:', result);
+      this.loadPlayersFromService(); // Reload the list
+      this.closeDynamicModal();
+      alert('Cập nhật thông tin cầu thủ thành công!');
+    } catch (error) {
+      console.error('Error updating player:', error);
+      alert('Có lỗi xảy ra khi cập nhật thông tin cầu thủ!');
+    }
+  }
+
+  private async handleDeleteConfirmation(playerInfo: PlayerInfo): Promise<void> {
+    console.log('Deleting player:', playerInfo);
+
+    try {
+      await this.playerService.deletePlayer(playerInfo.id);
+      console.log('Player deleted successfully');
+      this.loadPlayersFromService(); // Reload the list
+      this.closeDynamicModal();
+      alert('Xóa cầu thủ thành công!');
+    } catch (error) {
+      console.error('Error deleting player:', error);
+      alert('Có lỗi xảy ra khi xóa cầu thủ!');
+    }
+  }
+
   ngOnDestroy() {
     // Complete any ongoing subscriptions
     this.destroy$.next();
     this.destroy$.complete();
+    
+    // Restore body scroll in case modal was open
+    this.allowBodyScroll();
     
     // End performance monitoring for this component
     if (this.componentLoadId) {
