@@ -255,7 +255,9 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
                 (input)="playerFormData.avatar = $any($event.target).value"
                 class="form-control"
                 autocomplete="off"
-                placeholder="https://example.com/avatar.jpg hoặc assets/images/avatar_players/TenCauThu.png">
+                placeholder="https://example.com/avatar.jpg hoặc assets/images/avatar_players/TenCauThu.png"
+                pattern=".*"
+                title="Nhập URL hình ảnh hoặc đường dẫn file">
             </div>
             
             <div class="modal-actions" style="padding: 0 30px 30px 30px;">
@@ -2965,8 +2967,16 @@ export class PlayersComponent implements OnInit, OnDestroy {
       // Convert DOB to proper date format for HTML date input
       if (player.DOB) {
         if (typeof player.DOB === 'number') {
-          // If DOB is just age, don't set dateOfBirth (leave empty)
-          this.playerFormData.dateOfBirth = '';
+          // If DOB is just age/year, calculate approximate birth year or leave empty
+          if (player.DOB < 100) {
+            // Assume it's age, convert to birth year
+            const currentYear = new Date().getFullYear();
+            const birthYear = currentYear - player.DOB;
+            this.playerFormData.dateOfBirth = `${birthYear}-01-01`;
+          } else {
+            // Assume it's a birth year
+            this.playerFormData.dateOfBirth = `${player.DOB}-01-01`;
+          }
         } else if (typeof player.DOB === 'string') {
           // Try to convert various date formats to yyyy-MM-dd
           const dobString = player.DOB;
