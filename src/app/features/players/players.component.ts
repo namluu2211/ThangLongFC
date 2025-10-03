@@ -8,7 +8,7 @@ import { Player } from './player-utils';
 import { PlayerService } from '../../core/services/player.service';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
-import { PlayerInfo } from '../../core/models/player.model';
+import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalType, CardType } from '../../core/models/match.model';
 
 @Component({
@@ -146,6 +146,163 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
         </div>
       </div>
 
+      <!-- Admin Player Management Modal -->
+      <div *ngIf="showPlayerModal" class="modal-overlay" (click)="closePlayerFormModal()">
+        <div class="player-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-user-edit me-2"></i>
+              {{ isEditMode ? 'Chỉnh sửa cầu thủ' : 'Thêm cầu thủ mới' }}
+            </h3>
+            <button class="close-btn" (click)="closePlayerFormModal()">×</button>
+          </div>
+          
+          <div class="modal-content">
+            <form #playerForm="ngForm" novalidate>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="firstName">Tên *</label>
+                  <input 
+                    type="text" 
+                    id="firstName"
+                    name="firstName"
+                    [(ngModel)]="playerFormData.firstName" 
+                    required 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="lastName">Họ</label>
+                  <input 
+                    type="text" 
+                    id="lastName"
+                    name="lastName"
+                    [(ngModel)]="playerFormData.lastName" 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="position">Vị trí *</label>
+                  <select 
+                    id="position"
+                    name="position"
+                    [(ngModel)]="playerFormData.position" 
+                    required 
+                    class="form-control">
+                    <option value="">Chọn vị trí</option>
+                    <option value="Thủ môn">Thủ môn</option>
+                    <option value="Hậu vệ">Hậu vệ</option>
+                    <option value="Trung vệ">Trung vệ</option>
+                    <option value="Tiền vệ">Tiền vệ</option>
+                    <option value="Tiền đạo">Tiền đạo</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="dateOfBirth">Ngày sinh</label>
+                  <input 
+                    type="date" 
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    [(ngModel)]="playerFormData.dateOfBirth" 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="height">Chiều cao (cm)</label>
+                  <input 
+                    type="number" 
+                    id="height"
+                    name="height"
+                    [(ngModel)]="playerFormData.height" 
+                    min="0"
+                    max="250"
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="weight">Cân nặng (kg)</label>
+                  <input 
+                    type="number" 
+                    id="weight"
+                    name="weight"
+                    [(ngModel)]="playerFormData.weight" 
+                    min="0"
+                    max="200"
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-group full-width">
+                <label for="notes">Ghi chú</label>
+                <textarea 
+                  id="notes"
+                  name="notes"
+                  [(ngModel)]="playerFormData.notes" 
+                  rows="3"
+                  class="form-control"
+                  placeholder="Thông tin thêm về cầu thủ..."></textarea>
+              </div>
+            </form>
+            
+            <!-- Avatar field completely outside the form -->
+            <div class="form-group full-width" style="padding: 0 30px;">
+              <label for="avatar">Avatar URL (tùy chọn)</label>
+              <input 
+                type="text" 
+                id="avatar"
+                [value]="playerFormData.avatar || ''"
+                (input)="playerFormData.avatar = $any($event.target).value"
+                class="form-control"
+                autocomplete="off"
+                placeholder="https://example.com/avatar.jpg hoặc assets/images/avatar_players/TenCauThu.png">
+            </div>
+            
+            <div class="modal-actions" style="padding: 0 30px 30px 30px;">
+              <button type="button" class="btn-cancel" (click)="closePlayerFormModal()">
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button 
+                type="button" 
+                class="btn-save" 
+                [disabled]="isSaving || !playerFormData.firstName || !playerFormData.position"
+                (click)="savePlayerData()">
+                <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-save me-1'"></i>
+                {{ isSaving ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Thêm mới') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div *ngIf="showDeleteConfirm" class="modal-overlay" (click)="closeDeleteConfirm()">
+        <div class="confirm-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              Xác nhận xóa
+            </h3>
+          </div>
+          <div class="modal-content">
+            <p>Bạn có chắc chắn muốn xóa cầu thủ <strong>{{ playerToDelete?.firstName }} {{ playerToDelete?.lastName }}</strong>?</p>
+            <p class="warning-text">Hành động này không thể hoàn tác!</p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeDeleteConfirm()">
+              <i class="fas fa-times me-1"></i>Hủy
+            </button>
+            <button 
+              type="button" 
+              class="btn-delete" 
+              (click)="executeDeletePlayer()"
+              [disabled]="isSaving">
+              <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-trash me-1'"></i>
+              {{ isSaving ? 'Đang xóa...' : 'Xóa' }}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Player Details Modal -->
       <div *ngIf="selectedPlayer" class="modal-overlay" tabindex="0" (click)="closePlayerModal()" (keyup)="onModalOverlayKey($event)">
@@ -2038,7 +2195,13 @@ export class PlayersComponent implements OnInit, OnDestroy {
   saveMessage = '';
   saveRegisteredMessage = '';
   
-
+  // Admin modal state
+  showPlayerModal = false;
+  showDeleteConfirm = false;
+  isEditMode = false;
+  isSaving = false;
+  playerToDelete: PlayerInfo | null = null;
+  playerFormData: Partial<PlayerInfo> = {};
 
   trackByPlayerId: TrackByFunction<Player> = (index: number, player: Player) => {
     return player.id;
@@ -2772,7 +2935,175 @@ export class PlayersComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  // Player Modal Methods
+  openCreatePlayerModal(): void {
+    this.isEditMode = false;
+    this.playerFormData = {
+      firstName: '',
+      lastName: '',
+      position: '',
+      dateOfBirth: '',
+      height: undefined,
+      weight: undefined,
+      notes: '',
+      avatar: ''
+    };
+    this.showPlayerModal = true;
+  }
 
+  openEditPlayerModal(player: Player): void {
+    // Find the corresponding PlayerInfo from corePlayersData
+    const playerInfo = this.corePlayersData.find(p => 
+      p.firstName === player.firstName && 
+      p.lastName === player.lastName
+    );
+    
+    if (playerInfo) {
+      this.isEditMode = true;
+      this.playerFormData = { ...playerInfo };
+      
+      // Convert DOB to proper date format for HTML date input
+      if (player.DOB) {
+        if (typeof player.DOB === 'number') {
+          // If DOB is just age, don't set dateOfBirth (leave empty)
+          this.playerFormData.dateOfBirth = '';
+        } else if (typeof player.DOB === 'string') {
+          // Try to convert various date formats to yyyy-MM-dd
+          const dobString = player.DOB;
+          let formattedDate = '';
+          
+          try {
+            // Handle dd/mm/yyyy format
+            if (dobString.includes('/')) {
+              const parts = dobString.split('/');
+              if (parts.length === 3) {
+                const day = parts[0].padStart(2, '0');
+                const month = parts[1].padStart(2, '0');
+                const year = parts[2];
+                formattedDate = `${year}-${month}-${day}`;
+              }
+            } 
+            // Handle yyyy-mm-dd format (already correct)
+            else if (dobString.includes('-')) {
+              const date = new Date(dobString);
+              if (!isNaN(date.getTime())) {
+                formattedDate = dobString;
+              }
+            }
+            // Try parsing as general date
+            else {
+              const date = new Date(dobString);
+              if (!isNaN(date.getTime())) {
+                formattedDate = date.toISOString().split('T')[0];
+              }
+            }
+          } catch {
+            console.warn('Could not parse DOB:', dobString);
+          }
+          
+          this.playerFormData.dateOfBirth = formattedDate;
+        }
+      } else {
+        this.playerFormData.dateOfBirth = '';
+      }
+      
+      this.showPlayerModal = true;
+    }
+  }
+
+  closePlayerFormModal(): void {
+    this.showPlayerModal = false;
+    this.playerFormData = {};
+    this.isEditMode = false;
+    this.isSaving = false;
+  }
+
+  async savePlayerData(): Promise<void> {
+    console.log('🔍 savePlayerData called with:', this.playerFormData);
+    
+    if (!this.playerFormData.firstName || !this.playerFormData.position) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
+      return;
+    }
+
+    console.log('✅ Validation passed, starting save...');
+    this.isSaving = true;
+    try {
+      if (this.isEditMode && this.playerFormData.id) {
+        // Update existing player - preserve original avatar if field is empty
+        const originalPlayer = this.corePlayersData.find(p => p.id === this.playerFormData.id);
+        const playerDataToUpdate = {
+          ...this.playerFormData,
+          // Only update avatar if a new value is provided, otherwise keep original
+          avatar: (this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '').replace(/\\/g, '/')
+        };
+        await this.playerService.updatePlayer(this.playerFormData.id, playerDataToUpdate);
+        alert('Cập nhật cầu thủ thành công!');
+      } else {
+        // Create new player
+        const newPlayer = {
+          firstName: this.playerFormData.firstName!,
+          lastName: this.playerFormData.lastName || '',
+          position: this.playerFormData.position!,
+          dateOfBirth: this.playerFormData.dateOfBirth || '',
+          height: this.playerFormData.height || 0,
+          weight: this.playerFormData.weight || 0,
+          notes: this.playerFormData.notes || '',
+          avatar: (this.playerFormData.avatar || '').replace(/\\/g, '/'),
+          isRegistered: true,
+          status: PlayerStatus.ACTIVE
+        };
+        await this.playerService.createPlayer(newPlayer);
+        alert('Thêm cầu thủ mới thành công!');
+      }
+      
+      this.closePlayerFormModal();
+    } catch (error) {
+      console.error('Error saving player:', error);
+      alert('Có lỗi xảy ra khi lưu thông tin cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  // Delete Modal Methods
+  openDeletePlayerModal(player: Player): void {
+    // Find the corresponding PlayerInfo from corePlayersData
+    const playerInfo = this.corePlayersData.find(p => 
+      p.firstName === player.firstName && 
+      p.lastName === player.lastName
+    );
+    
+    if (playerInfo) {
+      this.playerToDelete = playerInfo;
+      this.showDeleteConfirm = true;
+    }
+  }
+
+  closeDeleteConfirm(): void {
+    this.showDeleteConfirm = false;
+    this.playerToDelete = null;
+    this.isSaving = false;
+  }
+
+  async executeDeletePlayer(): Promise<void> {
+    if (!this.playerToDelete?.id) {
+      alert('Không tìm thấy thông tin cầu thủ để xóa!');
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      await this.playerService.deletePlayer(this.playerToDelete.id);
+      alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
+      this.closeDeleteConfirm();
+    } catch (error) {
+      console.error('Error deleting player:', error);
+      alert('Có lỗi xảy ra khi xóa cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
 
   // Admin Action Methods
   async syncWithFirebase(): Promise<void> {
