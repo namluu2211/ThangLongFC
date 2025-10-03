@@ -38,20 +38,12 @@ interface CategoryStats {
       <!-- Header Section -->
       <div class="fund-header mb-4">
         <div class="row align-items-center">
-          <div class="col-md-8">
+          <div class="col-12">
             <h2 class="fund-title mb-0">
               <i class="fas fa-wallet me-2"></i>
               💰 Quản lý Quỹ Đội Bóng
             </h2>
             <p class="text-muted mb-0">Theo dõi thu chi và tài chính đội bóng</p>
-          </div>
-          <div class="col-md-4 text-end">
-            <div class="balance-display">
-              <div class="balance-label">Số dư hiện tại</div>
-              <div class="balance-amount" [class.negative]="fundSummary.currentBalance < 0">
-                {{formatCurrency(fundSummary.currentBalance)}}
-              </div>
-            </div>
           </div>
         </div>
       </div>

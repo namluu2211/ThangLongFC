@@ -86,24 +86,6 @@ import { takeUntil, debounceTime } from 'rxjs/operators';
         
         <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
         
-        <!-- Professional Fund Display -->
-        <div *ngIf="show==='fund'" class="fund-header-card glass interactive slide-up">
-          <div class="fund-info">
-            <div class="fund-icon">
-              <i class="fas fa-coins" [class.spinning]="isLoading"></i>
-            </div>
-            <div class="fund-details">
-              <h2 class="fund-title">Quỹ Hiện Tại</h2>
-              <div class="fund-amount" *ngIf="!isLoading">{{currentFund | number}} VNĐ</div>
-              <div class="fund-amount" *ngIf="isLoading">Đang tải...</div>
-              <div class="fund-status" *ngIf="!isLoading">
-                <span class="status-indicator" [class.positive]="currentFund > 0" [class.negative]="currentFund <= 0"></span>
-                <span class="status-text">{{getFundStatus()}}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         <app-fund *ngIf="show==='fund'" [canEdit]="canEdit"></app-fund>
         <app-stats *ngIf="show==='stats'"></app-stats>
       </div>
