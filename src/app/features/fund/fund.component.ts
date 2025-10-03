@@ -176,35 +176,42 @@ interface CategoryStats {
         <div class="col-lg-4">
           <div class="filter-card">
             <div class="filter-header">
-              <h6 class="mb-0">
-                <i class="fas fa-filter me-2"></i>
-                🔍 Bộ lọc
-              </h6>
+              <div class="filter-title">
+                <i class="fas fa-filter filter-icon"></i>
+                <span>🔍 Bộ lọc</span>
+              </div>
             </div>
             <div class="filter-body">
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label-sm" for="filter-type">Loại giao dịch</label>
-                  <select id="filter-type" class="form-select form-select-sm" [(ngModel)]="filter.type" (change)="applyFilters()">
+              <div class="filter-section">
+                <label class="filter-label">Loại giao dịch</label>
+                <div class="custom-select-wrapper">
+                  <select id="filter-type" class="custom-select" [(ngModel)]="filter.type" (change)="applyFilters()">
                     <option value="">Tất cả</option>
-                    <option value="income">Thu</option>
-                    <option value="expense">Chi</option>
+                    <option value="income">📈 Thu nhập</option>
+                    <option value="expense">📉 Chi tiêu</option>
                   </select>
-                </div>
-                <div class="col-6">
-                  <label class="form-label-sm" for="filter-period">Thời gian</label>
-                  <select id="filter-period" class="form-select form-select-sm" [(ngModel)]="filter.period" (change)="applyFilters()">
-                    <option value="all">Tất cả</option>
-                    <option value="today">Hôm nay</option>
-                    <option value="week">Tuần này</option>
-                    <option value="month">Tháng này</option>
-                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
                 </div>
               </div>
-              <div class="row g-2 mt-2">
-                <div class="col-12">
-                  <label class="form-label-sm" for="filter-search">Tìm kiếm</label>
-                  <input id="filter-search" type="text" class="form-control form-control-sm" [(ngModel)]="filter.search" 
+              
+              <div class="filter-section">
+                <label class="filter-label">Thời gian</label>
+                <div class="custom-select-wrapper">
+                  <select id="filter-period" class="custom-select" [(ngModel)]="filter.period" (change)="applyFilters()">
+                    <option value="all">Tất cả</option>
+                    <option value="today">📅 Hôm nay</option>
+                    <option value="week">📊 Tuần này</option>
+                    <option value="month">🗓️ Tháng này</option>
+                  </select>
+                  <i class="fas fa-chevron-down select-arrow"></i>
+                </div>
+              </div>
+              
+              <div class="filter-section">
+                <label class="filter-label">Tìm kiếm</label>
+                <div class="search-input-wrapper">
+                  <i class="fas fa-search search-icon"></i>
+                  <input id="filter-search" type="text" class="search-input" [(ngModel)]="filter.search" 
                          (input)="applyFilters()" placeholder="Tìm theo mô tả...">
                 </div>
               </div>
@@ -572,27 +579,147 @@ interface CategoryStats {
     /* Filter Card */
     .filter-card {
       background: white;
-      border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.12);
       overflow: hidden;
       height: fit-content;
+      border: 1px solid #e3f2fd;
     }
 
     .filter-header {
-      background: #f8f9fa;
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid #e9ecef;
+      background: linear-gradient(135deg, #1976d2 0%, #2196f3 100%);
+      padding: 1.25rem 1.5rem;
+      color: white;
+    }
+
+    .filter-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .filter-icon {
+      font-size: 1rem;
+      opacity: 0.9;
     }
 
     .filter-body {
       padding: 1.5rem;
+      background: #fafbfc;
     }
 
-    .form-label-sm {
-      font-size: 0.8rem;
+    .filter-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .filter-label {
+      display: block;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: #495057;
-      margin-bottom: 0.25rem;
+      color: #37474f;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Custom Select Styling */
+    .custom-select-wrapper {
+      position: relative;
+    }
+
+    .custom-select {
+      width: 100%;
+      padding: 0.75rem 2.5rem 0.75rem 1rem;
+      border: 2px solid #e1f5fe;
+      border-radius: 12px;
+      background: white;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #37474f;
+      transition: all 0.3s ease;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .custom-select:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+      background: #fafbfc;
+    }
+
+    .custom-select:hover {
+      border-color: #42a5f5;
+      background: #f8fcff;
+    }
+
+    .select-arrow {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #78909c;
+      font-size: 0.8rem;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .custom-select:focus + .select-arrow {
+      color: #1976d2;
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    /* Search Input Styling */
+    .search-input-wrapper {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border: 2px solid #e1f5fe;
+      border-radius: 12px;
+      background: white;
+      font-size: 0.9rem;
+      color: #37474f;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+      background: #fafbfc;
+    }
+
+    .search-input:hover {
+      border-color: #42a5f5;
+      background: #f8fcff;
+    }
+
+    .search-input::placeholder {
+      color: #90a4ae;
+      font-style: italic;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #78909c;
+      font-size: 0.85rem;
+      pointer-events: none;
+    }
+
+    .search-input:focus ~ .search-icon {
+      color: #1976d2;
     }
 
     /* Stats Card */
