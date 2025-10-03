@@ -50,21 +50,21 @@ import { takeUntil, debounceTime } from 'rxjs/operators';
           [class.active]="show === 'list'"
           (click)="show='list'">
           <i class="fas fa-list"></i>
-          <span>Danh sách cầu thủ</span>
+          <span>Danh sách</span>
         </button>
         <button 
           class="nav-btn" 
           [class.active]="show === 'history'"
           (click)="show='history'">
           <i class="fas fa-history"></i>
-          <span>Lịch sử trận đấu</span>
+          <span>Lịch sử</span>
         </button>
         <button 
           class="nav-btn" 
           [class.active]="show === 'fund'"
           (click)="show='fund'">
           <i class="fas fa-wallet"></i>
-          <span>Quỹ hiện tại</span>
+          <span>Tài chính</span>
         </button>
         <button 
           class="nav-btn" 

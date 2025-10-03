@@ -958,19 +958,23 @@ interface TeamMetrics {
     }
 
     .value-cell.matches .metric-value {
-      color: #11998e;
+      color: #2c3e50 !important;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.5);
     }
 
     .value-cell.goals .metric-value {
-      color: #ff6b6b;
+      color: #ffffff !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
 
     .value-cell.assists .metric-value {
-      color: #4fc3f7;
+      color: #ffffff !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
 
     .value-cell.cards .metric-value {
-      color: #f093fb;
+      color: #ffeb3b !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
 
     .metric-description {
@@ -2349,12 +2353,25 @@ export class StatsComponent implements OnInit, OnDestroy {
 
   private loadHistory() {
     // Use the same data source as history component
-    this.history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
+    const matchHistoryData = localStorage.getItem('matchHistory') || '[]';
+    this.history = JSON.parse(matchHistoryData);
+    
+    // Debug: Check what we loaded
+    console.log('📊 Stats component loaded history:', {
+      rawData: matchHistoryData,
+      parsedLength: this.history.length,
+      firstMatch: this.history[0] || 'No matches'
+    });
+    
     this.initializeAI(); // Initialize AI data after loading history
   }
 
   private calculateStats() {
-    if (!this.history.length) return;
+    console.log('📊 calculateStats() called with history length:', this.history.length);
+    if (!this.history.length) {
+      console.warn('⚠️ No match history data available for stats calculation');
+      return;
+    }
 
     // Group matches by month and calculate all stats
     interface Player {
@@ -2514,6 +2531,17 @@ export class StatsComponent implements OnInit, OnDestroy {
       totalYellowCards: allPlayersList.reduce((sum, p) => sum + p.yellowCards, 0),
       totalRedCards: allPlayersList.reduce((sum, p) => sum + p.redCards, 0)
     };
+
+    // Debug: Check calculated stats
+    console.log('📊 Calculated overallStats:', {
+      totalMatches: this.overallStats.totalMatches,
+      totalGoals: this.overallStats.totalGoals,
+      totalAssists: this.overallStats.totalAssists,
+      totalYellowCards: this.overallStats.totalYellowCards,
+      totalRedCards: this.overallStats.totalRedCards,
+      playersCount: allPlayersList.length,
+      samplePlayer: allPlayersList[0] || 'No players'
+    });
   }
 
   private parsePlayerStatFromField(statField: string, playerName: string): number {

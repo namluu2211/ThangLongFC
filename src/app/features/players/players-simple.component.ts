@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Player } from './player-utils';
 import { PerformanceService } from '../../services/performance.service';
 import { AssetOptimizationService } from '../../services/asset-optimization.service';
+import { PlayerService } from '../../core/services/player.service';
+import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 
 @Component({
   selector: 'app-players-simple',
@@ -64,6 +66,19 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
               <option value="height">Height</option>
               <option value="weight">Weight</option>
             </select>
+          </div>
+
+          <!-- Player Management Actions -->
+          <div class="control-group">
+            <span class="control-label">⚽ Player Management:</span>
+            <div class="button-group">
+              <button 
+                (click)="openCreatePlayerModal()" 
+                class="action-btn add-btn"
+                title="Thêm cầu thủ mới">
+                <i class="fas fa-user-plus"></i> Thêm cầu thủ
+              </button>
+            </div>
           </div>
 
           <!-- View Mode -->
@@ -181,6 +196,18 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
               <button (click)="viewPlayerDetails(player)" class="detail-btn">
                 <i class="fas fa-info-circle"></i> Details
               </button>
+              <button 
+                (click)="openEditPlayerModal(player); $event.stopPropagation()"
+                class="action-btn edit-btn"
+                title="Chỉnh sửa cầu thủ">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button 
+                (click)="confirmDeletePlayer(player); $event.stopPropagation()"
+                class="action-btn delete-btn"
+                title="Xóa cầu thủ">
+                <i class="fas fa-trash"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -211,6 +238,18 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
               <button (click)="viewPlayerDetails(player)" class="list-action-btn">
                 <i class="fas fa-eye"></i>
               </button>
+              <button 
+                (click)="openEditPlayerModal(player)" 
+                class="list-action-btn edit-btn"
+                title="Chỉnh sửa cầu thủ">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button 
+                (click)="confirmDeletePlayer(player)" 
+                class="list-action-btn delete-btn"
+                title="Xóa cầu thủ">
+                <i class="fas fa-trash"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -225,6 +264,161 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       </div>
 
       <!-- Player Detail Modal - Now dynamically rendered at document.body level -->
+
+      <!-- Admin Player Management Modal -->
+      <div *ngIf="showPlayerModal" class="modal-overlay" (click)="closePlayerFormModal()">
+        <div class="player-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-user-edit me-2"></i>
+              {{ isEditMode ? 'Chỉnh sửa cầu thủ' : 'Thêm cầu thủ mới' }}
+            </h3>
+            <button class="close-btn" (click)="closePlayerFormModal()">×</button>
+          </div>
+          
+          <div class="modal-content">
+            <form #playerForm="ngForm" (ngSubmit)="savePlayerData()">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="firstName">Tên *</label>
+                  <input 
+                    type="text" 
+                    id="firstName"
+                    name="firstName"
+                    [(ngModel)]="playerFormData.firstName" 
+                    required 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="lastName">Họ</label>
+                  <input 
+                    type="text" 
+                    id="lastName"
+                    name="lastName"
+                    [(ngModel)]="playerFormData.lastName" 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="position">Vị trí *</label>
+                  <select 
+                    id="position"
+                    name="position"
+                    [(ngModel)]="playerFormData.position" 
+                    required 
+                    class="form-control">
+                    <option value="">Chọn vị trí</option>
+                    <option value="Thủ môn">Thủ môn</option>
+                    <option value="Hậu vệ">Hậu vệ</option>
+                    <option value="Trung vệ">Trung vệ</option>
+                    <option value="Tiền vệ">Tiền vệ</option>
+                    <option value="Tiền đạo">Tiền đạo</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="dateOfBirth">Ngày sinh</label>
+                  <input 
+                    type="date" 
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    [(ngModel)]="playerFormData.dateOfBirth" 
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="height">Chiều cao (cm)</label>
+                  <input 
+                    type="number" 
+                    id="height"
+                    name="height"
+                    [(ngModel)]="playerFormData.height" 
+                    min="0"
+                    max="250"
+                    class="form-control">
+                </div>
+                
+                <div class="form-group">
+                  <label for="weight">Cân nặng (kg)</label>
+                  <input 
+                    type="number" 
+                    id="weight"
+                    name="weight"
+                    [(ngModel)]="playerFormData.weight" 
+                    min="0"
+                    max="200"
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-group full-width">
+                <label for="notes">Ghi chú</label>
+                <textarea 
+                  id="notes"
+                  name="notes"
+                  [(ngModel)]="playerFormData.notes" 
+                  rows="3"
+                  class="form-control"
+                  placeholder="Thông tin thêm về cầu thủ..."></textarea>
+              </div>
+              
+              <div class="form-group full-width">
+                <label for="avatar">Avatar URL</label>
+                <input 
+                  type="url" 
+                  id="avatar"
+                  name="avatar"
+                  [(ngModel)]="playerFormData.avatar" 
+                  class="form-control"
+                  placeholder="https://example.com/avatar.jpg">
+              </div>
+              
+              <div class="modal-actions">
+                <button type="button" class="btn-cancel" (click)="closePlayerFormModal()">
+                  <i class="fas fa-times me-1"></i>Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  class="btn-save" 
+                  [disabled]="!playerForm.form.valid || isSaving">
+                  <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-save me-1'"></i>
+                  {{ isSaving ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Thêm mới') }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div *ngIf="showDeleteConfirm" class="modal-overlay" (click)="closeDeleteConfirm()">
+        <div class="confirm-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              Xác nhận xóa
+            </h3>
+          </div>
+          <div class="modal-content">
+            <p>Bạn có chắc chắn muốn xóa cầu thủ <strong>{{ playerToDelete?.firstName }} {{ playerToDelete?.lastName }}</strong>?</p>
+            <p class="warning-text">Hành động này không thể hoàn tác!</p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeDeleteConfirm()">
+              <i class="fas fa-times me-1"></i>Hủy
+            </button>
+            <button 
+              type="button" 
+              class="btn-delete" 
+              (click)="executeDeletePlayer()"
+              [disabled]="isSaving">
+              <i [class]="isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-trash me-1'"></i>
+              {{ isSaving ? 'Đang xóa...' : 'Xóa' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -900,11 +1094,276 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
         font-size: 0.9rem;
       }
     }
+
+    /* Player Management Styles */
+    .action-btn {
+      padding: 8px 12px;
+      margin: 0 4px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .add-btn {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+    }
+
+    .add-btn:hover {
+      background: linear-gradient(135deg, #45a049, #3d8b40);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .edit-btn {
+      background: linear-gradient(135deg, #2196F3, #1976D2);
+      color: white;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    .edit-btn:hover {
+      background: linear-gradient(135deg, #1976D2, #1565C0);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(33, 150, 243, 0.3);
+    }
+
+    .delete-btn {
+      background: linear-gradient(135deg, #f44336, #d32f2f);
+      color: white;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    .delete-btn:hover {
+      background: linear-gradient(135deg, #d32f2f, #c62828);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(244, 67, 54, 0.3);
+    }
+
+    .list-action-btn.edit-btn,
+    .list-action-btn.delete-btn {
+      padding: 4px 8px;
+      margin: 0 2px;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+
+    .player-modal, .confirm-modal {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #f5f5f5, #fafafa);
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: #333;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .close-btn:hover {
+      background: rgba(0, 0, 0, 0.1);
+      color: #333;
+    }
+
+    .modal-content {
+      padding: 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-group label {
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .form-control {
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+      border-color: #2196F3;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .btn-cancel, .btn-save, .btn-delete {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-cancel {
+      background: #f5f5f5;
+      color: #666;
+      border: 2px solid #e0e0e0;
+    }
+
+    .btn-cancel:hover {
+      background: #eeeeee;
+      color: #333;
+    }
+
+    .btn-save {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+    }
+
+    .btn-save:hover:not(:disabled) {
+      background: linear-gradient(135deg, #45a049, #3d8b40);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-delete {
+      background: linear-gradient(135deg, #f44336, #d32f2f);
+      color: white;
+    }
+
+    .btn-delete:hover:not(:disabled) {
+      background: linear-gradient(135deg, #d32f2f, #c62828);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+    }
+
+    .btn-delete:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .warning-text {
+      color: #f44336;
+      font-weight: 500;
+      font-style: italic;
+    }
+
+    .me-1 { margin-right: 4px; }
+    .me-2 { margin-right: 8px; }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .player-modal, .confirm-modal {
+        width: 95%;
+        max-height: 85vh;
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      .modal-actions {
+        flex-direction: column;
+      }
+      
+      .btn-cancel, .btn-save, .btn-delete {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   `]
 })
 export class PlayersSimpleComponent implements OnInit, OnDestroy {
   private readonly performanceService = inject(PerformanceService);
   private readonly assetService = inject(AssetOptimizationService);
+  private readonly playerService = inject(PlayerService);
   private componentLoadId: string | null = null;
   
   allPlayers: Player[] = [];
@@ -921,6 +1380,15 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   sortBy = 'firstName';
   viewMode: 'grid' | 'list' = 'list';
   availablePositions: string[] = [];
+
+  // Player Management Properties
+  showPlayerModal = false;
+  showDeleteConfirm = false;
+  isEditMode = false;
+  isSaving = false;
+  playerFormData: Partial<PlayerInfo> = {};
+  playerToDelete: PlayerInfo | null = null;
+  corePlayersData: PlayerInfo[] = [];
 
   ngOnInit() {
     // Start performance monitoring for this component
@@ -1369,6 +1837,124 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   onModalKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       this.closePlayerDetails();
+    }
+  }
+
+  // Player Management Methods
+  openCreatePlayerModal(): void {
+    this.isEditMode = false;
+    this.playerFormData = {
+      firstName: '',
+      lastName: '',
+      position: '',
+      dateOfBirth: '',
+      height: undefined,
+      weight: undefined,
+      notes: '',
+      avatar: ''
+    };
+    this.showPlayerModal = true;
+  }
+
+  openEditPlayerModal(player: Player): void {
+    // Find the corresponding PlayerInfo from corePlayersData
+    const playerInfo = this.corePlayersData.find(p => 
+      p.firstName === player.firstName && 
+      p.lastName === player.lastName
+    );
+    
+    if (playerInfo) {
+      this.isEditMode = true;
+      this.playerFormData = { ...playerInfo };
+      this.showPlayerModal = true;
+    }
+  }
+
+  closePlayerFormModal(): void {
+    this.showPlayerModal = false;
+    this.playerFormData = {};
+    this.isEditMode = false;
+    this.isSaving = false;
+  }
+
+  async savePlayerData(): Promise<void> {
+    if (!this.playerFormData.firstName || !this.playerFormData.position) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      if (this.isEditMode && this.playerFormData.id) {
+        // Update existing player
+        await this.playerService.updatePlayer(this.playerFormData.id, this.playerFormData);
+        alert('Cập nhật cầu thủ thành công!');
+      } else {
+        // Create new player
+        const newPlayer = {
+          firstName: this.playerFormData.firstName!,
+          lastName: this.playerFormData.lastName || '',
+          position: this.playerFormData.position!,
+          dateOfBirth: this.playerFormData.dateOfBirth || '',
+          height: this.playerFormData.height || 0,
+          weight: this.playerFormData.weight || 0,
+          notes: this.playerFormData.notes || '',
+          avatar: this.playerFormData.avatar || '',
+          isRegistered: true,
+          status: PlayerStatus.ACTIVE
+        };
+        await this.playerService.createPlayer(newPlayer);
+        alert('Thêm cầu thủ mới thành công!');
+      }
+      
+      this.closePlayerFormModal();
+      // Refresh the player list
+      await this.testLoadPlayers();
+    } catch (error) {
+      console.error('Error saving player:', error);
+      alert('Có lỗi xảy ra khi lưu thông tin cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  confirmDeletePlayer(player: Player): void {
+    // Find the corresponding PlayerInfo from corePlayersData
+    const playerInfo = this.corePlayersData.find(p => 
+      p.firstName === player.firstName && 
+      p.lastName === player.lastName
+    );
+    
+    if (playerInfo) {
+      this.playerToDelete = playerInfo;
+      this.showDeleteConfirm = true;
+    }
+  }
+
+  closeDeleteConfirm(): void {
+    this.showDeleteConfirm = false;
+    this.playerToDelete = null;
+    this.isSaving = false;
+  }
+
+  async executeDeletePlayer(): Promise<void> {
+    if (!this.playerToDelete?.id) {
+      alert('Không tìm thấy thông tin cầu thủ để xóa!');
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      await this.playerService.deletePlayer(this.playerToDelete.id);
+      alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
+      this.closeDeleteConfirm();
+      // Refresh the player list
+      await this.testLoadPlayers();
+    } catch (error) {
+      console.error('Error deleting player:', error);
+      alert('Có lỗi xảy ra khi xóa cầu thủ!');
+    } finally {
+      this.isSaving = false;
     }
   }
 
