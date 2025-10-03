@@ -1,6 +1,8 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { Player } from './player-utils';
 import { PerformanceService } from '../../services/performance.service';
 import { AssetOptimizationService } from '../../services/asset-optimization.service';
@@ -1364,6 +1366,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   private readonly performanceService = inject(PerformanceService);
   private readonly assetService = inject(AssetOptimizationService);
   private readonly playerService = inject(PlayerService);
+  private readonly destroy$ = new Subject<void>();
   private componentLoadId: string | null = null;
   
   allPlayers: Player[] = [];
@@ -1393,7 +1396,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   ngOnInit() {
     // Start performance monitoring for this component
     this.componentLoadId = this.performanceService.startComponentLoad('PlayersSimpleComponent');
-    this.testLoadPlayers();
+    this.loadPlayersFromService();
   }
 
   async testLoadPlayers() {
@@ -1840,6 +1843,71 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Load players from PlayerService (Firebase)
+  async loadPlayersFromService() {
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    try {
+      console.log('🔄 Loading players from PlayerService...');
+      
+      // Force PlayerService to reload data
+      await this.playerService.refreshPlayers();
+      
+      // Subscribe to core players data
+      this.playerService.players$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (corePlayersData) => {
+            console.log('📥 Received players data from PlayerService:', corePlayersData.length);
+            this.corePlayersData = corePlayersData;
+            this.convertCorePlayersToLegacyFormat(corePlayersData);
+            this.processPlayersData();
+            this.isLoading = false;
+            
+            // Complete performance monitoring after successful load
+            if (this.componentLoadId) {
+              this.performanceService.endComponentLoad(this.componentLoadId, 'PlayersSimpleComponent');
+              this.componentLoadId = null;
+            }
+          },
+          error: (error) => {
+            console.error('❌ Error loading players from service:', error);
+            this.errorMessage = `Error loading players: ${error}`;
+            this.isLoading = false;
+            
+            // Fallback to JSON file if service fails
+            this.testLoadPlayers();
+          }
+        });
+      
+    } catch (error) {
+      console.error('❌ Error in loadPlayersFromService:', error);
+      this.errorMessage = `Service error: ${error}`;
+      this.isLoading = false;
+      
+      // Fallback to JSON file
+      this.testLoadPlayers();
+    }
+  }
+
+  // Convert PlayerInfo[] to Player[] format for compatibility
+  convertCorePlayersToLegacyFormat(corePlayersData: PlayerInfo[]) {
+    this.allPlayers = corePlayersData.map(playerInfo => ({
+      id: playerInfo.id || 0,
+      firstName: playerInfo.firstName || '',
+      lastName: playerInfo.lastName || '',
+      position: playerInfo.position || '',
+      avatar: playerInfo.avatar || `${playerInfo.firstName}.png`,
+      DOB: playerInfo.dateOfBirth || '',
+      height: playerInfo.height || 0,
+      weight: playerInfo.weight || 0,
+      note: playerInfo.notes || ''
+    } as Player));
+    
+    console.log('🔄 Converted core players to legacy format:', this.allPlayers.length);
+  }
+
   // Player Management Methods
   openCreatePlayerModal(): void {
     this.isEditMode = false;
@@ -1857,16 +1925,25 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   openEditPlayerModal(player: Player): void {
+    console.log('🔧 Edit button clicked for player:', player);
+    console.log('📊 Available corePlayersData:', this.corePlayersData.length);
+    
     // Find the corresponding PlayerInfo from corePlayersData
     const playerInfo = this.corePlayersData.find(p => 
       p.firstName === player.firstName && 
       p.lastName === player.lastName
     );
     
+    console.log('🔍 Found playerInfo:', playerInfo);
+    
     if (playerInfo) {
       this.isEditMode = true;
       this.playerFormData = { ...playerInfo };
       this.showPlayerModal = true;
+      console.log('✅ Modal should be shown now');
+    } else {
+      console.error('❌ No matching PlayerInfo found for:', player);
+      alert('Could not find player data for editing. Please try refreshing the page.');
     }
   }
 
@@ -1919,15 +1996,24 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   confirmDeletePlayer(player: Player): void {
+    console.log('🗑️ Delete button clicked for player:', player);
+    console.log('📊 Available corePlayersData:', this.corePlayersData.length);
+    
     // Find the corresponding PlayerInfo from corePlayersData
     const playerInfo = this.corePlayersData.find(p => 
       p.firstName === player.firstName && 
       p.lastName === player.lastName
     );
     
+    console.log('🔍 Found playerInfo for deletion:', playerInfo);
+    
     if (playerInfo) {
       this.playerToDelete = playerInfo;
       this.showDeleteConfirm = true;
+      console.log('✅ Delete confirmation modal should be shown now');
+    } else {
+      console.error('❌ No matching PlayerInfo found for deletion:', player);
+      alert('Could not find player data for deletion. Please try refreshing the page.');
     }
   }
 
@@ -1959,6 +2045,10 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    // Complete any ongoing subscriptions
+    this.destroy$.next();
+    this.destroy$.complete();
+    
     // End performance monitoring for this component
     if (this.componentLoadId) {
       this.performanceService.endComponentLoad(this.componentLoadId, 'PlayersSimpleComponent');
