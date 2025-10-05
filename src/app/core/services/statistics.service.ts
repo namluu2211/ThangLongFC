@@ -5,10 +5,11 @@
 
 import { Injectable, inject } from '@angular/core';
 import { Observable, combineLatest, BehaviorSubject } from 'rxjs';
-import { map, shareReplay } from 'rxjs/operators';
+import { map, shareReplay, take } from 'rxjs/operators';
 import { PlayerInfo } from '../models/player.model';
 import { MatchInfo } from '../models/match.model';
 import { DataStoreService, FundTransaction } from './data-store.service';
+import { FirebaseService, StatisticsEntry, StatisticsData } from '../../services/firebase.service';
 
 export interface PlayerStatistics {
   playerId: string;
@@ -185,6 +186,7 @@ export interface ComparisonAnalytics {
 })
 export class StatisticsService {
   private readonly dataStore = inject(DataStoreService);
+  private readonly firebaseService = inject(FirebaseService);
 
   // Cached observables for performance
   private readonly playerStatistics$ = new BehaviorSubject<PlayerStatistics[]>([]);
@@ -193,6 +195,7 @@ export class StatisticsService {
 
   constructor() {
     this.initializeStatistics();
+    this.initializeFirebaseSync();
   }
 
   // Player statistics
@@ -1088,5 +1091,150 @@ export class StatisticsService {
     });
 
     console.log('✅ Statistics service initialized');
+  }
+
+  // Firebase Sync Methods
+  private initializeFirebaseSync(): void {
+    // Auto-sync statistics to Firebase periodically
+    this.getPlayerStatistics().subscribe(async (playerStats) => {
+      try {
+        await this.syncPlayerStatisticsToFirebase(playerStats);
+      } catch (error) {
+        console.error('❌ Failed to sync player statistics to Firebase:', error);
+      }
+    });
+
+    this.getTeamStatistics().subscribe(async (teamStats) => {
+      if (teamStats) {
+        try {
+          await this.syncTeamStatisticsToFirebase(teamStats);
+        } catch (error) {
+          console.error('❌ Failed to sync team statistics to Firebase:', error);
+        }
+      }
+    });
+
+    this.getFundAnalytics().subscribe(async (fundAnalytics) => {
+      if (fundAnalytics) {
+        try {
+          await this.syncFundAnalyticsToFirebase(fundAnalytics);
+        } catch (error) {
+          console.error('❌ Failed to sync fund analytics to Firebase:', error);
+        }
+      }
+    });
+
+    console.log('✅ Firebase statistics sync initialized');
+  }
+
+  async syncPlayerStatisticsToFirebase(playerStats: PlayerStatistics[]): Promise<void> {
+    for (const playerStat of playerStats) {
+      const data: StatisticsData = {
+        totalMatches: playerStat.performance.totalMatches,
+        totalGoals: playerStat.performance.goalsScored,
+        playerName: playerStat.playerName,
+        winRate: playerStat.performance.winRate,
+        totalRevenue: playerStat.financial.totalRevenue,
+        totalExpenses: playerStat.financial.penaltiesPaid
+      };
+
+      const entry: Omit<StatisticsEntry, 'id'> = {
+        type: 'player',
+        period: 'monthly',
+        date: new Date().toISOString(),
+        data: data,
+        calculatedAt: new Date().toISOString(),
+        calculatedBy: 'system'
+      };
+
+      await this.firebaseService.addStatisticsEntry(entry);
+    }
+  }
+
+  async syncTeamStatisticsToFirebase(teamStats: TeamStatistics): Promise<void> {
+    const data: StatisticsData = {
+      totalMatches: teamStats.performance.totalMatches,
+      totalGoals: teamStats.performance.averageGoalsScored,
+      winRate: teamStats.performance.winRate,
+      totalRevenue: teamStats.financial.totalRevenue,
+      totalExpenses: teamStats.financial.totalExpenses,
+      playerCount: teamStats.teamComposition.totalPlayers
+    };
+
+    const entry: Omit<StatisticsEntry, 'id'> = {
+      type: 'team',
+      period: 'monthly',
+      date: new Date().toISOString(),
+      data: data,
+      calculatedAt: new Date().toISOString(),
+      calculatedBy: 'system'
+    };
+
+    await this.firebaseService.addStatisticsEntry(entry);
+  }
+
+  async syncFundAnalyticsToFirebase(fundAnalytics: FundAnalytics): Promise<void> {
+    const data: StatisticsData = {
+      totalRevenue: fundAnalytics.overview.totalIncome,
+      totalExpenses: fundAnalytics.overview.totalExpenses,
+      averageGoalsPerMatch: fundAnalytics.overview.growthRate
+    };
+
+    const entry: Omit<StatisticsEntry, 'id'> = {
+      type: 'financial',
+      period: 'monthly',
+      date: new Date().toISOString(),
+      data: data,
+      calculatedAt: new Date().toISOString(),
+      calculatedBy: 'system'
+    };
+
+    await this.firebaseService.addStatisticsEntry(entry);
+  }
+
+  // Get statistics from Firebase
+  getStatisticsFromFirebase(): Observable<StatisticsEntry[]> {
+    return this.firebaseService.statistics$;
+  }
+
+  // Get specific player statistics from Firebase
+  getPlayerStatisticsFromFirebase(): Observable<StatisticsEntry[]> {
+    return this.firebaseService.statistics$.pipe(
+      map((entries: StatisticsEntry[]) => entries.filter(entry => 
+        entry.type === 'player'
+      ))
+    );
+  }
+
+  // Get team statistics from Firebase
+  getTeamStatisticsFromFirebase(): Observable<StatisticsEntry[]> {
+    return this.firebaseService.statistics$.pipe(
+      map((entries: StatisticsEntry[]) => entries.filter(entry => entry.type === 'team'))
+    );
+  }
+
+  // Get fund analytics from Firebase
+  getFundAnalyticsFromFirebase(): Observable<StatisticsEntry[]> {
+    return this.firebaseService.statistics$.pipe(
+      map((entries: StatisticsEntry[]) => entries.filter(entry => entry.type === 'financial'))
+    );
+  }
+
+  // Clear all statistics from Firebase
+  async clearStatisticsFromFirebase(): Promise<void> {
+    try {
+      const statistics = await this.firebaseService.statistics$.pipe(take(1)).toPromise();
+      if (statistics) {
+        for (const entry of statistics) {
+          if (entry.id) {
+            await this.firebaseService.deleteStatisticsEntry(entry.id);
+          }
+        }
+      }
+      console.log('✅ All statistics cleared from Firebase');
+    } catch (error) {
+      console.error('❌ Failed to clear statistics from Firebase:', error);
+      throw error;
+    }
   }
 }

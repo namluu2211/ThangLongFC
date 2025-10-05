@@ -5,12 +5,12 @@
 
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest, timer, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, take } from 'rxjs/operators';
 import { PlayerInfo } from '../models/player.model';
 import { MatchInfo } from '../models/match.model';
 import { PlayerService } from './player.service';
 import { MatchService } from './match.service';
-import { FirebaseService } from '../../services/firebase.service';
+import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 
 export interface AppState {
   players: {
@@ -296,6 +296,23 @@ export class DataStoreService {
     // Save to localStorage
     await this.saveFundToStorage();
 
+    // Also save to Firebase Realtime Database
+    try {
+      const firebaseId = await this.firebaseService.addFundTransaction({
+        type: transaction.type,
+        amount: transaction.amount,
+        description: transaction.description,
+        category: transaction.category,
+        matchId: transaction.matchId,
+        date: transaction.date,
+        createdBy: transaction.createdBy
+      });
+      console.log('✅ Fund transaction synced to Firebase:', firebaseId);
+    } catch (error) {
+      console.warn('⚠️ Failed to sync fund transaction to Firebase:', error);
+      // Continue operation even if Firebase sync fails
+    }
+
     console.log('✅ Fund transaction added:', newTransaction);
     return newTransaction;
   }
@@ -329,8 +346,230 @@ export class DataStoreService {
     // Save to localStorage
     await this.saveFundToStorage();
 
+    // Also remove from Firebase Realtime Database
+    try {
+      await this.firebaseService.deleteFundTransaction(transactionId);
+      console.log('✅ Fund transaction removed from Firebase:', transactionId);
+    } catch (error) {
+      console.warn('⚠️ Failed to remove fund transaction from Firebase:', error);
+      // Continue operation even if Firebase sync fails
+    }
+
     console.log('✅ Fund transaction removed:', transactionId);
     return true;
+  }
+
+  // Fund synchronization with match history
+  async syncFundWithMatchHistory(matchHistory: HistoryEntry[]): Promise<{
+    transactionsAdded: number;
+    fundBalanceUpdated: boolean;
+    errors: string[];
+  }> {
+    console.log('🔄 Starting fund synchronization with match history...');
+    
+    const result = {
+      transactionsAdded: 0,
+      fundBalanceUpdated: false,
+      errors: [] as string[]
+    };
+
+    try {
+      const currentTransactions = this._appState$.value.fund.history;
+      const transactionsToAdd: Omit<FundTransaction, 'id' | 'createdAt'>[] = [];
+
+      // Analyze each match in history
+      for (const match of matchHistory) {
+        try {
+          const matchDate = match.date || new Date().toISOString().split('T')[0];
+          const matchTransactions = this.generateTransactionsFromMatch(match, matchDate);
+          
+          // Check for existing transactions to avoid duplicates
+          for (const transaction of matchTransactions) {
+            const exists = currentTransactions.some(existing => 
+              existing.description === transaction.description &&
+              existing.date === transaction.date &&
+              existing.amount === transaction.amount &&
+              existing.type === transaction.type
+            );
+
+            if (!exists) {
+              transactionsToAdd.push(transaction);
+            }
+          }
+        } catch (error) {
+          result.errors.push(`Error processing match ${match.id || 'unknown'}: ${(error as Error).message}`);
+        }
+      }
+
+      // Add new transactions
+      for (const transaction of transactionsToAdd) {
+        await this.addFundTransaction(transaction);
+        result.transactionsAdded++;
+      }
+
+      result.fundBalanceUpdated = result.transactionsAdded > 0;
+      
+      console.log(`✅ Fund sync completed: ${result.transactionsAdded} transactions added`);
+      return result;
+
+    } catch (error) {
+      result.errors.push(`Fund sync failed: ${error.message}`);
+      console.error('❌ Fund synchronization failed:', error);
+      return result;
+    }
+  }
+
+  private generateTransactionsFromMatch(match: HistoryEntry, matchDate: string): Omit<FundTransaction, 'id' | 'createdAt'>[] {
+    const transactions: Omit<FundTransaction, 'id' | 'createdAt'>[] = [];
+
+    // Generate income transactions
+    if (match.thu && match.thu > 0) {
+      transactions.push({
+        type: 'income',
+        amount: match.thu,
+        description: `Thu nhập từ trận đấu ngày ${matchDate}`,
+        category: 'match_fee',
+        date: matchDate,
+        createdBy: 'history-sync'
+      });
+    }
+
+    // Generate expense transactions
+    if (match.chi_san && match.chi_san > 0) {
+      transactions.push({
+        type: 'expense',
+        amount: match.chi_san,
+        description: `Chi phí sân bóng - ${matchDate}`,
+        category: 'field_rental',
+        date: matchDate,
+        createdBy: 'history-sync'
+      });
+    }
+
+    if (match.chi_trongtai && match.chi_trongtai > 0) {
+      transactions.push({
+        type: 'expense',
+        amount: match.chi_trongtai,
+        description: `Chi phí trọng tài - ${matchDate}`,
+        category: 'referee_fee',
+        date: matchDate,
+        createdBy: 'history-sync'
+      });
+    }
+
+    if (match.chi_nuoc && match.chi_nuoc > 0) {
+      transactions.push({
+        type: 'expense',
+        amount: match.chi_nuoc,
+        description: `Chi phí nước uống - ${matchDate}`,
+        category: 'refreshments',
+        date: matchDate,
+        createdBy: 'history-sync'
+      });
+    }
+
+    return transactions;
+  }
+
+  async recalculateFundBalanceFromHistory(): Promise<{
+    oldBalance: number;
+    newBalance: number;
+    transactionCount: number;
+  }> {
+    console.log('🔄 Recalculating fund balance from transaction history...');
+    
+    const currentState = this._appState$.value;
+    const oldBalance = currentState.fund.current;
+    
+    // Calculate balance from all transactions
+    const newBalance = currentState.fund.history.reduce((balance, transaction) => {
+      return transaction.type === 'income' 
+        ? balance + transaction.amount
+        : balance - transaction.amount;
+    }, 0);
+
+    // Update the fund balance
+    this.updateAppState(state => ({
+      ...state,
+      fund: {
+        ...state.fund,
+        current: newBalance,
+        lastUpdated: new Date().toISOString()
+      }
+    }));
+
+    await this.saveFundToStorage();
+
+    console.log(`✅ Fund balance recalculated: ${oldBalance} → ${newBalance}`);
+    
+    return {
+      oldBalance,
+      newBalance,
+      transactionCount: currentState.fund.history.length
+    };
+  }
+
+  async syncFundTransactionsToFirebase(): Promise<{
+    synced: number;
+    errors: string[];
+  }> {
+    console.log('🔄 Starting fund transactions sync to Firebase...');
+    
+    const result = {
+      synced: 0,
+      errors: [] as string[]
+    };
+
+    try {
+      const currentState = this._appState$.value;
+      const localTransactions = currentState.fund.history;
+      
+      console.log(`📊 Found ${localTransactions.length} local fund transactions to sync`);
+
+      // Get existing Firebase transactions to avoid duplicates
+      const firebaseTransactions = await new Promise<FundTransaction[]>((resolve) => {
+        this.firebaseService.fundTransactions$.pipe(take(1)).subscribe({
+          next: (transactions) => resolve(transactions as FundTransaction[]),
+          error: () => resolve([])
+        });
+      });
+
+      // Sync each local transaction to Firebase if not already exists
+      for (const transaction of localTransactions) {
+        try {
+          // Check if transaction already exists in Firebase
+          const exists = firebaseTransactions.some(fbTransaction => 
+            fbTransaction.description === transaction.description &&
+            fbTransaction.date === transaction.date &&
+            fbTransaction.amount === transaction.amount &&
+            fbTransaction.type === transaction.type
+          );
+
+          if (!exists) {
+            await this.firebaseService.addFundTransaction({
+              type: transaction.type,
+              amount: transaction.amount,
+              description: transaction.description,
+              category: transaction.category,
+              matchId: transaction.matchId,
+              date: transaction.date,
+              createdBy: transaction.createdBy
+            });
+            result.synced++;
+          }
+        } catch (error) {
+          result.errors.push(`Error syncing transaction ${transaction.id}: ${(error as Error).message}`);
+        }
+      }
+
+      console.log(`✅ Fund transactions sync completed: ${result.synced} synced, ${result.errors.length} errors`);
+      return result;
+
+    } catch (error) {
+      result.errors.push(`Fund sync failed: ${(error as Error).message}`);
+      console.error('❌ Fund transactions sync failed:', error);
+      return result;
+    }
   }
 
   // Statistics and analytics
