@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
+import { Subscription } from 'rxjs';
 
 interface Transaction {
   id: string;
@@ -14,11 +16,17 @@ interface Transaction {
 
 interface FundSummary {
   currentBalance: number;
-  totalIncome: number;
-  totalExpenses: number;
+  totalIncome: number;           // From transactions
+  totalExpenses: number;         // From transactions
   thisMonthIncome: number;
   thisMonthExpenses: number;
   transactionCount: number;
+  // Match history totals
+  matchTotalIncome: number;      // From match history
+  matchTotalExpenses: number;    // From match history
+  // Combined totals (transactions + match history)
+  grandTotalIncome: number;
+  grandTotalExpenses: number;
 }
 
 interface CategoryStats {
@@ -77,16 +85,15 @@ interface CategoryStats {
                       </div>
                     </td>
                     <td class="value-cell income">
-                      <div class="metric-value">{{formatCurrency(fundSummary.totalIncome)}}</div>
+                      <div class="metric-value">{{formatCurrency(fundSummary.grandTotalIncome)}}</div>
                     </td>
                     <td class="detail-cell">
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthIncome > 0">
-                        <i class="fas fa-arrow-up text-success"></i>
-                        +{{formatCurrency(fundSummary.thisMonthIncome)}} tháng này
+                      <div class="metric-detail">
+                        <i class="fas fa-coins text-success"></i>
+                        <span>Từ {{matchHistoryStats.matchCount}} trận + {{getIncomeTransactionCount()}} giao dịch</span>
                       </div>
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthIncome === 0">
-                        <i class="fas fa-minus text-muted"></i>
-                        Chưa có thu nhập tháng này
+                      <div class="metric-detail breakdown-detail">
+                        Trận đấu: {{formatCurrency(fundSummary.matchTotalIncome)}} | Giao dịch: {{formatCurrency(fundSummary.totalIncome)}}
                       </div>
                     </td>
                     <td class="status-cell">
@@ -101,16 +108,15 @@ interface CategoryStats {
                       </div>
                     </td>
                     <td class="value-cell expense">
-                      <div class="metric-value">{{formatCurrency(fundSummary.totalExpenses)}}</div>
+                      <div class="metric-value">{{formatCurrency(fundSummary.grandTotalExpenses)}}</div>
                     </td>
                     <td class="detail-cell">
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthExpenses > 0">
-                        <i class="fas fa-arrow-down text-danger"></i>
-                        -{{formatCurrency(fundSummary.thisMonthExpenses)}} tháng này
+                      <div class="metric-detail">
+                        <i class="fas fa-calculator text-danger"></i>
+                        <span>Từ {{matchHistoryStats.matchCount}} trận + {{getExpenseTransactionCount()}} giao dịch</span>
                       </div>
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthExpenses === 0">
-                        <i class="fas fa-check text-success"></i>
-                        Chưa có chi tiêu tháng này
+                      <div class="metric-detail breakdown-detail">
+                        Trận đấu: {{formatCurrency(fundSummary.matchTotalExpenses)}} | Giao dịch: {{formatCurrency(fundSummary.totalExpenses)}}
                       </div>
                     </td>
                     <td class="status-cell">
@@ -137,27 +143,51 @@ interface CategoryStats {
                       <span class="status-badge transaction">Hoạt động</span>
                     </td>
                   </tr>
-                  <tr class="profit-row">
+                  <tr class="match-history-row">
                     <td class="metric-cell">
                       <div class="metric-info">
-                        <div class="metric-icon profit">⚖️</div>
-                        <div class="metric-name">Lợi nhuận</div>
+                        <div class="metric-icon match-history">⚽</div>
+                        <div class="metric-name">Hòa vốn từ trận đấu</div>
                       </div>
                     </td>
-                    <td class="value-cell profit" [class.negative]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
-                      <div class="metric-value">{{formatCurrency(fundSummary.totalIncome - fundSummary.totalExpenses)}}</div>
+                    <td class="value-cell match-history" [class.negative]="matchHistoryBalance < 0">
+                      <div class="metric-value">{{formatCurrency(matchHistoryBalance)}}</div>
                     </td>
                     <td class="detail-cell">
                       <div class="metric-detail">
-                        <i class="fas fa-calculator text-primary"></i>
-                        Thu - Chi
+                        <i class="fas fa-history text-info"></i>
+                        Từ {{ matchHistory.length }} trận đấu
                       </div>
                     </td>
                     <td class="status-cell">
                       <span class="status-badge" 
-                            [class.profit]="(fundSummary.totalIncome - fundSummary.totalExpenses) >= 0"
-                            [class.loss]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
-                        {{(fundSummary.totalIncome - fundSummary.totalExpenses) >= 0 ? 'Lãi' : 'Lỗ'}}
+                            [class.profit]="matchHistoryBalance >= 0"
+                            [class.loss]="matchHistoryBalance < 0">
+                        {{matchHistoryBalance >= 0 ? 'Có lãi' : 'Thua lỗ'}}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr class="profit-row">
+                    <td class="metric-cell">
+                      <div class="metric-info">
+                        <div class="metric-icon profit">⚖️</div>
+                        <div class="metric-name">Tổng số dư</div>
+                      </div>
+                    </td>
+                    <td class="value-cell profit" [class.negative]="fundSummary.currentBalance < 0">
+                      <div class="metric-value">{{formatCurrency(fundSummary.currentBalance)}}</div>
+                    </td>
+                    <td class="detail-cell">
+                      <div class="metric-detail">
+                        <i class="fas fa-calculator text-primary"></i>
+                        Giao dịch + Hòa vốn trận đấu
+                      </div>
+                    </td>
+                    <td class="status-cell">
+                      <span class="status-badge" 
+                            [class.profit]="fundSummary.currentBalance >= 0"
+                            [class.loss]="fundSummary.currentBalance < 0">
+                        {{fundSummary.currentBalance >= 0 ? 'Dương' : 'Âm'}}
                       </span>
                     </td>
                   </tr>
@@ -279,6 +309,45 @@ interface CategoryStats {
         </div>
       </div>
 
+      <!-- Match History Expense Breakdown -->
+      <div class="row mb-4" *ngIf="matchHistoryStats.matchCount > 0">
+        <div class="col-12">
+          <div class="expense-breakdown-card">
+            <div class="expense-breakdown-header">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                🏟️ Chi phí từ trận đấu ({{matchHistoryStats.matchCount}} trận)
+              </h5>
+            </div>
+            <div class="expense-breakdown-body">
+              <div class="expense-row">
+                <div class="expense-column trongtai">
+                  <div class="expense-icon">👨‍⚖️</div>
+                  <div class="expense-label">TRỌNG TÀI</div>
+                  <div class="expense-amount">{{formatCurrency(matchHistoryStats.expenseBreakdown.trongtai)}}</div>
+                  <div class="expense-percentage">{{getExpensePercentage(matchHistoryStats.expenseBreakdown.trongtai)}}%</div>
+                </div>
+                
+                <div class="expense-column san">
+                  <div class="expense-icon">⚽</div>
+                  <div class="expense-label">TIỀN SÂN</div>
+                  <div class="expense-amount">{{formatCurrency(matchHistoryStats.expenseBreakdown.san)}}</div>
+                  <div class="expense-percentage">{{getExpensePercentage(matchHistoryStats.expenseBreakdown.san)}}%</div>
+                </div>
+                
+                <div class="expense-column nuoc">
+                  <div class="expense-icon">💧</div>
+                  <div class="expense-label">TIỀN NƯỚC</div>
+                  <div class="expense-amount">{{formatCurrency(matchHistoryStats.expenseBreakdown.nuoc)}}</div>
+                  <div class="expense-percentage">{{getExpensePercentage(matchHistoryStats.expenseBreakdown.nuoc)}}%</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Category Statistics -->
       <div class="row mb-4" *ngIf="categoryStats.length > 0">
         <div class="col-12">
@@ -286,7 +355,7 @@ interface CategoryStats {
             <div class="stats-header">
               <h5 class="mb-0">
                 <i class="fas fa-chart-pie me-2"></i>
-                📊 Phân tích theo danh mục
+                📊 Phân tích theo danh mục giao dịch
               </h5>
             </div>
             <div class="stats-body">
@@ -340,6 +409,10 @@ interface CategoryStats {
               📋 Lịch sử giao dịch
             </h5>
             <div class="header-actions">
+              <button class="btn btn-outline-info btn-sm me-2" (click)="refreshMatchHistory()" title="Làm mới dữ liệu từ lịch sử trận đấu">
+                <i class="fas fa-sync-alt me-1"></i>
+                Sync Hòa vốn
+              </button>
               <button class="btn btn-outline-primary btn-sm me-2" (click)="exportTransactions()">
                 <i class="fas fa-download me-1"></i>
                 Xuất Excel
@@ -550,24 +623,25 @@ interface CategoryStats {
     }
 
     .metric-header {
-      width: 25%;
+      width: 22%;
     }
 
     .value-header {
-      width: 25%;
+      width: 23%;
     }
 
     .detail-header {
-      width: 30%;
+      width: 37%;
     }
 
     .status-header {
-      width: 20%;
+      width: 18%;
     }
 
     .summary-table tbody tr {
       transition: all 0.3s ease;
       border-bottom: 1px solid #f1f3f4;
+      min-height: 100px;
     }
 
     .summary-table tbody tr:hover {
@@ -587,6 +661,10 @@ interface CategoryStats {
       border-left: 4px solid #3498db;
     }
 
+    .match-history-row {
+      border-left: 4px solid #17a2b8;
+    }
+
     .profit-row {
       border-left: 4px solid #f39c12;
     }
@@ -594,6 +672,20 @@ interface CategoryStats {
     .summary-table td {
       padding: 1.5rem;
       vertical-align: middle;
+    }
+
+    .detail-cell {
+      padding: 1.5rem 1rem !important;
+      min-width: 300px;
+      vertical-align: top !important;
+    }
+
+    .detail-cell .metric-detail:first-child {
+      margin-bottom: 0.5rem;
+    }
+
+    .detail-cell .metric-detail:last-child {
+      margin-bottom: 0;
     }
 
     .metric-info {
@@ -626,6 +718,10 @@ interface CategoryStats {
       background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
     }
 
+    .metric-icon.match-history {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    }
+
     .metric-icon.profit {
       background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
     }
@@ -654,6 +750,10 @@ interface CategoryStats {
       color: #3498db;
     }
 
+    .value-cell.match-history .metric-value {
+      color: #17a2b8;
+    }
+
     .value-cell.profit .metric-value {
       color: #f39c12;
     }
@@ -668,6 +768,16 @@ interface CategoryStats {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      line-height: 1.5;
+      margin-bottom: 0.25rem;
+    }
+
+    .breakdown-detail {
+      font-size: 0.8rem !important;
+      margin-top: 0.4rem !important;
+      padding-left: 1.5rem;
+      color: #95a5a6 !important;
+      align-items: flex-start !important;
     }
 
     .status-badge {
@@ -891,6 +1001,115 @@ interface CategoryStats {
     .search-input:focus ~ .search-icon {
       color: #1976d2;
     }
+
+    /* Expense Breakdown Card */
+    .expense-breakdown-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .expense-breakdown-header {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+    }
+
+    .expense-breakdown-body {
+      padding: 2rem;
+      background: #f8f9fa;
+    }
+
+    .expense-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .expense-column {
+      flex: 1;
+      background: white;
+      border-radius: 20px;
+      padding: 2rem 1rem;
+      text-align: center;
+      transition: all 0.3s ease;
+      border-top: 6px solid;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .expense-column:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .expense-column.san {
+      border-top-color: #3498db;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fcff 100%);
+    }
+
+    .expense-column.trongtai {
+      border-top-color: #f39c12;
+      background: linear-gradient(135deg, #ffffff 0%, #fffaf0 100%);
+    }
+
+    .expense-column.nuoc {
+      border-top-color: #1abc9c;
+      background: linear-gradient(135deg, #ffffff 0%, #f0fffc 100%);
+    }
+
+    .expense-column .expense-icon {
+      font-size: 3rem;
+      margin-bottom: 1.5rem;
+      display: block;
+    }
+
+    .expense-column.san .expense-icon {
+      color: #3498db;
+    }
+
+    .expense-column.trongtai .expense-icon {
+      color: #f39c12;
+    }
+
+    .expense-column.nuoc .expense-icon {
+      color: #1abc9c;
+    }
+
+    .expense-column .expense-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #7f8c8d;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.8;
+    }
+
+    .expense-column .expense-amount {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+    }
+
+    .expense-column .expense-percentage {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #7f8c8d;
+      opacity: 0.7;
+    }
+
+
 
     /* Stats Card */
     .stats-card {
@@ -1178,7 +1397,26 @@ interface CategoryStats {
       z-index: 1050;
     }
 
-    /* Responsive */
+    /* Tablet Responsive */
+    @media (max-width: 992px) and (min-width: 769px) {
+      .expense-row {
+        gap: 1.5rem;
+      }
+
+      .expense-column {
+        padding: 1.5rem 0.8rem;
+      }
+
+      .expense-column .expense-icon {
+        font-size: 2.2rem;
+      }
+
+      .expense-column .expense-amount {
+        font-size: 1.4rem;
+      }
+    }
+
+    /* Mobile Responsive */
     @media (max-width: 768px) {
       .fund-title {
         font-size: 1.5rem;
@@ -1228,14 +1466,67 @@ interface CategoryStats {
       .header-actions {
         flex-direction: column;
       }
+
+      .expense-breakdown-body {
+        padding: 1rem;
+      }
+
+      .expense-row {
+        flex-direction: column;
+        gap: 1rem;
+        max-width: 100%;
+      }
+
+      .expense-column {
+        padding: 1.5rem 1rem;
+        min-height: 150px;
+      }
+
+      .expense-column .expense-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .expense-column .expense-amount {
+        font-size: 1.2rem;
+      }
+
+      .expense-column .expense-label {
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .expense-column .expense-percentage {
+        font-size: 0.9rem;
+      }
     }
   `]
 })
-export class FundComponent implements OnInit {
+export class FundComponent implements OnInit, OnDestroy {
+  private firebaseService = inject(FirebaseService);
+  
   // Transaction Management
   transactions: Transaction[] = [];
   filteredTransactions: Transaction[] = [];
   paginatedTransactions: Transaction[] = [];
+  
+  // Match History Integration
+  matchHistory: HistoryEntry[] = [];
+  matchHistoryBalance = 0;
+  
+  // Match History Financial Statistics
+  matchHistoryStats = {
+    totalRevenue: 0,
+    totalExpenses: 0,
+    expenseBreakdown: {
+      san: 0,      // Sân
+      trongtai: 0, // Trọng tài
+      nuoc: 0,     // Nước
+      other: 0     // Khác
+    },
+    matchCount: 0
+  };
+  private historySubscription?: Subscription;
   
   // UI State
   showResetModal = false;
@@ -1264,20 +1555,83 @@ export class FundComponent implements OnInit {
     totalExpenses: 0,
     thisMonthIncome: 0,
     thisMonthExpenses: 0,
-    transactionCount: 0
+    transactionCount: 0,
+    matchTotalIncome: 0,
+    matchTotalExpenses: 0,
+    grandTotalIncome: 0,
+    grandTotalExpenses: 0
   };
   
   categoryStats: CategoryStats[] = [];
 
   ngOnInit() {
     this.loadTransactions();
+    this.loadMatchHistory();
     this.calculateSummary();
     this.applyFilters();
+  }
+
+  ngOnDestroy() {
+    // Clean up subscription to prevent memory leaks
+    if (this.historySubscription) {
+      this.historySubscription.unsubscribe();
+    }
   }
 
   private loadTransactions() {
     const stored = localStorage.getItem('fundTransactions');
     this.transactions = stored ? JSON.parse(stored) : [];
+  }
+
+  private async loadMatchHistory() {
+    try {
+      console.log('🔄 Setting up match history subscription for fund calculations...');
+      
+      // Unsubscribe from existing subscription if any
+      if (this.historySubscription) {
+        this.historySubscription.unsubscribe();
+      }
+      
+      // Subscribe to real-time match history updates
+      this.historySubscription = this.firebaseService.history$.subscribe({
+        next: (historyData) => {
+          console.log('📊 Match history updated - received:', historyData.length, 'matches');
+          this.matchHistory = [...historyData];
+          this.calculateMatchHistoryBalance();
+          this.calculateSummary(); // Recalculate with match data
+          this.updateFundBalance(); // Update localStorage with new balance
+          console.log('✅ Fund automatically updated with latest match history balance:', this.matchHistoryBalance);
+        },
+        error: (error) => {
+          console.error('❌ Error in match history subscription:', error);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error in loadMatchHistory:', error);
+    }
+  }
+
+  private calculateMatchHistoryBalance() {
+    // Calculate total revenue
+    this.matchHistoryStats.totalRevenue = this.matchHistory.reduce((total, match) => total + (match.thu || 0), 0);
+    
+    // Calculate total expenses
+    this.matchHistoryStats.totalExpenses = this.matchHistory.reduce((total, match) => total + (match.chi_total || 0), 0);
+    
+    // Calculate expense breakdown
+    this.matchHistoryStats.expenseBreakdown = {
+      san: this.matchHistory.reduce((total, match) => total + (match.chi_san || 0), 0),
+      trongtai: this.matchHistory.reduce((total, match) => total + (match.chi_trongtai || 0), 0),
+      nuoc: this.matchHistory.reduce((total, match) => total + (match.chi_nuoc || 0), 0),
+      other: 0 // Calculate other expenses if any
+    };
+    
+    // Calculate net balance
+    this.matchHistoryBalance = this.matchHistoryStats.totalRevenue - this.matchHistoryStats.totalExpenses;
+    this.matchHistoryStats.matchCount = this.matchHistory.length;
+    
+    console.log('📊 Match History Statistics:', this.matchHistoryStats);
+    console.log('💰 Match History Balance (Hòa vốn):', this.matchHistoryBalance);
   }
 
   private saveTransactions() {
@@ -1310,6 +1664,7 @@ export class FundComponent implements OnInit {
       amount: 0
     };
     
+    // Recalculate (match history will auto-update via subscription)
     this.calculateSummary();
     this.applyFilters();
   }
@@ -1325,12 +1680,16 @@ export class FundComponent implements OnInit {
   }
 
   private updateFundBalance() {
-    const balance = this.transactions.reduce((sum, t) => {
+    const transactionBalance = this.transactions.reduce((sum, t) => {
       return t.type === 'income' ? sum + t.amount : sum - t.amount;
     }, 0);
-    localStorage.setItem('fund', balance.toString());
+    
+    // Include match history balance in total fund
+    const totalBalance = transactionBalance + this.matchHistoryBalance;
+    
+    localStorage.setItem('fund', totalBalance.toString());
     // Also update CURRENT_FUND for backward compatibility
-    localStorage.setItem('CURRENT_FUND', balance.toString());
+    localStorage.setItem('CURRENT_FUND', totalBalance.toString());
   }
 
   private calculateSummary() {
@@ -1343,8 +1702,21 @@ export class FundComponent implements OnInit {
       totalExpenses: 0,
       thisMonthIncome: 0,
       thisMonthExpenses: 0,
-      transactionCount: this.transactions.length
+      transactionCount: this.transactions.length,
+      // Match history totals
+      matchTotalIncome: this.matchHistoryStats.totalRevenue,
+      matchTotalExpenses: this.matchHistoryStats.totalExpenses,
+      // Combined totals
+      grandTotalIncome: 0,
+      grandTotalExpenses: 0
     };
+
+    console.log('💰 Fund Summary Calculation:');
+    console.log('- Total transactions:', this.transactions.length);
+    console.log('- Income transactions:', this.getIncomeTransactionCount());
+    console.log('- Expense transactions:', this.getExpenseTransactionCount());
+    console.log('- Match history expenses:', this.matchHistoryStats.totalExpenses);
+    console.log('- Match count:', this.matchHistoryStats.matchCount);
 
     for (const transaction of this.transactions) {
       const transactionDate = new Date(transaction.date);
@@ -1365,6 +1737,13 @@ export class FundComponent implements OnInit {
         }
       }
     }
+
+    // Calculate grand totals (transactions + match history)
+    this.fundSummary.grandTotalIncome = this.fundSummary.totalIncome + this.fundSummary.matchTotalIncome;
+    this.fundSummary.grandTotalExpenses = this.fundSummary.totalExpenses + this.fundSummary.matchTotalExpenses;
+    
+    // Add match history balance (Hòa vốn) to current balance
+    this.fundSummary.currentBalance += this.matchHistoryBalance;
 
     this.calculateCategoryStats();
   }
@@ -1475,6 +1854,7 @@ export class FundComponent implements OnInit {
     localStorage.setItem('CURRENT_FUND', '0');
     this.showResetModal = false;
     
+    // Recalculate (match history will auto-update via subscription)
     this.calculateSummary();
     this.applyFilters();
   }
@@ -1548,5 +1928,31 @@ export class FundComponent implements OnInit {
   // Legacy method for backward compatibility
   reset(): void {
     this.resetFund();
+  }
+
+  // Method to manually refresh match history data
+  async refreshMatchHistory(): Promise<void> {
+    console.log('🔄 Manually refreshing match history data...');
+    // Since we have a subscription, just trigger a manual recalculation
+    // The subscription will automatically get the latest data
+    this.calculateMatchHistoryBalance();
+    this.calculateSummary();
+    console.log('✅ Fund manually refreshed with current match history balance:', this.matchHistoryBalance);
+  }
+
+  // Method to calculate expense percentage for breakdown
+  getExpensePercentage(amount: number): number {
+    if (this.fundSummary.matchTotalExpenses === 0) return 0;
+    return Math.round((amount / this.fundSummary.matchTotalExpenses) * 100);
+  }
+
+  // Get count of expense transactions specifically
+  getExpenseTransactionCount(): number {
+    return this.transactions.filter(t => t.type === 'expense').length;
+  }
+
+  // Get count of income transactions specifically
+  getIncomeTransactionCount(): number {
+    return this.transactions.filter(t => t.type === 'income').length;
   }
 }
