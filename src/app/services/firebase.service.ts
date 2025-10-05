@@ -39,6 +39,41 @@ export interface PlayerStats {
   updatedAt: string;
 }
 
+export interface FundTransaction {
+  id?: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category: string;
+  matchId?: string;
+  date: string;
+  createdAt?: string | number | object | null;
+  createdBy?: string;
+  updatedAt?: string | number | object | null;
+  updatedBy?: string;
+}
+
+export interface StatisticsData {
+  totalMatches?: number;
+  totalGoals?: number;
+  totalRevenue?: number;
+  totalExpenses?: number;
+  playerCount?: number;
+  averageGoalsPerMatch?: number;
+  winRate?: number;
+  [key: string]: string | number | boolean | undefined;
+}
+
+export interface StatisticsEntry {
+  id?: string;
+  type: 'match' | 'player' | 'financial' | 'team';
+  period: string; // 'daily', 'weekly', 'monthly', 'yearly'
+  date: string;
+  data: StatisticsData;
+  calculatedAt?: string | number | object | null;
+  calculatedBy?: string;
+}
+
 export interface HistoryEntry {
   id?: string;
   date?: string;
@@ -94,9 +129,9 @@ export class FirebaseService {
   private matchResultsSubject = new BehaviorSubject<MatchResult[]>([]);
   private playerStatsSubject = new BehaviorSubject<PlayerStats[]>([]);
   private historySubject = new BehaviorSubject<HistoryEntry[]>([]);
+  private fundTransactionsSubject = new BehaviorSubject<FundTransaction[]>([]);
+  private statisticsSubject = new BehaviorSubject<StatisticsEntry[]>([]);
 
-
-  
   // Cached observables with shareReplay for multiple subscribers
   public matchResults$ = this.matchResultsSubject.asObservable().pipe(
     distinctUntilChanged(),
@@ -104,6 +139,16 @@ export class FirebaseService {
   );
   
   public playerStats$ = this.playerStatsSubject.asObservable().pipe(
+    distinctUntilChanged(),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  
+  public fundTransactions$ = this.fundTransactionsSubject.asObservable().pipe(
+    distinctUntilChanged(),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+  
+  public statistics$ = this.statisticsSubject.asObservable().pipe(
     distinctUntilChanged(),
     shareReplay({ bufferSize: 1, refCount: true })
   );
@@ -188,6 +233,8 @@ export class FirebaseService {
     this.setupListener('matchResults', this.matchResultsSubject);
     this.setupListener('playerStats', this.playerStatsSubject);  
     this.setupListener('history', this.historySubject);
+    this.setupListener('fundTransactions', this.fundTransactionsSubject);
+    this.setupListener('statistics', this.statisticsSubject);
   }
 
   private setupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
@@ -703,6 +750,194 @@ export class FirebaseService {
       this.playerStatsSubject.next(updatedStats);
       
       console.log('✅ Player stats deleted:', id);
+    });
+  }
+
+  async deleteHistoryEntry(id: string): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('🗑️ Deleting history entry:', id);
+      const historyRef = ref(this.database, `history/${id}`);
+      await set(historyRef, null);
+      
+      // Update cache immediately
+      const currentHistory = this.historySubject.value;
+      const updatedHistory = currentHistory.filter(entry => entry.id !== id);
+      this.historySubject.next(updatedHistory);
+      
+      console.log('✅ History entry deleted:', id);
+    });
+  }
+
+  async updateHistoryEntry(id: string, updates: Partial<HistoryEntry>): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('✏️ Updating history entry:', id, updates);
+      
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+        updatedBy: this.getCurrentUserEmail()
+      };
+      
+      // Use Firebase's update method for partial updates
+      const updatePromises = Object.entries(updateData).map(([key, value]) => {
+        const fieldRef = ref(this.database, `history/${id}/${key}`);
+        return set(fieldRef, value);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Update cache
+      const currentHistory = this.historySubject.value;
+      const updatedHistory = currentHistory.map(entry => 
+        entry.id === id ? { ...entry, ...updateData } : entry
+      );
+      this.historySubject.next(updatedHistory);
+      
+      console.log('✅ History entry updated:', id);
+    });
+  }
+
+  // Fund Transaction Management
+  async addFundTransaction(transaction: Omit<FundTransaction, 'id'>): Promise<string> {
+    return this.executeBatchOperation(async () => {
+      console.log('💰 Adding fund transaction:', transaction);
+      const fundRef = ref(this.database, 'fundTransactions');
+      const newFundRef = push(fundRef);
+      
+      const optimizedTransaction = {
+        ...transaction,
+        createdAt: new Date().toISOString(),
+        createdBy: this.getCurrentUserEmail()
+      };
+      
+      await set(newFundRef, {
+        ...transaction,
+        createdAt: serverTimestamp(),
+        createdBy: this.getCurrentUserEmail()
+      });
+      
+      // Update cache immediately
+      const currentTransactions = this.fundTransactionsSubject.value;
+      const newTransaction = { id: newFundRef.key!, ...optimizedTransaction };
+      this.fundTransactionsSubject.next([...currentTransactions, newTransaction]);
+      
+      console.log('✅ Fund transaction added:', newFundRef.key);
+      return newFundRef.key!;
+    });
+  }
+
+  async updateFundTransaction(id: string, updates: Partial<FundTransaction>): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('✏️ Updating fund transaction:', id, updates);
+      
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+        updatedBy: this.getCurrentUserEmail()
+      };
+      
+      const updatePromises = Object.entries(updateData).map(([key, value]) => {
+        const fieldRef = ref(this.database, `fundTransactions/${id}/${key}`);
+        return set(fieldRef, value);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Update cache
+      const currentTransactions = this.fundTransactionsSubject.value;
+      const updatedTransactions = currentTransactions.map(transaction => 
+        transaction.id === id ? { ...transaction, ...updateData } : transaction
+      );
+      this.fundTransactionsSubject.next(updatedTransactions);
+      
+      console.log('✅ Fund transaction updated:', id);
+    });
+  }
+
+  async deleteFundTransaction(id: string): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('🗑️ Deleting fund transaction:', id);
+      const fundRef = ref(this.database, `fundTransactions/${id}`);
+      await set(fundRef, null);
+      
+      // Update cache immediately
+      const currentTransactions = this.fundTransactionsSubject.value;
+      const updatedTransactions = currentTransactions.filter(transaction => transaction.id !== id);
+      this.fundTransactionsSubject.next(updatedTransactions);
+      
+      console.log('✅ Fund transaction deleted:', id);
+    });
+  }
+
+  // Statistics Management
+  async addStatisticsEntry(entry: Omit<StatisticsEntry, 'id'>): Promise<string> {
+    return this.executeBatchOperation(async () => {
+      console.log('📊 Adding statistics entry:', entry);
+      const statsRef = ref(this.database, 'statistics');
+      const newStatsRef = push(statsRef);
+      
+      const optimizedEntry = {
+        ...entry,
+        calculatedAt: new Date().toISOString(),
+        calculatedBy: this.getCurrentUserEmail()
+      };
+      
+      await set(newStatsRef, {
+        ...entry,
+        calculatedAt: serverTimestamp(),
+        calculatedBy: this.getCurrentUserEmail()
+      });
+      
+      // Update cache immediately
+      const currentStats = this.statisticsSubject.value;
+      const newEntry = { id: newStatsRef.key!, ...optimizedEntry };
+      this.statisticsSubject.next([...currentStats, newEntry]);
+      
+      console.log('✅ Statistics entry added:', newStatsRef.key);
+      return newStatsRef.key!;
+    });
+  }
+
+  async updateStatisticsEntry(id: string, updates: Partial<StatisticsEntry>): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('✏️ Updating statistics entry:', id, updates);
+      
+      const updateData = {
+        ...updates,
+        calculatedAt: serverTimestamp(),
+        calculatedBy: this.getCurrentUserEmail()
+      };
+      
+      const updatePromises = Object.entries(updateData).map(([key, value]) => {
+        const fieldRef = ref(this.database, `statistics/${id}/${key}`);
+        return set(fieldRef, value);
+      });
+      
+      await Promise.all(updatePromises);
+      
+      // Update cache
+      const currentStats = this.statisticsSubject.value;
+      const updatedStats = currentStats.map(entry => 
+        entry.id === id ? { ...entry, ...updateData } : entry
+      );
+      this.statisticsSubject.next(updatedStats);
+      
+      console.log('✅ Statistics entry updated:', id);
+    });
+  }
+
+  async deleteStatisticsEntry(id: string): Promise<void> {
+    return this.executeBatchOperation(async () => {
+      console.log('🗑️ Deleting statistics entry:', id);
+      const statsRef = ref(this.database, `statistics/${id}`);
+      await set(statsRef, null);
+      
+      // Update cache immediately
+      const currentStats = this.statisticsSubject.value;
+      const updatedStats = currentStats.filter(entry => entry.id !== id);
+      this.statisticsSubject.next(updatedStats);
+      
+      console.log('✅ Statistics entry deleted:', id);
     });
   }
 

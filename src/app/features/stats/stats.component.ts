@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { takeUntil, finalize } from 'rxjs/operators';
+import { takeUntil, finalize, take } from 'rxjs/operators';
 import { Player } from '../players/player-utils';
 import { StatisticsService } from '../../core/services/statistics.service';
 import { MatchService } from '../../core/services/match.service';
@@ -10,14 +10,18 @@ import { PlayerService } from '../../core/services/player.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo } from '../../core/models/player.model';
 import { MatchInfo } from '../../core/models/match.model';
+import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 
 interface MatchData {
   id?: string;
-  date: string;
-  teamA: Player[];
-  teamB: Player[];
-  scoreA: number;
-  scoreB: number;
+  date?: string;
+  description?: string;
+  
+  // Team data - can be arrays of strings OR arrays of Player objects for backward compatibility
+  teamA?: (string | Player)[];
+  teamB?: (string | Player)[];
+  scoreA?: number;
+  scoreB?: number;
   scorerA?: string;
   scorerB?: string;
   assistA?: string;
@@ -26,6 +30,13 @@ interface MatchData {
   yellowB?: string;
   redA?: string;
   redB?: string;
+  
+  // Financial data
+  thu?: number;
+  chi_total?: number;
+  chi_trongtai?: number;
+  chi_nuoc?: number;
+  chi_san?: number;
 }
 
 interface PlayerStats {
@@ -2676,9 +2687,10 @@ export class StatsComponent implements OnInit, OnDestroy {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
   private readonly dataStore = inject(DataStoreService);
+  private readonly firebaseService = inject(FirebaseService);
 
   // Legacy data for backward compatibility
-  history: MatchData[] = [];
+  history: HistoryEntry[] = [];
   availableMonths: string[] = [];
   monthlyStats: Record<string, MonthlyStats> = {};
   overallStats = {
@@ -2759,18 +2771,80 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   private loadHistory() {
-    // Use the same data source as history component
-    const matchHistoryData = localStorage.getItem('matchHistory') || '[]';
-    this.history = JSON.parse(matchHistoryData);
-    
-    // Debug: Check what we loaded
-    console.log('📊 Stats component loaded history:', {
-      rawData: matchHistoryData,
-      parsedLength: this.history.length,
-      firstMatch: this.history[0] || 'No matches'
-    });
-    
-    this.initializeAI(); // Initialize AI data after loading history
+    try {
+      // Use Firebase data like History component does
+      console.log('🔄 Loading match history from Firebase (like History component)...');
+      
+      this.firebaseService.history$.pipe(take(1)).subscribe({
+        next: (historyData) => {
+          console.log('📊 Received Firebase history data:', historyData.length, 'matches');
+          
+          this.history = [...historyData]; // Create a copy
+          this.history.sort((a, b) => {
+            const dateA = new Date(a.date || '').getTime();
+            const dateB = new Date(b.date || '').getTime();
+            return dateB - dateA; // Newest first
+          });
+          
+          console.log('📊 Stats component loaded Firebase history:', {
+            parsedLength: this.history.length,
+            firstMatch: this.history[0] || 'No matches',
+            isArray: Array.isArray(this.history)
+          });
+          
+          // Debug each match structure
+          this.history.forEach((match, index) => {
+            console.log(`🔍 Match ${index + 1} structure:`, {
+              hasTeamA: !!match.teamA,
+              teamAType: typeof match.teamA,
+              teamAIsArray: Array.isArray(match.teamA),
+              teamAValue: match.teamA,
+              hasTeamB: !!match.teamB,
+              teamBType: typeof match.teamB,
+              teamBIsArray: Array.isArray(match.teamB),
+              teamBValue: match.teamB,
+              date: match.date,
+              scorerA: match.scorerA,
+              scorerB: match.scorerB,
+              allKeys: Object.keys(match)
+            });
+          });
+          
+          this.initializeAI(); // Initialize AI data after loading history
+          this.updateStats(); // Calculate statistics
+        },
+        error: (error) => {
+          console.error('❌ Error loading matches from Firebase:', error);
+          // Fallback to localStorage if Firebase fails
+          this.loadHistoryFromLocalStorage();
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error in loadHistory:', error);
+      // Fallback to localStorage if Firebase fails
+      this.loadHistoryFromLocalStorage();
+    }
+  }
+  
+  private loadHistoryFromLocalStorage() {
+    try {
+      console.log('🔄 Falling back to localStorage...');
+      const matchHistoryData = localStorage.getItem('matchHistory') || '[]';
+      this.history = JSON.parse(matchHistoryData);
+      
+      if (!Array.isArray(this.history)) {
+        console.warn('⚠️ Match history is not an array, initializing as empty array');
+        this.history = [];
+      }
+      
+      console.log('📊 Loaded from localStorage:', this.history.length, 'matches');
+      this.initializeAI();
+      this.updateStats();
+    } catch (error) {
+      console.error('❌ Error loading from localStorage:', error);
+      this.history = [];
+      this.initializeAI();
+    }
   }
 
   private calculateStats() {
@@ -2781,30 +2855,13 @@ export class StatsComponent implements OnInit, OnDestroy {
     }
 
     // Group matches by month and calculate all stats
-    interface Player {
-      firstName: string;
-      lastName?: string;
-      // Add other player properties if needed
-    }
-
-    interface Match {
-      date: string;
-      teamA?: Player[];
-      teamB?: Player[];
-      scorerA?: string;
-      scorerB?: string;
-      assistA?: string;
-      assistB?: string;
-      yellowA?: string;
-      yellowB?: string;
-      redA?: string;
-      redB?: string;
-      // Add other fields as needed
-    }
-    const matchesByMonth: Record<string, Match[]> = {};
+    const matchesByMonth: Record<string, MatchData[]> = {};
     const playerStatsAll: Record<string, PlayerStats> = {};
 
-    for (const match of this.history) {
+    // Ensure history is an array before iterating
+    const history = Array.isArray(this.history) ? this.history : [];
+
+    for (const match of history) {
       const date = new Date(match.date);
       const monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
       
@@ -2814,15 +2871,33 @@ export class StatsComponent implements OnInit, OnDestroy {
       matchesByMonth[monthKey].push(match);
 
       // Process all players in the match for overall stats
-      const allPlayers = [...(match.teamA || []), ...(match.teamB || [])];
+      let teamA = match.teamA || [];
+      let teamB = match.teamB || [];
+      
+      // Ensure they are arrays
+      if (!Array.isArray(teamA)) teamA = [];
+      if (!Array.isArray(teamB)) teamB = [];
+      
+      const allPlayers = [...teamA, ...teamB];
       
       // Track unique player participation
       const matchPlayerNames = new Set<string>();
       
       for (const player of allPlayers) {
-        if (!player.firstName) continue;
+        let playerName = '';
         
-        const playerName = `${player.firstName} ${player.lastName || ''}`.trim();
+        if (typeof player === 'string') {
+          // New format: player names are stored as strings
+          playerName = (player as string).trim();
+        } else if (player && typeof player === 'object' && 
+                   'firstName' in player && typeof (player as { firstName?: string }).firstName === 'string') {
+          // Old format: player objects with firstName/lastName
+          const playerObj = player as { firstName: string; lastName?: string };
+          playerName = `${playerObj.firstName} ${playerObj.lastName || ''}`.trim();
+        }
+        
+        if (!playerName) continue;
+        
         matchPlayerNames.add(playerName);
         
         if (!playerStatsAll[playerName]) {
@@ -2867,14 +2942,32 @@ export class StatsComponent implements OnInit, OnDestroy {
       let totalRedCards = 0;
 
       for (const match of monthMatches) {
-        const allPlayers = [...(match.teamA || []), ...(match.teamB || [])];
+        let teamA = match.teamA || [];
+        let teamB = match.teamB || [];
+        
+        // Ensure they are arrays
+        if (!Array.isArray(teamA)) teamA = [];
+        if (!Array.isArray(teamB)) teamB = [];
+        
+        const allPlayers = [...teamA, ...teamB];
         const matchPlayerNames = new Set<string>();
         
         // Track players in this match
         for (const player of allPlayers) {
-          if (!player.firstName) continue;
+          let playerName = '';
           
-          const playerName = `${player.firstName} ${player.lastName || ''}`.trim();
+          if (typeof player === 'string') {
+            // New format: player names are stored as strings
+            playerName = (player as string).trim();
+          } else if (player && typeof player === 'object' && 
+                     'firstName' in player && typeof (player as { firstName?: string }).firstName === 'string') {
+            // Old format: player objects with firstName/lastName
+            const playerObj = player as { firstName: string; lastName?: string };
+            playerName = `${playerObj.firstName} ${playerObj.lastName || ''}`.trim();
+          }
+          
+          if (!playerName) continue;
+          
           matchPlayerNames.add(playerName);
           
           if (!monthPlayerStats[playerName]) {
@@ -3249,16 +3342,64 @@ export class StatsComponent implements OnInit, OnDestroy {
     // Extract all unique player names from history
     const playerSet = new Set<string>();
     
-    this.history.forEach(match => {
-      [...match.teamA, ...match.teamB].forEach(player => {
-        if (player && player.firstName) {
-          const playerName = `${player.firstName} ${player.lastName || ''}`.trim();
-          playerSet.add(playerName);
+      try {
+        if (!this.history || !Array.isArray(this.history)) {
+          console.warn('⚠️ History is not an array:', this.history);
+          this.allPlayers = [];
+          return;
         }
-      });
-    });
-    
-    this.allPlayers = Array.from(playerSet).sort();
+
+        console.log('🤖 InitializeAI processing', this.history.length, 'matches');
+
+        this.history.forEach((match, matchIndex) => {
+          if (!match) return;
+
+          // Handle cases where teamA/teamB might be strings or non-arrays
+          let teamA = match.teamA || [];
+          let teamB = match.teamB || [];
+
+          console.log(`🔍 Match ${matchIndex + 1} - Before processing:`, {
+            teamA: teamA,
+            teamAType: typeof teamA,
+            teamAIsArray: Array.isArray(teamA),
+            teamB: teamB,
+            teamBType: typeof teamB,
+            teamBIsArray: Array.isArray(teamB)
+          });
+
+          // Convert to array if it's not already
+          if (!Array.isArray(teamA)) {
+            console.warn('⚠️ teamA is not an array:', teamA);
+            teamA = [];
+          }
+          if (!Array.isArray(teamB)) {
+            console.warn('⚠️ teamB is not an array:', teamB);
+            teamB = [];
+          }
+
+          // Handle both old format (objects with firstName/lastName) and new format (strings)
+          [...teamA, ...teamB].forEach((player: string | { firstName?: string; lastName?: string } | unknown) => {
+            let playerName = '';
+            
+            if (typeof player === 'string') {
+              // New format: player names are stored as strings
+              playerName = player.trim();
+            } else if (player && typeof player === 'object' && 
+                       'firstName' in player && typeof (player as { firstName?: string }).firstName === 'string') {
+              // Old format: player objects with firstName/lastName
+              const playerObj = player as { firstName: string; lastName?: string };
+              playerName = `${playerObj.firstName} ${playerObj.lastName || ''}`.trim();
+            }
+            
+            if (playerName) {
+              playerSet.add(playerName);
+            }
+          });
+        });
+      } catch (error) {
+        console.error('❌ Error in initializeAI:', error);
+        console.log('History data:', this.history);
+      }    this.allPlayers = Array.from(playerSet).sort();
   }
 
   // This method was replaced by the enhanced version below
@@ -3287,8 +3428,14 @@ export class StatsComponent implements OnInit, OnDestroy {
 
   private findRelevantMatches(): MatchData[] {
     return this.history.filter(match => {
-      const teamAPlayers = match.teamA.map(p => p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '');
-      const teamBPlayers = match.teamB.map(p => p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '');
+      const teamAPlayers = (match.teamA || []).map(p => {
+        if (typeof p === 'string') return p.trim();
+        return (p && typeof p === 'object' && 'firstName' in p) ? `${(p as Player).firstName} ${(p as Player).lastName || ''}`.trim() : '';
+      });
+      const teamBPlayers = (match.teamB || []).map(p => {
+        if (typeof p === 'string') return p.trim();
+        return (p && typeof p === 'object' && 'firstName' in p) ? `${(p as Player).firstName} ${(p as Player).lastName || ''}`.trim() : '';
+      });
       
       // Check if any selected players participated
       const xanhInTeamA = this.selectedXanhPlayers.some(player => teamAPlayers.includes(player));
@@ -3306,6 +3453,18 @@ export class StatsComponent implements OnInit, OnDestroy {
     let totalYellows = 0;
     let totalReds = 0;
     let totalMatches = 0;
+
+    if (!players || !Array.isArray(players)) {
+      console.warn('⚠️ Players parameter is not an array in calculateTeamMetrics:', players);
+      return {
+        avgGoalsPerMatch: 0,
+        avgAssistsPerMatch: 0,
+        disciplineIndex: 0,
+        totalMatches: 0,
+        attackStrength: 0,
+        consistency: 0
+      };
+    }
 
     players.forEach(playerName => {
       this.history.forEach(match => {
@@ -3402,12 +3561,16 @@ export class StatsComponent implements OnInit, OnDestroy {
     let draws = 0;
 
     matches.forEach(match => {
-      const teamAHasXanh = match.teamA.some(p => 
-        this.selectedXanhPlayers.includes(`${p.firstName} ${p.lastName || ''}`.trim())
-      );
-      const teamAHasCam = match.teamA.some(p => 
-        this.selectedCamPlayers.includes(`${p.firstName} ${p.lastName || ''}`.trim())
-      );
+      const teamAHasXanh = (match.teamA || []).some(p => {
+        const playerName = typeof p === 'string' ? p.trim() : 
+          (p && typeof p === 'object' && 'firstName' in p) ? `${(p as Player).firstName} ${(p as Player).lastName || ''}`.trim() : '';
+        return this.selectedXanhPlayers.includes(playerName);
+      });
+      const teamAHasCam = (match.teamA || []).some(p => {
+        const playerName = typeof p === 'string' ? p.trim() : 
+          (p && typeof p === 'object' && 'firstName' in p) ? `${(p as Player).firstName} ${(p as Player).lastName || ''}`.trim() : '';
+        return this.selectedCamPlayers.includes(playerName);
+      });
 
       if (teamAHasXanh && !teamAHasCam) {
         // Team A is Xanh
@@ -3431,8 +3594,14 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   private checkPlayerInMatch(match: MatchData, playerName: string): boolean {
-    const teamAPlayers = match.teamA.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
-    const teamBPlayers = match.teamB.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+    const teamAPlayers = (match.teamA || []).map(p => {
+      if (typeof p === 'string') return p.trim();
+      return (p && typeof p === 'object' && 'firstName' in p) ? `${(p as Player).firstName} ${(p as Player).lastName || ''}`.trim() : '';
+    });
+    const teamBPlayers = (match.teamB || []).map(p => {
+      if (typeof p === 'string') return p.trim();
+      return (p && typeof p === 'object' && 'firstName' in p) ? `${(p as Player).firstName} ${(p as Player).lastName || ''}`.trim() : '';
+    });
     return teamAPlayers.includes(playerName) || teamBPlayers.includes(playerName);
   }
 
@@ -3510,7 +3679,7 @@ export class StatsComponent implements OnInit, OnDestroy {
 
   // Enhanced AI Analysis with StatisticsService
   async runEnhancedAIAnalysis(): Promise<void> {
-    if (this.selectedXanhPlayers.length === 0 || this.selectedCamPlayers.length === 0) {
+    if (!this.selectedXanhPlayers?.length || !this.selectedCamPlayers?.length) {
       return;
     }
 
@@ -3518,11 +3687,11 @@ export class StatsComponent implements OnInit, OnDestroy {
     
     try {
       // Get player IDs for selected players
-      const xanhPlayerIds = this.getPlayerIdsFromNames(this.selectedXanhPlayers);
-      const camPlayerIds = this.getPlayerIdsFromNames(this.selectedCamPlayers);
+      const xanhPlayerIds = this.getPlayerIdsFromNames(this.selectedXanhPlayers || []);
+      const camPlayerIds = this.getPlayerIdsFromNames(this.selectedCamPlayers || []);
       
       // Use PlayerService for team balance analysis
-      const allPlayerIds = [...xanhPlayerIds, ...camPlayerIds];
+      const allPlayerIds = [...(xanhPlayerIds || []), ...(camPlayerIds || [])];
       const teamBalance = await this.playerService.getTeamBalanceRecommendations(allPlayerIds).toPromise();
       
       if (teamBalance) {
@@ -3541,8 +3710,11 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   private getPlayerIdsFromNames(playerNames: string[]): string[] {
+    if (!playerNames || !Array.isArray(playerNames)) {
+      return [];
+    }
     return playerNames.map(name => {
-      const player = this.corePlayersData.find(p => 
+      const player = (this.corePlayersData || []).find(p => 
         `${p.firstName} ${p.lastName || ''}`.trim() === name
       );
       return player?.id || '';
@@ -3576,7 +3748,7 @@ export class StatsComponent implements OnInit, OnDestroy {
   // Main runAIAnalysis method - use enhanced version first
   async runAIAnalysis(): Promise<void> {
     // Try enhanced version first, fallback to original if needed
-    if (this.corePlayersData.length > 0) {
+    if (this.corePlayersData?.length > 0) {
       await this.runEnhancedAIAnalysis();
     } else {
       await this.runOriginalAIAnalysis();
@@ -3584,7 +3756,7 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   private async runOriginalAIAnalysis(): Promise<void> {
-    if (this.selectedXanhPlayers.length === 0 || this.selectedCamPlayers.length === 0) {
+    if (!this.selectedXanhPlayers?.length || !this.selectedCamPlayers?.length) {
       return;
     }
 
