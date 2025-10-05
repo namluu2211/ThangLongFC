@@ -1134,57 +1134,48 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
 
     /* Modal Styles */
     .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
       background: rgba(0, 0, 0, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      padding: 20px;
+      z-index: 9999 !important;
       backdrop-filter: blur(5px);
-      overflow-y: auto;
-      overflow-x: hidden;
+      display: grid !important;
+      place-items: center !important;
+      padding: 20px;
+      box-sizing: border-box;
     }
 
     .player-modal {
       background: white;
       border-radius: 20px;
       max-width: 600px;
-      width: 100%;
-      max-height: 90vh;
+      width: 90%;
+      max-height: calc(90vh - 40px);
       overflow-y: auto;
       box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
-      animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      transform: translateZ(0);
-      margin: auto;
       position: relative;
+      animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      margin: 0;
       flex-shrink: 0;
     }
 
-    /* Ensure modal is always visible and centered */
-    .modal-overlay::before {
-      content: '';
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 1px;
-      height: 1px;
-      pointer-events: none;
-    }
+
+
+
 
     @keyframes modalSlideIn {
       from {
         opacity: 0;
-        transform: scale(0.9) translateY(-20px);
+        transform: scale(0.9);
       }
       to {
         opacity: 1;
-        transform: scale(1) translateY(0);
+        transform: scale(1);
       }
     }
 
@@ -1457,7 +1448,7 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
 
       .player-modal {
         width: 95%;
-        margin: 10px;
+        margin: 0;
         max-height: 95vh;
       }
 
@@ -2413,13 +2404,12 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.selectedPlayer = p;
     // Prevent body scrolling when modal is open
     document.body.style.overflow = 'hidden';
-    // Force scroll to top of modal overlay to ensure visibility
-    setTimeout(() => {
-      const overlay = document.querySelector('.modal-overlay') as HTMLElement;
-      if (overlay) {
-        overlay.scrollTop = 0;
-      }
-    }, 100);
+    // Center modal with JavaScript to override any CSS conflicts
+    this.centerModal();
+  }
+
+  private centerModal(): void {
+    // Let CSS Grid handle centering like the working Edit modal
   }
 
   savePlayers() {
@@ -2434,18 +2424,38 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   async saveMatchInfo() {
     try {
+      console.log('🚀 Starting match save process...');
+      console.log('📊 Current teams:', { teamA: this.teamA, teamB: this.teamB });
+      
       const matchData = await this.createMatchDataWithServices();
+      console.log('📝 Match data created:', matchData);
+      
+      console.log('💾 Saving match to database...');
       await this.matchService.createMatch(matchData);
+      console.log('✅ Match saved successfully');
       
       // Also add fund transaction for the match
+      console.log('💰 Adding fund transaction...');
       await this.addMatchFundTransaction(matchData);
+      console.log('✅ Fund transaction added');
       
       this.showTemporaryMessage('matchSaveMessage', '\u0110\u00e3 l\u01b0u tr\u1eadn \u0111\u1ea5u v\u00e0o h\u1ec7 th\u1ed1ng!');
       
+      // Refresh data to reflect changes in the UI
+      console.log('🔄 Refreshing player data...');
+      await this.loadPlayers();
+      console.log('✅ Data refresh complete');
+      
       // Clear match data after saving
       this.clearMatchData();
+      console.log('🧹 Match data cleared');
     } catch (error) {
-      console.error('Error saving match info:', error);
+      console.error('❌ Error saving match info:', error);
+      console.error('📋 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        error: error
+      });
       this.showTemporaryMessage('matchSaveMessage', 'L\u1ed7i khi l\u01b0u tr\u1eadn \u0111\u1ea5u!');
     }
   }
@@ -2477,7 +2487,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const baseRevenue = totalPlayers * 30000;
     
     return {
+      id: `match_${Date.now()}`, // Add unique ID to prevent overwrites
       date: new Date().toISOString().split('T')[0],
+      timestamp: new Date().toISOString(), // Full timestamp for precise timing
       teamA: teamACore,
       teamB: teamBCore,
       result: {
@@ -2951,6 +2963,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
       avatar: ''
     };
     this.showPlayerModal = true;
+    
+    // Use the same pattern as the working Edit modal - let Angular handle the rendering
+    setTimeout(() => {
+      console.log('Add Player modal should be visible now');
+    }, 0);
   }
 
   openEditPlayerModal(player: Player): void {
@@ -3018,6 +3035,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       }
       
       this.showPlayerModal = true;
+      this.centerModal();
     }
   }
 
@@ -3040,6 +3058,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.isSaving = true;
     try {
       if (this.isEditMode && this.playerFormData.id) {
+        console.log('📝 Updating existing player with ID:', this.playerFormData.id);
         // Update existing player - preserve original avatar if field is empty
         const originalPlayer = this.corePlayersData.find(p => p.id === this.playerFormData.id);
         const playerDataToUpdate = {
@@ -3047,9 +3066,12 @@ export class PlayersComponent implements OnInit, OnDestroy {
           // Only update avatar if a new value is provided, otherwise keep original
           avatar: (this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '').replace(/\\/g, '/')
         };
+        console.log('📊 Player data to update:', playerDataToUpdate);
         await this.playerService.updatePlayer(this.playerFormData.id, playerDataToUpdate);
+        console.log('✅ Player updated successfully');
         alert('Cập nhật cầu thủ thành công!');
       } else {
+        console.log('🆕 Creating new player...');
         // Create new player
         const newPlayer = {
           firstName: this.playerFormData.firstName!,
@@ -3063,13 +3085,24 @@ export class PlayersComponent implements OnInit, OnDestroy {
           isRegistered: true,
           status: PlayerStatus.ACTIVE
         };
+        console.log('📊 New player data:', newPlayer);
         await this.playerService.createPlayer(newPlayer);
+        console.log('✅ New player created successfully');
         alert('Thêm cầu thủ mới thành công!');
       }
       
+      // Refresh player data to reflect changes in the UI
+      console.log('🔄 Refreshing player data after save...');
+      await this.loadPlayers();
       this.closePlayerFormModal();
     } catch (error) {
-      console.error('Error saving player:', error);
+      console.error('❌ Error saving player:', error);
+      console.error('📋 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        playerData: this.playerFormData,
+        isEditMode: this.isEditMode
+      });
       alert('Có lỗi xảy ra khi lưu thông tin cầu thủ!');
     } finally {
       this.isSaving = false;
@@ -3106,6 +3139,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     try {
       await this.playerService.deletePlayer(this.playerToDelete.id);
       alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
+      
+      // Refresh player data to reflect changes in the UI
+      await this.loadPlayers();
       this.closeDeleteConfirm();
     } catch (error) {
       console.error('Error deleting player:', error);
