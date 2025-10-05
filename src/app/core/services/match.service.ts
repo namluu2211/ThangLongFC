@@ -746,13 +746,57 @@ export class MatchService {
 
   private async saveMatchToStorage(match: MatchInfo): Promise<void> {
     try {
+      // Save to localStorage
       const currentMatches = Array.from(this._matches$.value.values());
       const updatedMatches = currentMatches.filter(m => m.id !== match.id);
       updatedMatches.push(match);
       
       localStorage.setItem('matchHistory', JSON.stringify(updatedMatches));
+      console.log('✅ Match saved to localStorage');
+      
+      // Also save to Firebase history for real-time database persistence
+      const historyEntry = {
+        date: match.date,
+        description: `Trận đấu ngày ${match.date}`,
+        
+        // Map team data to simple arrays
+        teamA: match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
+        teamB: match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
+        
+        // Map scores
+        scoreA: match.result?.scoreA || 0,
+        scoreB: match.result?.scoreB || 0,
+        
+        // Map goal scorers (take first scorer if multiple)
+        scorerA: match.result?.goalsA?.[0]?.playerName || '',
+        scorerB: match.result?.goalsB?.[0]?.playerName || '',
+        
+        // Map assists (take first assist if multiple)
+        assistA: match.result?.goalsA?.[0]?.assistedBy || '',
+        assistB: match.result?.goalsB?.[0]?.assistedBy || '',
+        
+        // Map cards (convert arrays to comma-separated strings)
+        yellowA: match.result?.yellowCardsA?.map(c => c.playerName).join(', ') || '',
+        yellowB: match.result?.yellowCardsB?.map(c => c.playerName).join(', ') || '',
+        redA: match.result?.redCardsA?.map(c => c.playerName).join(', ') || '',
+        redB: match.result?.redCardsB?.map(c => c.playerName).join(', ') || '',
+        
+        // Map financial data
+        thu: (match.finances?.revenue?.teamARevenue || 0) + (match.finances?.revenue?.teamBRevenue || 0),
+        thuMode: 'auto' as const,
+        chi_total: (match.finances?.expenses?.referee || 0) + (match.finances?.expenses?.water || 0) + (match.finances?.expenses?.field || 0) + (match.finances?.expenses?.transportation || 0) + (match.finances?.expenses?.food || 0) + (match.finances?.expenses?.equipment || 0) + (match.finances?.expenses?.other || 0),
+        
+        // Metadata
+        createdAt: match.createdAt,
+        updatedAt: match.updatedAt,
+        lastSaved: new Date().toISOString()
+      };
+      
+      await this.firebaseService.addHistoryEntry(historyEntry);
+      console.log('✅ Match saved to Firebase history');
+      
     } catch (error) {
-      console.error('Failed to save match to storage:', error);
+      console.error('❌ Failed to save match to storage:', error);
       throw error;
     }
   }

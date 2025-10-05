@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { FormsModule } from '@angular/forms';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-history',
@@ -201,15 +202,31 @@ export class HistoryComponent implements OnInit {
   async loadMatches(): Promise<void> {
     try {
       this.loading = true;
-      this.matches = this.firebaseService.getCurrentHistory();
-      this.matches.sort((a, b) => {
-        const dateA = new Date(a.date || '').getTime();
-        const dateB = new Date(b.date || '').getTime();
-        return dateB - dateA;
+      console.log('🔄 Loading fresh match history from Firebase...');
+      
+      // Subscribe to history observable to get real-time updates
+      this.firebaseService.history$.pipe(take(1)).subscribe({
+        next: (historyData) => {
+          console.log('📊 Received history data:', historyData.length, 'matches');
+          console.log('📋 Match data:', historyData);
+          
+          this.matches = [...historyData]; // Create a copy
+          this.matches.sort((a, b) => {
+            const dateA = new Date(a.date || '').getTime();
+            const dateB = new Date(b.date || '').getTime();
+            return dateB - dateA;
+          });
+          
+          console.log('✅ Match history loaded and sorted successfully');
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('❌ Error loading matches:', error);
+          this.loading = false;
+        }
       });
     } catch (error) {
-      console.error('Error loading matches:', error);
-    } finally {
+      console.error('❌ Error in loadMatches:', error);
       this.loading = false;
     }
   }
