@@ -19,9 +19,9 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       <div class="header-section">
         <h2>
           <i class="fas fa-users me-2"></i>
-          Enhanced Players Management
+          Quản lý cầu thủ
         </h2>
-        <p>Advanced player management with filtering, search, and statistics</p>
+        <p>Quản lý cầu thủ nâng cao với bộ lọc, tìm kiếm và thống kê</p>
       </div>
 
       <!-- Control Panel -->

@@ -16,7 +16,7 @@ import { CommonModule } from '@angular/common';
               <span class="logo-text">ThangLong FC</span>
             </div>
             <p class="brand-description">
-              Mia Football ClubManagement System
+              Mia Football Club Management System
             </p>
           </div>
 

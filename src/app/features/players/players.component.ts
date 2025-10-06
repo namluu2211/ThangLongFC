@@ -252,12 +252,18 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
                 type="text" 
                 id="avatar"
                 [value]="playerFormData.avatar || ''"
-                (input)="playerFormData.avatar = $any($event.target).value"
+                (input)="onAvatarInputChange($event)"
                 class="form-control"
                 autocomplete="off"
                 placeholder="https://example.com/avatar.jpg hoặc assets/images/avatar_players/TenCauThu.png"
-                pattern=".*"
-                title="Nhập URL hình ảnh hoặc đường dẫn file">
+                title="Nhập URL hình ảnh hoặc đường dẫn file"
+                novalidate
+                [attr.pattern]="null"
+                [attr.required]="null">
+              <small class="form-text text-muted mt-2">
+                <i class="fas fa-info-circle me-1"></i>
+                Nếu URL không hợp lệ, hệ thống sẽ tự động sử dụng ảnh mặc định
+              </small>
             </div>
             
             <div class="modal-actions" style="padding: 0 30px 30px 30px;">
@@ -2383,11 +2389,81 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   onAvatarError(event: Event, player: Player) {
-    const defaultAvatar = 'assets/images/default-avatar.svg';
+    // Use a reliable default avatar - try multiple fallbacks
+    const defaultAvatars = [
+      'assets/images/default-avatar.svg',
+      'assets/images/avatar_players/default.png', 
+      'https://ui-avatars.com/api/?name=' + encodeURIComponent(player.firstName || 'Player') + '&background=667eea&color=fff&size=200'
+    ];
+    
     const target = event.target as HTMLImageElement;
+    
+    // Try the first available default avatar
+    const defaultAvatar = defaultAvatars[0];
     target.src = defaultAvatar;
     player.avatar = defaultAvatar;
-    console.warn(`Avatar failed to load for player: ${player.firstName}, using default avatar`);
+    
+    console.log(`Avatar failed to load for player: ${player.firstName}, using default avatar: ${defaultAvatar}`);
+    
+    // If the default avatar also fails, use the generated avatar service
+    target.onerror = () => {
+      const generatedAvatar = defaultAvatars[2];
+      target.src = generatedAvatar;
+      player.avatar = generatedAvatar;
+      target.onerror = null; // Prevent infinite loop
+      console.log(`Using generated avatar for player: ${player.firstName}`);
+    };
+  }
+
+  onAvatarInputChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const inputValue = target.value;
+    
+    // Always accept any input value without any validation
+    this.playerFormData.avatar = inputValue;
+    
+    // Completely clear any browser validation messages
+    target.setCustomValidity('');
+    target.reportValidity();
+    
+    // Remove any validation-related attributes that might have been added dynamically
+    target.removeAttribute('pattern');
+    target.removeAttribute('required');
+    
+    console.log('Avatar URL updated:', inputValue || 'empty');
+  }
+
+  private getValidAvatarUrl(avatarUrl: string, playerName: string): string {
+    // If no avatar URL provided, use default generated avatar
+    if (!avatarUrl || avatarUrl.trim() === '') {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName)}&background=667eea&color=fff&size=200`;
+    }
+    
+    // Clean up the URL path for local assets
+    const cleanUrl = avatarUrl.replace(/\\/g, '/');
+    
+    // Return the provided URL - if it's invalid, onAvatarError will handle the fallback
+    return cleanUrl;
+  }
+
+  private disableAvatarValidation(): void {
+    // Find the avatar input element and completely disable any validation
+    const avatarInput = document.getElementById('avatar') as HTMLInputElement;
+    if (avatarInput) {
+      // Remove all validation attributes
+      avatarInput.removeAttribute('pattern');
+      avatarInput.removeAttribute('required');
+      avatarInput.removeAttribute('minlength');
+      avatarInput.removeAttribute('maxlength');
+      
+      // Clear any custom validation messages
+      avatarInput.setCustomValidity('');
+      
+      // Make sure it's not part of any form validation
+      avatarInput.setAttribute('novalidate', 'true');
+      
+      console.log('Avatar validation completely disabled');
+    }
   }
 
   isRegistered(player: Player): boolean {
@@ -2966,8 +3042,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     
     // Use the same pattern as the working Edit modal - let Angular handle the rendering
     setTimeout(() => {
+      this.disableAvatarValidation();
       console.log('Add Player modal should be visible now');
-    }, 0);
+    }, 100);
   }
 
   openEditPlayerModal(player: Player): void {
@@ -3036,6 +3113,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
       
       this.showPlayerModal = true;
       this.centerModal();
+      
+      // Disable avatar validation after modal opens
+      setTimeout(() => {
+        this.disableAvatarValidation();
+      }, 100);
     }
   }
 
@@ -3061,10 +3143,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
         console.log('📝 Updating existing player with ID:', this.playerFormData.id);
         // Update existing player - preserve original avatar if field is empty
         const originalPlayer = this.corePlayersData.find(p => p.id === this.playerFormData.id);
+        const avatarUrl = this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '';
         const playerDataToUpdate = {
           ...this.playerFormData,
-          // Only update avatar if a new value is provided, otherwise keep original
-          avatar: (this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '').replace(/\\/g, '/')
+          // Use provided avatar or fallback to default - no URL validation
+          avatar: this.getValidAvatarUrl(avatarUrl, this.playerFormData.firstName || 'Player')
         };
         console.log('📊 Player data to update:', playerDataToUpdate);
         await this.playerService.updatePlayer(this.playerFormData.id, playerDataToUpdate);
@@ -3081,7 +3164,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
           height: this.playerFormData.height || 0,
           weight: this.playerFormData.weight || 0,
           notes: this.playerFormData.notes || '',
-          avatar: (this.playerFormData.avatar || '').replace(/\\/g, '/'),
+          avatar: this.getValidAvatarUrl(this.playerFormData.avatar || '', this.playerFormData.firstName!),
           isRegistered: true,
           status: PlayerStatus.ACTIVE
         };

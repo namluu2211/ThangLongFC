@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
+import { Subscription } from 'rxjs';
 
 interface Transaction {
   id: string;
@@ -9,24 +11,19 @@ interface Transaction {
   category: string;
   description: string;
   amount: number;
-  relatedTo?: string; // match ID or member name
+  relatedTo?: string;
 }
 
 interface FundSummary {
   currentBalance: number;
   totalIncome: number;
   totalExpenses: number;
-  thisMonthIncome: number;
-  thisMonthExpenses: number;
   transactionCount: number;
-}
-
-interface CategoryStats {
-  category: string;
-  totalAmount: number;
-  transactionCount: number;
-  percentage: number;
-  color: string;
+  matchTotalIncome: number;
+  matchTotalExpenses: number;
+  grandTotalIncome: number;
+  grandTotalExpenses: number;
+  monthlyProfit: number;
 }
 
 @Component({
@@ -34,1519 +31,1170 @@ interface CategoryStats {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="container-fluid mt-3">
-      <!-- Header Section -->
-      <div class="fund-header mb-4">
-        <div class="row align-items-center">
-          <div class="col-12">
-            <h2 class="fund-title mb-0">
-              <i class="fas fa-wallet me-2"></i>
-              💰 Quản lý Quỹ Đội Bóng
-            </h2>
-            <p class="text-muted mb-0">Theo dõi thu chi và tài chính đội bóng</p>
+    <div class="fund-dashboard">
+      <!-- Modern Header -->
+      <div class="dashboard-header">
+        <div class="header-content">
+          <div class="header-info">
+            <h1 class="dashboard-title">
+              <span class="title-icon">💰</span>
+              Quản lý Quỹ Đội Bóng
+            </h1>
+            <p class="dashboard-subtitle">Theo dõi tài chính và quản lý thu chi hiệu quả</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn-primary" (click)="showAddTransaction = true">
+              <span class="btn-icon">➕</span>
+              Thêm giao dịch
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Summary Table -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="summary-table-card">
-            <div class="summary-table-header">
-              <h5 class="mb-0">
-                <i class="fas fa-chart-bar me-2"></i>
-                📊 Tổng quan tài chính
-              </h5>
+      <!-- Summary Cards Grid -->
+      <div class="summary-grid">
+        <div class="summary-card balance-card" [class.negative]="fundSummary.currentBalance < 0">
+          <div class="card-header">
+            <span class="card-icon balance-icon">💳</span>
+            <span class="card-title">Số dư hiện tại</span>
+          </div>
+          <div class="card-content">
+            <div class="main-value">{{formatCurrency(fundSummary.currentBalance)}}</div>
+            <div class="card-subtitle" [class.positive]="fundSummary.monthlyProfit > 0" [class.negative]="fundSummary.monthlyProfit < 0">
+              <span class="trend-icon">{{fundSummary.monthlyProfit > 0 ? '📈' : '📉'}}</span>
+              {{formatCurrency(fundSummary.monthlyProfit)}} tháng này
             </div>
-            <div class="summary-table-body">
-              <table class="summary-table">
-                <thead>
-                  <tr>
-                    <th class="metric-header">Chỉ số</th>
-                    <th class="value-header">Giá trị</th>
-                    <th class="detail-header">Chi tiết</th>
-                    <th class="status-header">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="income-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon income">📈</div>
-                        <div class="metric-name">Tổng thu</div>
-                      </div>
-                    </td>
-                    <td class="value-cell income">
-                      <div class="metric-value">{{formatCurrency(fundSummary.totalIncome)}}</div>
-                    </td>
-                    <td class="detail-cell">
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthIncome > 0">
-                        <i class="fas fa-arrow-up text-success"></i>
-                        +{{formatCurrency(fundSummary.thisMonthIncome)}} tháng này
-                      </div>
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthIncome === 0">
-                        <i class="fas fa-minus text-muted"></i>
-                        Chưa có thu nhập tháng này
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge income">Tích cực</span>
-                    </td>
-                  </tr>
-                  <tr class="expense-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon expense">📉</div>
-                        <div class="metric-name">Tổng chi</div>
-                      </div>
-                    </td>
-                    <td class="value-cell expense">
-                      <div class="metric-value">{{formatCurrency(fundSummary.totalExpenses)}}</div>
-                    </td>
-                    <td class="detail-cell">
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthExpenses > 0">
-                        <i class="fas fa-arrow-down text-danger"></i>
-                        -{{formatCurrency(fundSummary.thisMonthExpenses)}} tháng này
-                      </div>
-                      <div class="metric-detail" *ngIf="fundSummary.thisMonthExpenses === 0">
-                        <i class="fas fa-check text-success"></i>
-                        Chưa có chi tiêu tháng này
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge expense">Chi tiêu</span>
-                    </td>
-                  </tr>
-                  <tr class="transaction-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon transaction">📝</div>
-                        <div class="metric-name">Giao dịch</div>
-                      </div>
-                    </td>
-                    <td class="value-cell transaction">
-                      <div class="metric-value">{{fundSummary.transactionCount}}</div>
-                    </td>
-                    <td class="detail-cell">
-                      <div class="metric-detail">
-                        <i class="fas fa-calendar-alt text-info"></i>
-                        Tổng số lần giao dịch
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge transaction">Hoạt động</span>
-                    </td>
-                  </tr>
-                  <tr class="profit-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon profit">⚖️</div>
-                        <div class="metric-name">Lợi nhuận</div>
-                      </div>
-                    </td>
-                    <td class="value-cell profit" [class.negative]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
-                      <div class="metric-value">{{formatCurrency(fundSummary.totalIncome - fundSummary.totalExpenses)}}</div>
-                    </td>
-                    <td class="detail-cell">
-                      <div class="metric-detail">
-                        <i class="fas fa-calculator text-primary"></i>
-                        Thu - Chi
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge" 
-                            [class.profit]="(fundSummary.totalIncome - fundSummary.totalExpenses) >= 0"
-                            [class.loss]="(fundSummary.totalIncome - fundSummary.totalExpenses) < 0">
-                        {{(fundSummary.totalIncome - fundSummary.totalExpenses) >= 0 ? 'Lãi' : 'Lỗ'}}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          </div>
+        </div>
+
+        <div class="summary-card income-card">
+          <div class="card-header">
+            <span class="card-icon income-icon">📈</span>
+            <span class="card-title">Tổng thu</span>
+          </div>
+          <div class="card-content">
+            <div class="main-value income">{{formatCurrency(fundSummary.grandTotalIncome)}}</div>
+            <div class="card-subtitle">
+              <div class="breakdown">
+                <span>Trận đấu: {{formatCurrency(fundSummary.matchTotalIncome)}}</span>
+                <span>Giao dịch: {{formatCurrency(fundSummary.totalIncome)}}</span>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <div class="summary-card expense-card">
+          <div class="card-header">
+            <span class="card-icon expense-icon">📉</span>
+            <span class="card-title">Tổng chi</span>
+          </div>
+          <div class="card-content">
+            <div class="main-value expense">{{formatCurrency(fundSummary.grandTotalExpenses)}}</div>
+            <div class="card-subtitle">
+              <div class="breakdown">
+                <span>Trận đấu: {{formatCurrency(fundSummary.matchTotalExpenses)}}</span>
+                <span>Giao dịch: {{formatCurrency(fundSummary.totalExpenses)}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-card activity-card">
+          <div class="card-header">
+            <span class="card-icon activity-icon">📊</span>
+            <span class="card-title">Hoạt động</span>
+          </div>
+          <div class="card-content">
+            <div class="main-value activity">{{fundSummary.transactionCount}}</div>
+            <div class="card-subtitle">Giao dịch trong tháng</div>
           </div>
         </div>
       </div>
 
-      <!-- Quick Actions & Filters -->
-      <div class="row mb-4">
-        <div class="col-lg-8">
-          <div class="action-card">
-            <div class="action-header">
-              <h5 class="mb-0">
-                <i class="fas fa-plus-circle me-2"></i>
-                ⚡ Thêm giao dịch nhanh
-              </h5>
-            </div>
-            <div class="action-body">
-              <form (ngSubmit)="addTransaction()" #transactionForm="ngForm">
-                <div class="row g-3">
-                  <div class="col-md-2">
-                    <label class="form-label fw-semibold" for="transaction-type">Loại</label>
-                    <select id="transaction-type" class="form-select modern-select" [(ngModel)]="newTransaction.type" name="type" required>
-                      <option value="income">📈 Thu</option>
-                      <option value="expense">📉 Chi</option>
-                    </select>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label fw-semibold" for="transaction-category">Danh mục</label>
-                    <select id="transaction-category" class="form-select modern-select" [(ngModel)]="newTransaction.category" name="category" required>
-                      <option value="">-- Chọn danh mục --</option>
-                      <optgroup label="Thu nhập" *ngIf="newTransaction.type === 'income'">
-                        <option value="Đóng góp thành viên">💳 Đóng góp thành viên</option>
-                        <option value="Tiền thưởng">🏆 Tiền thưởng</option>
-                        <option value="Tài trợ">🤝 Tài trợ</option>
-                        <option value="Bán đồ">🛍️ Bán đồ</option>
-                        <option value="Thu khác">💰 Thu khác</option>
-                      </optgroup>
-                      <optgroup label="Chi tiêu" *ngIf="newTransaction.type === 'expense'">
-                        <option value="Đồ uống">🥤 Đồ uống</option>
-                        <option value="Thuê sân">⚽ Thuê sân</option>
-                        <option value="Trang phục">👕 Trang phục</option>
-                        <option value="Thiết bị">🥅 Thiết bị</option>
-                        <option value="Ăn uống">🍜 Ăn uống</option>
-                        <option value="Y tế">🏥 Y tế</option>
-                        <option value="Chi khác">💸 Chi khác</option>
-                      </optgroup>
-                    </select>
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label fw-semibold" for="transaction-amount">Số tiền</label>
-                    <input id="transaction-amount" type="number" class="form-control modern-input" [(ngModel)]="newTransaction.amount" 
-                           name="amount" placeholder="0" min="0" required>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label fw-semibold" for="transaction-description">Mô tả</label>
-                    <input id="transaction-description" type="text" class="form-control modern-input" [(ngModel)]="newTransaction.description" 
-                           name="description" placeholder="Mô tả chi tiết...">
-                  </div>
-                  <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100 modern-btn" [disabled]="!transactionForm.form.valid">
-                      <i class="fas fa-plus me-1"></i>
-                      Thêm
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-4">
-          <div class="filter-card">
-            <div class="filter-header">
-              <div class="filter-title">
-                <i class="fas fa-filter filter-icon"></i>
-                <span>🔍 Bộ lọc</span>
-              </div>
-            </div>
-            <div class="filter-body">
-              <div class="filter-section">
-                <label class="filter-label" for="filter-type">Loại giao dịch</label>
-                <div class="custom-select-wrapper">
-                  <select id="filter-type" class="custom-select" [(ngModel)]="filter.type" (change)="applyFilters()">
-                    <option value="">Tất cả</option>
-                    <option value="income">📈 Thu nhập</option>
-                    <option value="expense">📉 Chi tiêu</option>
-                  </select>
-                  <i class="fas fa-chevron-down select-arrow"></i>
-                </div>
-              </div>
-              
-              <div class="filter-section">
-                <label class="filter-label" for="filter-period">Thời gian</label>
-                <div class="custom-select-wrapper">
-                  <select id="filter-period" class="custom-select" [(ngModel)]="filter.period" (change)="applyFilters()">
-                    <option value="all">Tất cả</option>
-                    <option value="today">📅 Hôm nay</option>
-                    <option value="week">📊 Tuần này</option>
-                    <option value="month">🗓️ Tháng này</option>
-                  </select>
-                  <i class="fas fa-chevron-down select-arrow"></i>
-                </div>
-              </div>
-              
-              <div class="filter-section">
-                <label class="filter-label" for="filter-search">Tìm kiếm</label>
-                <div class="search-input-wrapper">
-                  <i class="fas fa-search search-icon"></i>
-                  <input id="filter-search" type="text" class="search-input" [(ngModel)]="filter.search" 
-                         (input)="applyFilters()" placeholder="Tìm theo mô tả...">
-                </div>
-              </div>
-            </div>
-          </div>
+      <!-- Quick Actions -->
+      <div class="quick-actions-section">
+        <h2 class="section-title">
+          <span class="section-icon">⚡</span>
+          Thao tác nhanh
+        </h2>
+        <div class="quick-actions-grid">
+          <button class="quick-action-btn income-action" (click)="quickAddIncome()">
+            <span class="action-icon">💰</span>
+            <span class="action-text">Thêm thu nhập</span>
+          </button>
+          <button class="quick-action-btn expense-action" (click)="quickAddExpense()">
+            <span class="action-icon">💸</span>
+            <span class="action-text">Thêm chi phí</span>
+          </button>
+          <button class="quick-action-btn report-action" (click)="generateReport()">
+            <span class="action-icon">📋</span>
+            <span class="action-text">Báo cáo</span>
+          </button>
+          <button class="quick-action-btn sync-action" (click)="syncWithMatches()">
+            <span class="action-icon">🔄</span>
+            <span class="action-text">Đồng bộ trận đấu</span>
+          </button>
         </div>
       </div>
 
-      <!-- Category Statistics -->
-      <div class="row mb-4" *ngIf="categoryStats.length > 0">
-        <div class="col-12">
-          <div class="stats-card">
-            <div class="stats-header">
-              <h5 class="mb-0">
-                <i class="fas fa-chart-pie me-2"></i>
-                📊 Phân tích theo danh mục
-              </h5>
+      <!-- Transaction Management -->
+      <div class="transaction-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="section-icon">📝</span>
+            Lịch sử giao dịch
+          </h2>
+          <div class="section-actions">
+            <div class="filter-group">
+              <select [(ngModel)]="selectedFilter" (change)="filterTransactions()" class="filter-select">
+                <option value="all">Tất cả</option>
+                <option value="income">Thu nhập</option>
+                <option value="expense">Chi phí</option>
+                <option value="this-month">Tháng này</option>
+              </select>
             </div>
-            <div class="stats-body">
-              <div class="row">
-                <div class="col-lg-8">
-                  <div class="category-list">
-                    <div *ngFor="let stat of categoryStats" class="category-item">
-                      <div class="category-info">
-                        <div class="category-name">{{stat.category}}</div>
-                        <div class="category-details">
-                          {{stat.transactionCount}} giao dịch • {{stat.percentage.toFixed(1)}}%
-                        </div>
-                      </div>
-                      <div class="category-amount">{{formatCurrency(stat.totalAmount)}}</div>
-                      <div class="category-bar">
-                        <div class="progress-fill" [style.width.%]="stat.percentage" [style.background-color]="stat.color"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-lg-4">
-                  <div class="quick-stats">
-                    <div class="quick-stat-item">
-                      <div class="quick-stat-icon income">📈</div>
-                      <div class="quick-stat-content">
-                        <div class="quick-stat-value">{{getIncomeCategories().length}}</div>
-                        <div class="quick-stat-label">Danh mục thu</div>
-                      </div>
-                    </div>
-                    <div class="quick-stat-item">
-                      <div class="quick-stat-icon expense">📉</div>
-                      <div class="quick-stat-content">
-                        <div class="quick-stat-value">{{getExpenseCategories().length}}</div>
-                        <div class="quick-stat-label">Danh mục chi</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button class="btn-secondary" (click)="exportTransactions()">
+              <span class="btn-icon">📁</span>
+              Xuất Excel
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Transaction History -->
-      <div class="transactions-card">
-        <div class="transactions-header">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-              <i class="fas fa-history me-2"></i>
-              📋 Lịch sử giao dịch
-            </h5>
-            <div class="header-actions">
-              <button class="btn btn-outline-primary btn-sm me-2" (click)="exportTransactions()">
-                <i class="fas fa-download me-1"></i>
-                Xuất Excel
+        <div class="transaction-list" *ngIf="filteredTransactions.length > 0">
+          <div *ngFor="let transaction of filteredTransactions; trackBy: trackTransaction" 
+               class="transaction-item" 
+               [class.income]="transaction.type === 'income'"
+               [class.expense]="transaction.type === 'expense'">
+            <div class="transaction-main">
+              <div class="transaction-info">
+                <div class="transaction-header">
+                  <span class="transaction-category">{{transaction.category}}</span>
+                  <span class="transaction-date">{{formatDate(transaction.date)}}</span>
+                </div>
+                <div class="transaction-description">{{transaction.description}}</div>
+              </div>
+              <div class="transaction-amount" [class.income]="transaction.type === 'income'" [class.expense]="transaction.type === 'expense'">
+                <span class="amount-symbol">{{transaction.type === 'income' ? '+' : '-'}}</span>
+                <span class="amount-value">{{formatCurrency(transaction.amount)}}</span>
+              </div>
+            </div>
+            <div class="transaction-actions">
+              <button class="action-btn edit" (click)="editTransaction(transaction)" title="Chỉnh sửa">
+                ✏️
               </button>
-              <button class="btn btn-outline-danger btn-sm" (click)="showResetModal = true">
-                <i class="fas fa-trash-alt me-1"></i>
-                Reset Quỹ
+              <button class="action-btn delete" (click)="deleteTransaction(transaction)" title="Xóa">
+                🗑️
               </button>
             </div>
           </div>
         </div>
-        <div class="transactions-body">
-          <div class="table-responsive" *ngIf="filteredTransactions.length > 0; else noTransactions">
-            <table class="modern-transaction-table">
-              <thead>
-                <tr>
-                  <th>Ngày</th>
-                  <th>Loại</th>
-                  <th>Danh mục</th>
-                  <th>Mô tả</th>
-                  <th>Số tiền</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let transaction of paginatedTransactions; let i = index" 
-                    class="transaction-row" [class.income-row]="transaction.type === 'income'" 
-                    [class.expense-row]="transaction.type === 'expense'">
-                  <td class="date-cell">
-                    <div class="transaction-date">
-                      <div class="date-main">{{formatDate(transaction.date)}}</div>
-                      <div class="date-time">{{formatTime(transaction.date)}}</div>
-                    </div>
-                  </td>
-                  <td class="type-cell">
-                    <div class="transaction-type" [class.income]="transaction.type === 'income'" 
-                         [class.expense]="transaction.type === 'expense'">
-                      <i [class]="transaction.type === 'income' ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
-                      {{transaction.type === 'income' ? 'Thu' : 'Chi'}}
-                    </div>
-                  </td>
-                  <td class="category-cell">
-                    <div class="transaction-category">{{transaction.category}}</div>
-                  </td>
-                  <td class="description-cell">
-                    <div class="transaction-description" [title]="transaction.description">
-                      {{transaction.description || 'Không có mô tả'}}
-                    </div>
-                  </td>
-                  <td class="amount-cell">
-                    <div class="transaction-amount" [class.income]="transaction.type === 'income'" 
-                         [class.expense]="transaction.type === 'expense'">
-                      {{transaction.type === 'income' ? '+' : '-'}}{{formatCurrency(transaction.amount)}}
-                    </div>
-                  </td>
-                  <td class="action-cell">
-                    <button class="btn btn-sm btn-outline-danger" (click)="deleteTransaction(transaction.id)">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
 
-          <!-- Pagination -->
-          <div class="pagination-controls" *ngIf="totalPages > 1">
-            <button class="btn btn-sm btn-outline-primary" (click)="previousPage()" [disabled]="currentPage === 1">
-              <i class="fas fa-chevron-left"></i>
-            </button>
-            <span class="pagination-info">
-              Trang {{currentPage}} / {{totalPages}} ({{filteredTransactions.length}} giao dịch)
-            </span>
-            <button class="btn btn-sm btn-outline-primary" (click)="nextPage()" [disabled]="currentPage === totalPages">
-              <i class="fas fa-chevron-right"></i>
-            </button>
-          </div>
-
-          <!-- No Transactions -->
-          <ng-template #noTransactions>
-            <div class="no-transactions">
-              <div class="no-transactions-icon">💳</div>
-              <div class="no-transactions-title">Chưa có giao dịch nào</div>
-              <div class="no-transactions-text">
-                Hãy thêm giao dịch đầu tiên để bắt đầu quản lý quỹ đội bóng!
-              </div>
-            </div>
-          </ng-template>
+        <div *ngIf="filteredTransactions.length === 0" class="empty-state">
+          <div class="empty-icon">📊</div>
+          <h3 class="empty-title">Chưa có giao dịch nào</h3>
+          <p class="empty-text">Bắt đầu bằng cách thêm giao dịch đầu tiên của bạn</p>
+          <button class="btn-primary" (click)="showAddTransaction = true">
+            <span class="btn-icon">➕</span>
+            Thêm giao dịch đầu tiên
+          </button>
         </div>
       </div>
 
-      <!-- Reset Modal -->
-      <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" *ngIf="showResetModal">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                ⚠️ Xác nhận Reset Quỹ
-              </h5>
-            </div>
-            <div class="modal-body">
-              <p class="mb-3">Bạn có chắc chắn muốn reset toàn bộ quỹ đội bóng?</p>
-              <div class="alert alert-warning">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Thao tác này sẽ:</strong>
-                <ul class="mb-0 mt-2">
-                  <li>Xóa tất cả lịch sử giao dịch</li>
-                  <li>Đặt số dư về 0 VND</li>
-                  <li>Không thể hoàn tác</li>
-                </ul>
+      <!-- Add Transaction Modal -->
+      <div *ngIf="showAddTransaction" class="modal-overlay" tabindex="0" (click)="showAddTransaction = false" (keyup.escape)="showAddTransaction = false">
+        <div class="modal-content" tabindex="0" (click)="$event.stopPropagation()" (keyup.escape)="closeTransactionModal()">
+          <div class="modal-header">
+            <h3 class="modal-title">
+              <span class="modal-icon">💰</span>
+              {{editingTransaction ? 'Chỉnh sửa giao dịch' : 'Thêm giao dịch mới'}}
+            </h3>
+            <button class="close-btn" (click)="closeTransactionModal()">✕</button>
+          </div>
+          
+          <form (ngSubmit)="saveTransaction()" class="transaction-form">
+            <div class="form-grid">
+              <div class="form-group">
+                <div class="form-label">Loại giao dịch</div>
+                <div class="type-selector">
+                  <button type="button" 
+                          class="type-btn" 
+                          [class.active]="transactionForm.type === 'income'"
+                          (click)="transactionForm.type = 'income'">
+                    <span class="type-icon">📈</span>
+                    Thu nhập
+                  </button>
+                  <button type="button" 
+                          class="type-btn" 
+                          [class.active]="transactionForm.type === 'expense'"
+                          (click)="transactionForm.type = 'expense'">
+                    <span class="type-icon">📉</span>
+                    Chi phí
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="category" class="form-label">Danh mục</label>
+                <select id="category" [(ngModel)]="transactionForm.category" name="category" class="form-input" required>
+                  <option value="">Chọn danh mục</option>
+                  <option *ngFor="let cat of getCategories()" [value]="cat.value">{{cat.label}}</option>
+                </select>
+              </div>
+
+              <div class="form-group full-width">
+                <label for="description" class="form-label">Mô tả</label>
+                <input id="description" type="text" 
+                       [(ngModel)]="transactionForm.description" 
+                       name="description"
+                       class="form-input" 
+                       placeholder="Nhập mô tả giao dịch..."
+                       required>
+              </div>
+
+              <div class="form-group">
+                <label for="amount" class="form-label">Số tiền (VNĐ)</label>
+                <input id="amount" type="number" 
+                       [(ngModel)]="transactionForm.amount" 
+                       name="amount"
+                       class="form-input amount-input" 
+                       placeholder="0"
+                       min="0"
+                       step="1000"
+                       required>
+              </div>
+
+              <div class="form-group">
+                <label for="transactionDate" class="form-label">Ngày giao dịch</label>
+                <input id="transactionDate" type="date" 
+                       [(ngModel)]="transactionForm.date" 
+                       name="date"
+                       class="form-input"
+                       required>
               </div>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" (click)="showResetModal = false">
-                <i class="fas fa-times me-1"></i>
+
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" (click)="closeTransactionModal()">
                 Hủy
               </button>
-              <button type="button" class="btn btn-danger" (click)="resetFund()">
-                <i class="fas fa-trash-alt me-1"></i>
-                Xác nhận Reset
+              <button type="submit" class="btn-primary">
+                <span class="btn-icon">💾</span>
+                {{editingTransaction ? 'Cập nhật' : 'Thêm giao dịch'}}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
   `,
   styles: [`
-    .container-fluid {
-      max-width: 1400px;
+    /* Modern Dashboard Styles */
+    .fund-dashboard {
+      max-width: 1200px;
       margin: 0 auto;
+      padding: 24px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     /* Header Styles */
-    .fund-header {
-      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-      border-radius: 20px;
-      padding: 2rem;
-      color: white;
-      box-shadow: 0 10px 30px rgba(39, 174, 96, 0.3);
+    .dashboard-header {
+      margin-bottom: 32px;
     }
 
-    .fund-title {
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      background: white;
+      padding: 32px;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .dashboard-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #1a365d;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .title-icon {
+      font-size: 3rem;
+    }
+
+    .dashboard-subtitle {
+      font-size: 1.1rem;
+      color: #64748b;
+      margin: 8px 0 0 0;
+      font-weight: 400;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Summary Cards Grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .summary-card {
+      background: white;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .summary-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    }
+
+    .balance-card.negative::before {
+      background: linear-gradient(90deg, #ff6b6b 0%, #ee5a52 100%);
+    }
+
+    .income-card::before {
+      background: linear-gradient(90deg, #51cf66 0%, #40c057 100%);
+    }
+
+    .expense-card::before {
+      background: linear-gradient(90deg, #ff6b6b 0%, #fa5252 100%);
+    }
+
+    .activity-card::before {
+      background: linear-gradient(90deg, #339af0 0%, #228be6 100%);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .card-icon {
+      font-size: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .main-value {
       font-size: 2.2rem;
       font-weight: 700;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      color: #1a365d;
+      margin-bottom: 8px;
+      line-height: 1.2;
     }
 
-    .balance-display {
-      text-align: center;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(10px);
-      border-radius: 15px;
-      padding: 1.5rem;
+    .main-value.income {
+      color: #51cf66;
     }
 
-    .balance-label {
-      font-size: 0.9rem;
-      opacity: 0.9;
-      margin-bottom: 0.5rem;
-    }
-
-    .balance-amount {
-      font-size: 2rem;
-      font-weight: 800;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .balance-amount.negative {
+    .main-value.expense {
       color: #ff6b6b;
     }
 
-    /* Summary Table */
-    .summary-table-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-      overflow: hidden;
+    .main-value.activity {
+      color: #339af0;
     }
 
-    .summary-table-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 1.5rem 2rem;
-    }
-
-    .summary-table-body {
-      padding: 0;
-    }
-
-    .summary-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0;
-    }
-
-    .summary-table thead th {
-      background: #f8f9fa;
-      padding: 1.25rem 1.5rem;
-      font-weight: 700;
-      color: #2c3e50;
-      text-align: left;
+    .card-subtitle {
       font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 2px solid #e9ecef;
+      color: #64748b;
     }
 
-    .metric-header {
-      width: 25%;
+    .card-subtitle.positive {
+      color: #51cf66;
     }
 
-    .value-header {
-      width: 25%;
+    .card-subtitle.negative {
+      color: #ff6b6b;
     }
 
-    .detail-header {
-      width: 30%;
+    .trend-icon {
+      margin-right: 4px;
     }
 
-    .status-header {
-      width: 20%;
-    }
-
-    .summary-table tbody tr {
-      transition: all 0.3s ease;
-      border-bottom: 1px solid #f1f3f4;
-    }
-
-    .summary-table tbody tr:hover {
-      background: linear-gradient(135deg, #f8fcff 0%, #f0f8ff 100%);
-      transform: translateX(5px);
-    }
-
-    .income-row {
-      border-left: 4px solid #27ae60;
-    }
-
-    .expense-row {
-      border-left: 4px solid #e74c3c;
-    }
-
-    .transaction-row {
-      border-left: 4px solid #3498db;
-    }
-
-    .profit-row {
-      border-left: 4px solid #f39c12;
-    }
-
-    .summary-table td {
-      padding: 1.5rem;
-      vertical-align: middle;
-    }
-
-    .metric-info {
+    .breakdown {
       display: flex;
-      align-items: center;
-      gap: 1rem;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .metric-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      color: white;
-      font-weight: 600;
-    }
-
-    .metric-icon.income {
-      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-    }
-
-    .metric-icon.expense {
-      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    }
-
-    .metric-icon.transaction {
-      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    }
-
-    .metric-icon.profit {
-      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-    }
-
-    .metric-name {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #2c3e50;
-    }
-
-    .metric-value {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #2c3e50;
-    }
-
-    .value-cell.income .metric-value {
-      color: #27ae60;
-    }
-
-    .value-cell.expense .metric-value {
-      color: #e74c3c;
-    }
-
-    .value-cell.transaction .metric-value {
-      color: #3498db;
-    }
-
-    .value-cell.profit .metric-value {
-      color: #f39c12;
-    }
-
-    .value-cell.profit.negative .metric-value {
-      color: #e74c3c;
-    }
-
-    .metric-detail {
-      font-size: 0.9rem;
-      color: #7f8c8d;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 0.4rem 1rem;
-      border-radius: 20px;
+    .breakdown span {
       font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    /* Quick Actions */
+    .quick-actions-section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
       font-weight: 600;
-      text-align: center;
-      color: white;
-    }
-
-    .status-badge.income {
-      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-    }
-
-    .status-badge.expense {
-      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    }
-
-    .status-badge.transaction {
-      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    }
-
-    .status-badge.profit {
-      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-    }
-
-    .status-badge.loss {
-      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-    }
-
-    /* Action Card */
-    .action-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-      overflow: hidden;
-    }
-
-    .action-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 1.5rem 2rem;
-    }
-
-    .action-body {
-      padding: 2rem;
-    }
-
-    .modern-select,
-    .modern-input {
-      border-radius: 12px;
-      border: 2px solid #e9ecef;
-      padding: 0.75rem 1rem;
-      transition: all 0.3s ease;
-    }
-
-    .modern-select:focus,
-    .modern-input:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
-    }
-
-    .modern-btn {
-      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-      border: none;
-      border-radius: 12px;
-      padding: 0.75rem 1.5rem;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-
-    .modern-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(39, 174, 96, 0.3);
-    }
-
-    /* Filter Card */
-    .filter-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-      overflow: hidden;
-      height: fit-content;
-      border: 1px solid #e3f2fd;
-    }
-
-    .filter-header {
-      background: linear-gradient(135deg, #1976d2 0%, #2196f3 100%);
-      padding: 1.25rem 1.5rem;
-      color: white;
-    }
-
-    .filter-title {
+      color: #1a365d;
+      margin: 0 0 20px 0;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      font-size: 1.1rem;
-      font-weight: 600;
+      gap: 12px;
     }
 
-    .filter-icon {
-      font-size: 1rem;
-      opacity: 0.9;
+    .section-icon {
+      font-size: 1.3rem;
     }
 
-    .filter-body {
-      padding: 1.5rem;
-      background: #fafbfc;
+    .quick-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
     }
 
-    .filter-section {
-      margin-bottom: 1.25rem;
-    }
-
-    .filter-section:last-child {
-      margin-bottom: 0;
-    }
-
-    .filter-label {
-      display: block;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #37474f;
-      margin-bottom: 0.5rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    /* Custom Select Styling */
-    .custom-select-wrapper {
-      position: relative;
-    }
-
-    .custom-select {
-      width: 100%;
-      padding: 0.75rem 2.5rem 0.75rem 1rem;
-      border: 2px solid #e1f5fe;
-      border-radius: 12px;
+    .quick-action-btn {
       background: white;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: #37474f;
-      transition: all 0.3s ease;
-      appearance: none;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
       cursor: pointer;
-    }
-
-    .custom-select:focus {
-      outline: none;
-      border-color: #1976d2;
-      box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
-      background: #fafbfc;
-    }
-
-    .custom-select:hover {
-      border-color: #42a5f5;
-      background: #f8fcff;
-    }
-
-    .select-arrow {
-      position: absolute;
-      right: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #78909c;
-      font-size: 0.8rem;
-      pointer-events: none;
       transition: all 0.3s ease;
+      text-decoration: none;
+      color: #1a365d;
     }
 
-    .custom-select:focus + .select-arrow {
-      color: #1976d2;
-      transform: translateY(-50%) rotate(180deg);
+    .quick-action-btn:hover {
+      border-color: #667eea;
+      background: #f8faff;
+      transform: translateY(-2px);
     }
 
-    /* Search Input Styling */
-    .search-input-wrapper {
-      position: relative;
+    .action-icon {
+      font-size: 1.8rem;
     }
 
-    .search-input {
-      width: 100%;
-      padding: 0.75rem 1rem 0.75rem 2.75rem;
-      border: 2px solid #e1f5fe;
-      border-radius: 12px;
-      background: white;
-      font-size: 0.9rem;
-      color: #37474f;
-      transition: all 0.3s ease;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: #1976d2;
-      box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
-      background: #fafbfc;
-    }
-
-    .search-input:hover {
-      border-color: #42a5f5;
-      background: #f8fcff;
-    }
-
-    .search-input::placeholder {
-      color: #90a4ae;
-      font-style: italic;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #78909c;
-      font-size: 0.85rem;
-      pointer-events: none;
-    }
-
-    .search-input:focus ~ .search-icon {
-      color: #1976d2;
-    }
-
-    /* Stats Card */
-    .stats-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-      overflow: hidden;
-    }
-
-    .stats-header {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      color: white;
-      padding: 1.5rem 2rem;
-    }
-
-    .stats-body {
-      padding: 2rem;
-    }
-
-    .category-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .category-item {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 1rem;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .category-info {
-      margin-bottom: 0.5rem;
-    }
-
-    .category-name {
-      font-weight: 600;
-      color: #2c3e50;
-      font-size: 1rem;
-    }
-
-    .category-details {
-      font-size: 0.8rem;
-      color: #7f8c8d;
-    }
-
-    .category-amount {
-      position: absolute;
-      right: 1rem;
-      top: 1rem;
-      font-weight: 700;
-      color: #2c3e50;
-    }
-
-    .category-bar {
-      height: 6px;
-      background: #e9ecef;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 0.5rem;
-    }
-
-    .progress-fill {
-      height: 100%;
-      border-radius: 3px;
-      transition: width 1s ease-in-out;
-    }
-
-    .quick-stats {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      padding-left: 2rem;
-    }
-
-    .quick-stat-item {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 1rem;
-    }
-
-    .quick-stat-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-    }
-
-    .quick-stat-icon.income {
-      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-      color: white;
-    }
-
-    .quick-stat-icon.expense {
-      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-      color: white;
-    }
-
-    .quick-stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #2c3e50;
-    }
-
-    .quick-stat-label {
-      font-size: 0.9rem;
-      color: #7f8c8d;
-    }
-
-    /* Transaction Table */
-    .transactions-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-      overflow: hidden;
-    }
-
-    .transactions-header {
-      background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-      color: white;
-      padding: 1.5rem 2rem;
-    }
-
-    .transactions-body {
-      padding: 0;
-    }
-
-    .modern-transaction-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .modern-transaction-table thead th {
-      background: #f8f9fa;
-      padding: 1rem;
-      font-weight: 600;
-      color: #495057;
-      text-align: left;
-      border-bottom: 2px solid #e9ecef;
-    }
-
-    .transaction-row {
-      transition: all 0.3s ease;
-      border-bottom: 1px solid #f1f3f4;
-    }
-
-    .transaction-row:hover {
-      background: #f8f9ff;
-    }
-
-    .transaction-row.income-row {
-      border-left: 4px solid #27ae60;
-    }
-
-    .transaction-row.expense-row {
-      border-left: 4px solid #e74c3c;
-    }
-
-    .modern-transaction-table td {
-      padding: 1rem;
-      vertical-align: middle;
-    }
-
-    .transaction-date {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .date-main {
-      font-weight: 600;
-      color: #2c3e50;
+    .action-text {
+      font-weight: 500;
       font-size: 0.9rem;
     }
 
-    .date-time {
-      font-size: 0.75rem;
-      color: #7f8c8d;
+    .income-action:hover {
+      border-color: #51cf66;
+      background: #f0fff4;
     }
 
-    .transaction-type {
-      display: inline-flex;
+    .expense-action:hover {
+      border-color: #ff6b6b;
+      background: #fff5f5;
+    }
+
+    .report-action:hover {
+      border-color: #339af0;
+      background: #f0f9ff;
+    }
+
+    .sync-action:hover {
+      border-color: #845ef7;
+      background: #faf5ff;
+    }
+
+    /* Transaction Section */
+    .transaction-section {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.25rem 0.75rem;
-      border-radius: 15px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
     }
 
-    .transaction-type.income {
-      background: rgba(39, 174, 96, 0.1);
-      color: #27ae60;
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
-    .transaction-type.expense {
-      background: rgba(231, 76, 60, 0.1);
-      color: #e74c3c;
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      color: #1a365d;
+      font-size: 0.9rem;
+    }
+
+    /* Transaction List */
+    .transaction-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .transaction-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      transition: all 0.2s ease;
+    }
+
+    .transaction-item:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .transaction-item.income {
+      border-left: 4px solid #51cf66;
+    }
+
+    .transaction-item.expense {
+      border-left: 4px solid #ff6b6b;
+    }
+
+    .transaction-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex: 1;
+      gap: 16px;
+    }
+
+    .transaction-info {
+      flex: 1;
+    }
+
+    .transaction-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
     }
 
     .transaction-category {
-      font-weight: 500;
-      color: #495057;
+      font-weight: 600;
+      color: #1a365d;
+      font-size: 0.9rem;
+    }
+
+    .transaction-date {
+      font-size: 0.8rem;
+      color: #64748b;
     }
 
     .transaction-description {
-      color: #6c757d;
-      max-width: 200px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      color: #64748b;
+      font-size: 0.9rem;
     }
 
     .transaction-amount {
+      font-size: 1.1rem;
       font-weight: 700;
-      font-size: 1rem;
+      text-align: right;
     }
 
     .transaction-amount.income {
-      color: #27ae60;
+      color: #51cf66;
     }
 
     .transaction-amount.expense {
-      color: #e74c3c;
+      color: #ff6b6b;
     }
 
-    /* Pagination */
-    .pagination-controls {
-      padding: 1.5rem 2rem;
+    .transaction-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: 16px;
+    }
+
+    .action-btn {
+      background: none;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: #e2e8f0;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+    }
+
+    .empty-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #1a365d;
+      margin-bottom: 8px;
+    }
+
+    .empty-text {
+      margin-bottom: 24px;
+    }
+
+    /* Buttons */
+    .btn-primary, .btn-secondary {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      background: #f8f9fa;
-      border-top: 1px solid #e9ecef;
-    }
-
-    .pagination-info {
+      gap: 8px;
+      text-decoration: none;
       font-size: 0.9rem;
-      color: #6c757d;
-      flex: 1;
-      text-align: center;
     }
 
-    /* No Transactions */
-    .no-transactions {
-      text-align: center;
-      padding: 4rem 2rem;
-      color: #6c757d;
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
-    .no-transactions-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
     }
 
-    .no-transactions-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #495057;
-      margin-bottom: 1rem;
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #1a365d;
+      border: 1px solid #e2e8f0;
     }
 
-    .no-transactions-text {
-      font-size: 1rem;
+    .btn-secondary:hover {
+      background: #e2e8f0;
+      transform: translateY(-1px);
     }
 
-    /* Header Actions */
-    .header-actions {
-      display: flex;
-      gap: 0.5rem;
+    .btn-icon {
+      font-size: 0.9rem;
     }
 
     /* Modal Styles */
-    .modal {
-      z-index: 1050;
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
     }
 
-    /* Responsive */
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #1a365d;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #64748b;
+      padding: 4px;
+      border-radius: 4px;
+    }
+
+    .close-btn:hover {
+      background: #f1f5f9;
+      color: #1a365d;
+    }
+
+    /* Form Styles */
+    .transaction-form {
+      padding: 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-label {
+      display: block;
+      font-weight: 600;
+      color: #1a365d;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .type-selector {
+      display: flex;
+      gap: 8px;
+    }
+
+    .type-btn {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .type-btn.active {
+      border-color: #667eea;
+      background: #f8faff;
+      color: #667eea;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* Responsive Design */
     @media (max-width: 768px) {
-      .fund-title {
-        font-size: 1.5rem;
+      .fund-dashboard {
+        padding: 16px;
       }
 
-      .balance-amount {
-        font-size: 1.5rem;
-      }
-
-      .summary-card {
-        padding: 1.5rem;
-        height: auto;
+      .header-content {
         flex-direction: column;
-        text-align: center;
-        gap: 1rem;
+        align-items: flex-start;
+        padding: 24px;
       }
 
-      .summary-icon {
+      .dashboard-title {
         font-size: 2rem;
-        width: 60px;
-        height: 60px;
       }
 
-      .action-header,
-      .action-body,
-      .transactions-header {
-        padding: 1rem;
+      .summary-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
       }
 
-      .quick-stats {
-        padding-left: 0;
-        margin-top: 2rem;
+      .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
       }
 
-      .modern-transaction-table {
-        font-size: 0.8rem;
-      }
-
-      .modern-transaction-table td {
-        padding: 0.5rem;
-      }
-
-      .transaction-description {
-        max-width: 120px;
-      }
-
-      .header-actions {
+      .section-header {
         flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .transaction-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .transaction-main {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .transaction-amount {
+        text-align: left;
+        font-size: 1.3rem;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-content {
+        margin: 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .quick-actions-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .transaction-actions {
+        margin-left: 0;
+        margin-top: 8px;
       }
     }
   `]
 })
-export class FundComponent implements OnInit {
-  // Transaction Management
+export class FundComponent implements OnInit, OnDestroy {
+  private firebaseService = inject(FirebaseService);
+  private subscription?: Subscription;
+
+  // Data properties
   transactions: Transaction[] = [];
   filteredTransactions: Transaction[] = [];
-  paginatedTransactions: Transaction[] = [];
+  matchHistory: HistoryEntry[] = [];
   
-  // UI State
-  showResetModal = false;
-  currentPage = 1;
-  itemsPerPage = 10;
-  totalPages = 1;
-  
-  // Forms
-  newTransaction: Partial<Transaction> = {
-    type: 'expense',
-    category: '',
-    description: '',
-    amount: 0
-  };
-  
-  filter = {
-    type: '',
-    period: 'all',
-    search: ''
-  };
-  
-  // Computed Data
   fundSummary: FundSummary = {
     currentBalance: 0,
     totalIncome: 0,
     totalExpenses: 0,
-    thisMonthIncome: 0,
-    thisMonthExpenses: 0,
-    transactionCount: 0
+    transactionCount: 0,
+    matchTotalIncome: 0,
+    matchTotalExpenses: 0,
+    grandTotalIncome: 0,
+    grandTotalExpenses: 0,
+    monthlyProfit: 0
   };
-  
-  categoryStats: CategoryStats[] = [];
+
+  // UI state
+  showAddTransaction = false;
+  editingTransaction: Transaction | null = null;
+  selectedFilter = 'all';
+
+  // Form data
+  transactionForm: Partial<Transaction> = {
+    type: 'income',
+    date: new Date().toISOString().split('T')[0],
+    amount: 0,
+    category: '',
+    description: ''
+  };
 
   ngOnInit() {
-    this.loadTransactions();
-    this.calculateSummary();
-    this.applyFilters();
+    this.loadData();
+    this.subscribeToMatchHistory();
   }
 
-  private loadTransactions() {
-    const stored = localStorage.getItem('fundTransactions');
-    this.transactions = stored ? JSON.parse(stored) : [];
+  ngOnDestroy() {
+    this.subscription?.unsubscribe();
   }
 
-  private saveTransactions() {
-    localStorage.setItem('fundTransactions', JSON.stringify(this.transactions));
-  }
-
-  addTransaction() {
-    if (!this.newTransaction.category || !this.newTransaction.amount) return;
-
-    const transaction: Transaction = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      type: this.newTransaction.type!,
-      category: this.newTransaction.category,
-      description: this.newTransaction.description || '',
-      amount: this.newTransaction.amount
-    };
-
-    this.transactions.unshift(transaction);
-    this.saveTransactions();
-    
-    // Update fund balance in localStorage for compatibility
-    this.updateFundBalance();
-    
-    // Reset form
-    this.newTransaction = {
-      type: 'expense',
-      category: '',
-      description: '',
-      amount: 0
-    };
-    
-    this.calculateSummary();
-    this.applyFilters();
-  }
-
-  deleteTransaction(id: string) {
-    if (confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) {
-      this.transactions = this.transactions.filter(t => t.id !== id);
-      this.saveTransactions();
-      this.updateFundBalance();
-      this.calculateSummary();
-      this.applyFilters();
+  private loadData() {
+    // Load transactions from localStorage
+    const storedTransactions = localStorage.getItem('fund-transactions');
+    if (storedTransactions) {
+      this.transactions = JSON.parse(storedTransactions);
+      this.filterTransactions();
     }
+    this.calculateSummary();
   }
 
-  private updateFundBalance() {
-    const balance = this.transactions.reduce((sum, t) => {
-      return t.type === 'income' ? sum + t.amount : sum - t.amount;
-    }, 0);
-    localStorage.setItem('fund', balance.toString());
-    // Also update CURRENT_FUND for backward compatibility
-    localStorage.setItem('CURRENT_FUND', balance.toString());
+  private subscribeToMatchHistory() {
+    this.subscription = this.firebaseService.history$.subscribe(matchHistory => {
+      this.matchHistory = matchHistory;
+      this.calculateMatchHistoryBalance();
+      this.calculateSummary();
+    });
+  }
+
+  private calculateMatchHistoryBalance() {
+    let totalIncome = 0;
+    let totalExpenses = 0;
+
+    this.matchHistory.forEach(match => {
+      totalIncome += match.thu || 0;
+      totalExpenses += (match.chi_san || 0) + (match.chi_trongtai || 0) + 
+                      (match.chi_khac || 0) + (match.chi_nuoc || 0) + 
+                      (match.chi_dilai || 0) + (match.chi_anuong || 0);
+    });
+
+    this.fundSummary.matchTotalIncome = totalIncome;
+    this.fundSummary.matchTotalExpenses = totalExpenses;
   }
 
   private calculateSummary() {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Calculate transaction totals
+    this.fundSummary.totalIncome = this.transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
     
-    this.fundSummary = {
-      currentBalance: 0,
-      totalIncome: 0,
-      totalExpenses: 0,
-      thisMonthIncome: 0,
-      thisMonthExpenses: 0,
-      transactionCount: this.transactions.length
-    };
+    this.fundSummary.totalExpenses = this.transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
 
-    for (const transaction of this.transactions) {
-      const transactionDate = new Date(transaction.date);
-      
-      if (transaction.type === 'income') {
-        this.fundSummary.totalIncome += transaction.amount;
-        this.fundSummary.currentBalance += transaction.amount;
-        
-        if (transactionDate >= startOfMonth) {
-          this.fundSummary.thisMonthIncome += transaction.amount;
-        }
-      } else {
-        this.fundSummary.totalExpenses += transaction.amount;
-        this.fundSummary.currentBalance -= transaction.amount;
-        
-        if (transactionDate >= startOfMonth) {
-          this.fundSummary.thisMonthExpenses += transaction.amount;
-        }
-      }
-    }
+    this.fundSummary.transactionCount = this.transactions.length;
 
-    this.calculateCategoryStats();
+    // Calculate grand totals
+    this.fundSummary.grandTotalIncome = this.fundSummary.totalIncome + this.fundSummary.matchTotalIncome;
+    this.fundSummary.grandTotalExpenses = this.fundSummary.totalExpenses + this.fundSummary.matchTotalExpenses;
+
+    // Calculate current balance
+    this.fundSummary.currentBalance = this.fundSummary.grandTotalIncome - this.fundSummary.grandTotalExpenses;
+
+    // Calculate monthly profit (simplified)
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const monthlyIncome = this.transactions
+      .filter(t => t.type === 'income' && new Date(t.date).getMonth() === currentMonth && new Date(t.date).getFullYear() === currentYear)
+      .reduce((sum, t) => sum + t.amount, 0);
+    const monthlyExpenses = this.transactions
+      .filter(t => t.type === 'expense' && new Date(t.date).getMonth() === currentMonth && new Date(t.date).getFullYear() === currentYear)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    this.fundSummary.monthlyProfit = monthlyIncome - monthlyExpenses;
   }
 
-  private calculateCategoryStats() {
-    const categories: Record<string, { amount: number; count: number; type: string }> = {};
-    
-    for (const transaction of this.transactions) {
-      if (!categories[transaction.category]) {
-        categories[transaction.category] = { amount: 0, count: 0, type: transaction.type };
-      }
-      categories[transaction.category].amount += transaction.amount;
-      categories[transaction.category].count++;
-    }
-
-    const totalAmount = Object.values(categories).reduce((sum, cat) => sum + cat.amount, 0);
-    
-    this.categoryStats = Object.entries(categories)
-      .map(([category, data]) => ({
-        category,
-        totalAmount: data.amount,
-        transactionCount: data.count,
-        percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
-        color: this.getCategoryColor(category, data.type)
-      }))
-      .sort((a, b) => b.totalAmount - a.totalAmount)
-      .slice(0, 8); // Top 8 categories
-  }
-
-  private getCategoryColor(category: string, type: string): string {
-    const incomeColors = ['#27ae60', '#2ecc71', '#16a085', '#1abc9c', '#f39c12', '#e67e22'];
-    const expenseColors = ['#e74c3c', '#c0392b', '#8e44ad', '#9b59b6', '#34495e', '#2c3e50'];
-    
-    const colors = type === 'income' ? incomeColors : expenseColors;
-    const index = category.length % colors.length;
-    return colors[index];
-  }
-
-  applyFilters() {
+  filterTransactions() {
     let filtered = [...this.transactions];
 
-    // Filter by type
-    if (this.filter.type) {
-      filtered = filtered.filter(t => t.type === this.filter.type);
+    switch (this.selectedFilter) {
+      case 'income':
+        filtered = filtered.filter(t => t.type === 'income');
+        break;
+      case 'expense':
+        filtered = filtered.filter(t => t.type === 'expense');
+        break;
+      case 'this-month':
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        filtered = filtered.filter(t => {
+          const date = new Date(t.date);
+          return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        });
+        break;
     }
 
-    // Filter by period
-    if (this.filter.period !== 'all') {
-      const now = new Date();
-      let startDate: Date;
-
-      switch (this.filter.period) {
-        case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
-        case 'week':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
-        default:
-          startDate = new Date(0);
-      }
-
-      filtered = filtered.filter(t => new Date(t.date) >= startDate);
-    }
-
-    // Filter by search
-    if (this.filter.search) {
-      const search = this.filter.search.toLowerCase();
-      filtered = filtered.filter(t => 
-        t.description.toLowerCase().includes(search) ||
-        t.category.toLowerCase().includes(search)
-      );
-    }
-
-    this.filteredTransactions = filtered;
-    this.totalPages = Math.ceil(filtered.length / this.itemsPerPage);
-    this.currentPage = 1;
-    this.updatePagination();
+    this.filteredTransactions = filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
-  private updatePagination() {
-    const start = (this.currentPage - 1) * this.itemsPerPage;
-    const end = start + this.itemsPerPage;
-    this.paginatedTransactions = this.filteredTransactions.slice(start, end);
+  quickAddIncome() {
+    this.transactionForm = {
+      type: 'income',
+      date: new Date().toISOString().split('T')[0],
+      amount: 0,
+      category: 'match-fee',
+      description: ''
+    };
+    this.showAddTransaction = true;
   }
 
-  nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-      this.updatePagination();
-    }
+  quickAddExpense() {
+    this.transactionForm = {
+      type: 'expense',
+      date: new Date().toISOString().split('T')[0],
+      amount: 0,
+      category: 'field-rental',
+      description: ''
+    };
+    this.showAddTransaction = true;
   }
 
-  previousPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-      this.updatePagination();
-    }
+  generateReport() {
+    // Implement report generation
+    console.log('Generating report...');
   }
 
-  resetFund() {
-    this.transactions = [];
-    this.saveTransactions();
-    localStorage.setItem('fund', '0');
-    localStorage.setItem('CURRENT_FUND', '0');
-    this.showResetModal = false;
-    
-    this.calculateSummary();
-    this.applyFilters();
+  syncWithMatches() {
+    // Implement match synchronization
+    console.log('Syncing with matches...');
   }
 
   exportTransactions() {
-    if (this.transactions.length === 0) {
-      alert('Không có giao dịch nào để xuất!');
+    // Implement export functionality
+    console.log('Exporting transactions...');
+  }
+
+  saveTransaction() {
+    if (!this.transactionForm.category || !this.transactionForm.description || !this.transactionForm.amount) {
       return;
     }
 
-    const csvContent = this.generateCSV();
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `fund-transactions-${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    const transaction: Transaction = {
+      id: this.editingTransaction?.id || this.generateId(),
+      date: this.transactionForm.date!,
+      type: this.transactionForm.type as 'income' | 'expense',
+      category: this.transactionForm.category,
+      description: this.transactionForm.description,
+      amount: Number(this.transactionForm.amount)
+    };
+
+    if (this.editingTransaction) {
+      // Update existing transaction
+      const index = this.transactions.findIndex(t => t.id === this.editingTransaction!.id);
+      if (index !== -1) {
+        this.transactions[index] = transaction;
+      }
+    } else {
+      // Add new transaction
+      this.transactions.push(transaction);
+    }
+
+    // Save to localStorage
+    localStorage.setItem('fund-transactions', JSON.stringify(this.transactions));
+
+    // Recalculate and refresh
+    this.calculateSummary();
+    this.filterTransactions();
+    this.closeTransactionModal();
+  }
+
+  editTransaction(transaction: Transaction) {
+    this.editingTransaction = transaction;
+    this.transactionForm = { ...transaction };
+    this.showAddTransaction = true;
+  }
+
+  deleteTransaction(transaction: Transaction) {
+    if (confirm('Bạn có chắc muốn xóa giao dịch này?')) {
+      this.transactions = this.transactions.filter(t => t.id !== transaction.id);
+      localStorage.setItem('fund-transactions', JSON.stringify(this.transactions));
+      this.calculateSummary();
+      this.filterTransactions();
     }
   }
 
-  private generateCSV(): string {
-    const headers = ['Ngày', 'Loại', 'Danh mục', 'Mô tả', 'Số tiền'];
-    const rows = this.transactions.map(t => [
-      this.formatDate(t.date),
-      t.type === 'income' ? 'Thu' : 'Chi',
-      t.category,
-      t.description || 'Không có mô tả',
-      t.amount.toString()
-    ]);
+  closeTransactionModal() {
+    this.showAddTransaction = false;
+    this.editingTransaction = null;
+    this.transactionForm = {
+      type: 'income',
+      date: new Date().toISOString().split('T')[0],
+      amount: 0,
+      category: '',
+      description: ''
+    };
+  }
 
-    return [headers, ...rows].map(row => row.join(',')).join('\n');
+  getCategories() {
+    const incomeCategories = [
+      { value: 'match-fee', label: 'Phí thi đấu' },
+      { value: 'membership', label: 'Phí thành viên' },
+      { value: 'sponsor', label: 'Tài trợ' },
+      { value: 'other-income', label: 'Thu khác' }
+    ];
+
+    const expenseCategories = [
+      { value: 'field-rental', label: 'Thuê sân' },
+      { value: 'referee', label: 'Trọng tài' },
+      { value: 'equipment', label: 'Dụng cụ' },
+      { value: 'transportation', label: 'Di chuyển' },
+      { value: 'food-drink', label: 'Ăn uống' },
+      { value: 'other-expense', label: 'Chi khác' }
+    ];
+
+    return this.transactionForm.type === 'income' ? incomeCategories : expenseCategories;
+  }
+
+  trackTransaction(index: number, transaction: Transaction): string {
+    return transaction.id;
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0
+    }).format(amount);
   }
 
   formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString('vi-VN');
   }
 
-  formatTime(dateString: string): string {
-    return new Date(dateString).toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  }
-
-  getIncomeCategories(): CategoryStats[] {
-    return this.categoryStats.filter(stat => 
-      this.transactions.find(t => t.category === stat.category)?.type === 'income'
-    );
-  }
-
-  getExpenseCategories(): CategoryStats[] {
-    return this.categoryStats.filter(stat => 
-      this.transactions.find(t => t.category === stat.category)?.type === 'expense'
-    );
-  }
-
-  // Legacy method for backward compatibility
-  getCurrentFund(): number {
-    return this.fundSummary.currentBalance;
-  }
-
-  // Legacy method for backward compatibility
-  reset(): void {
-    this.resetFund();
+  private generateId(): string {
+    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
   }
 }
