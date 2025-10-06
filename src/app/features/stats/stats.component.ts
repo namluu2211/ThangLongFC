@@ -1511,10 +1511,32 @@ interface TeamMetrics {
     }
 
     .fallback-icon {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: #667eea;
+      font-size: 24px;
+    }
+
+    .player-avatar-wrapper {
+      position: relative;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #667eea;
+    }
+
+    .monthly-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
 
     .player-name {
@@ -1602,6 +1624,11 @@ interface TeamMetrics {
       .player-avatar {
         width: 40px;
         height: 40px;
+      }
+
+      .player-avatar-wrapper {
+        width: 35px;
+        height: 35px;
       }
     }
 
@@ -2958,11 +2985,13 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   getPlayerAvatar(playerName: string): string {
+    console.log(`Looking for avatar for: "${playerName}"`); // Debug log
+    
     // Map player names to their avatar files
     const nameMap: Record<string, string> = {
       // Base names with various spellings
       'Sy': 'Sy.png',
-      'Sỹ': 'Sy.png', // Alternative spelling
+      'Sỹ': 'Sy.png',
       'Trung': 'Trung.png',
       'Bình': 'Binh.png',
       'Binh': 'Binh.png',
@@ -2985,17 +3014,20 @@ export class StatsComponent implements OnInit, OnDestroy {
       'Ha': 'Ha.png',
       'Hải': 'Hai.png',
       'Hai': 'Hai.png',
+      'Hải Lu': 'Hai_lu.png',
       'Hải Lưu': 'Hai_lu.png',
+      'Hai Lu': 'Hai_lu.png',
       'Hai Lưu': 'Hai_lu.png',
       'Hai_lu': 'Hai_lu.png',
       'Hậu': 'Hau.png',
       'Hau': 'Hau.png',
       'Hiền': 'Hien.png',
       'Hien': 'Hien.png',
-      'Hiển': 'Hien.png', // Alternative spelling
+      'Hiển': 'Hien.png',
       'Hiếu': 'Hieu.png',
       'Hieu': 'Hieu.png',
       'Hòa': 'Hoa.png',
+      'Hoà': 'Hoa.png',
       'Hoa': 'Hoa.png',
       'Hùng': 'Hung.png',
       'Hung': 'Hung.png',
@@ -3005,12 +3037,14 @@ export class StatsComponent implements OnInit, OnDestroy {
       'Lam': 'Lam.png',
       'Lê': 'Le.png',
       'Le': 'Le.png',
+      'Lộc': 'Loc.png',
+      'Loc': 'Loc.png',
       'Minh Cui': 'Minh_cui.png',
       'Minh_cui': 'Minh_cui.png',
-      'Minh củi': 'Minh_cui.png', // Alternative spelling
+      'Minh củi': 'Minh_cui.png',
       'Minh Nhỏ': 'Minh_nho.jpg',
       'Minh_nho': 'Minh_nho.jpg',
-      'Minh nhỏ': 'Minh_nho.jpg', // Alternative spelling
+      'Minh nhỏ': 'Minh_nho.jpg',
       'Nam': 'Nam.png',
       'Nhân': 'Nhan.png',
       'Nhan': 'Nhan.png',
@@ -3021,6 +3055,10 @@ export class StatsComponent implements OnInit, OnDestroy {
       'Quang': 'Quang.png',
       'Quý': 'Quy.png',
       'Quy': 'Quy.png',
+      'T.Hải': 'T.Hai.png',
+      'T.Hai': 'T.Hai.png',
+      'Tân': 'Tan.png',
+      'Tan': 'Tan.png',
       'Tây': 'Tay.png',
       'Tay': 'Tay.png',
       'Thắng': 'Thang.png',
@@ -3033,6 +3071,7 @@ export class StatsComponent implements OnInit, OnDestroy {
 
     // First try exact match
     let fileName = nameMap[playerName];
+    console.log(`Exact match result: ${fileName}`); // Debug log
     
     // If not found, try normalized matching (remove accents and standardize)
     if (!fileName) {
@@ -3045,6 +3084,8 @@ export class StatsComponent implements OnInit, OnDestroy {
         .replace(/[ùúụủũưừứựửữ]/g, 'u')
         .replace(/[ỳýỵỷỹ]/g, 'y')
         .replace(/đ/g, 'd');
+      
+      console.log(`Normalized input: "${normalizedInput}"`); // Debug log
 
       // Try to find a match by normalizing all keys
       for (const [key, value] of Object.entries(nameMap)) {
@@ -3059,6 +3100,7 @@ export class StatsComponent implements OnInit, OnDestroy {
         
         if (normalizedKey === normalizedInput) {
           fileName = value;
+          console.log(`Normalized match found: ${key} -> ${value}`); // Debug log
           break;
         }
       }
@@ -3068,15 +3110,15 @@ export class StatsComponent implements OnInit, OnDestroy {
     if (!fileName) {
       const firstNameOnly = playerName.split(' ')[0];
       fileName = nameMap[firstNameOnly];
+      console.log(`First name match for "${firstNameOnly}": ${fileName}`); // Debug log
     }
     
-    if (fileName) {
-      return `assets/images/avatar_players/${fileName}`;
-    }
+    const finalPath = fileName ? 
+      `assets/images/avatar_players/${fileName}` : 
+      `assets/images/avatar_players/${playerName.replace(/\s+/g, '_')}.png`;
     
-    // Default fallback - try to find by exact filename
-    const possibleFilename = `${playerName.replace(/\s+/g, '_')}.png`;
-    return `assets/images/avatar_players/${possibleFilename}`;
+    console.log(`Final avatar path: ${finalPath}`); // Debug log
+    return finalPath;
   }
 
   onImageError(event: Event): void {
@@ -3087,12 +3129,17 @@ export class StatsComponent implements OnInit, OnDestroy {
     console.log(`Avatar not found for player: ${playerName}, attempted URL: ${target.src}`);
     
     target.style.display = 'none';
-    const parent = target.parentNode;
+    const parent = target.parentNode as HTMLElement;
     if (parent && !parent.querySelector('.fallback-icon')) {
       const fallbackIcon = document.createElement('i');
       fallbackIcon.className = 'fas fa-user-circle fallback-icon';
-      fallbackIcon.style.fontSize = '40px';
-      fallbackIcon.style.color = '#6c757d';
+      fallbackIcon.style.fontSize = '100%';
+      fallbackIcon.style.color = '#667eea';
+      fallbackIcon.style.display = 'flex';
+      fallbackIcon.style.alignItems = 'center';
+      fallbackIcon.style.justifyContent = 'center';
+      fallbackIcon.style.width = '100%';
+      fallbackIcon.style.height = '100%';
       fallbackIcon.title = `Avatar not available for ${playerName}`;
       parent.appendChild(fallbackIcon);
     }
