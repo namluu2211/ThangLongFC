@@ -43,7 +43,7 @@ import { takeUntil, debounceTime } from 'rxjs/operators';
           [class.active]="show === 'players'"
           (click)="show='players'">
           <i class="fas fa-users"></i>
-          <span>Chia đội</span>
+          <span>Đội hình</span>
         </button>
         <button 
           class="nav-btn" 

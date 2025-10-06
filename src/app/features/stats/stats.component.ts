@@ -102,14 +102,8 @@ interface TeamMetrics {
               📊 Thống kê Thành Tích
             </h2>
             <p class="text-muted mb-0">Phân tích chi tiết thành tích cầu thủ và đội bóng</p>
-          </div>
-          <div class="col-md-4 text-end">
-            <div class="stats-badge">
-              <span class="badge bg-success fs-6 px-3 py-2">
-                <i class="fas fa-calendar-alt me-1"></i>
+            <i class="fas fa-calendar-alt me-1"></i>
                 {{history.length}} trận đấu
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -376,9 +370,6 @@ interface TeamMetrics {
                 <i class="fas fa-users me-2"></i>
                 👥 Bảng xếp hạng cầu thủ
               </h4>
-              <div class="table-badge" *ngIf="selectedMonth !== 'all'">
-                <span class="badge bg-primary fs-6 px-3 py-2">{{getDisplayTitle()}}</span>
-              </div>
               <div class="table-badge" *ngIf="enhancedStats">
               </div>
             </div>
@@ -485,9 +476,6 @@ interface TeamMetrics {
                 <i class="fas fa-calendar-alt me-2"></i>
                 📈 So sánh theo tháng
               </h4>
-              <div class="table-badge">
-                <span class="badge bg-info fs-6 px-3 py-2">{{availableMonths.length}} tháng</span>
-              </div>
             </div>
           </div>
           <div class="table-body">
@@ -602,7 +590,7 @@ interface TeamMetrics {
             <div class="d-flex justify-content-between align-items-center">
               <h4 class="mb-0">
                 <i class="fas fa-brain me-2"></i>
-                🤖 AI Phân Tích Dự Đoán
+                🤖 Phân Tích Dự Đoán
               </h4>
             </div>
             <p class="ai-subtitle mt-2 mb-0">Dự đoán tỷ lệ thắng/thua giữa đội Xanh và Cam dựa trên dữ liệu lịch sử</p>
@@ -773,14 +761,6 @@ interface TeamMetrics {
               </div>
             </div>
 
-            <!-- No Analysis Message -->
-            <div *ngIf="!aiAnalysisResults && !isAnalyzing" class="no-analysis">
-              <div class="no-analysis-icon">🤖</div>
-              <div class="no-analysis-title">Chọn cầu thủ để bắt đầu phân tích AI</div>
-              <div class="no-analysis-text">
-                Hãy chọn cầu thủ cho mỗi đội và nhấn "Phân tích AI" để xem dự đoán dựa trên machine learning
-              </div>
-            </div>
           </div>
         </div>
       </div>
