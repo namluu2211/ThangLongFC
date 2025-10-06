@@ -1303,9 +1303,8 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
 
     /* Force modal centering - highest priority */
     .modal-overlay[style] {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
+      display: grid !important;
+      place-items: center !important;
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
@@ -2218,6 +2217,8 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
 
     @media (max-width: 768px) {
       .modal-overlay {
+        display: grid !important;
+        place-items: center !important;
         padding: 10px;
       }
       
