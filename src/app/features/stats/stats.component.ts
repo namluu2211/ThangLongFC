@@ -532,7 +532,7 @@ interface TeamMetrics {
                       </div>
                     </td>
                     <td class="stat-cell">
-                      <div class="stat-value">{{monthlyStats[month]?.totalMatches || 0}}</div>
+                      <div class="stat-value matches">{{monthlyStats[month]?.totalMatches || 0}}</div>
                       <div class="stat-label">trận</div>
                     </td>
                     <td class="stat-cell">
@@ -604,20 +604,10 @@ interface TeamMetrics {
             <!-- Team Selection and Analysis Controls -->
             <!-- Blue vs Orange Team Layout -->
             <div class="teams-container mb-4">
-              <div class="teams-header mb-3">
-                <div class="row">
-                  <div class="col-6 text-center">
-                    <h4 class="team-header-title text-primary">🔵 Blue Team</h4>
-                  </div>
-                  <div class="col-6 text-center">
-                    <h4 class="team-header-title text-warning">🟠 Orange Team</h4>
-                  </div>
-                </div>
-              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="team-selector xanh-team">
-                    <div class="team-label">Đội Xanh</div>
+                    <div class="team-label">🔵 Đội Xanh</div>
                     <div class="player-selection">
                       <div class="form-label">Chọn cầu thủ đội Xanh:</div>
                       <div class="custom-select-dropdown xanh-dropdown" [class.open]="xanhDropdownOpen">
@@ -660,7 +650,7 @@ interface TeamMetrics {
                 </div>
                 <div class="col-md-6">
                   <div class="team-selector cam-team">
-                    <div class="team-label">Đội Cam</div>
+                    <div class="team-label">🟠 Đội Cam</div>
                     <div class="player-selection">
                       <div class="form-label">Chọn cầu thủ đội Cam:</div>
                       <div class="custom-select-dropdown cam-dropdown" [class.open]="camDropdownOpen">
@@ -1332,12 +1322,12 @@ interface TeamMetrics {
       text-shadow: 0 2px 4px rgba(66, 165, 245, 0.3);
     }
 
-    /* Status Display */
+    /* Status Display - Match enhanced-select-wrapper behavior */
     .status-display {
+      position: relative;
+      margin-bottom: 0.25rem;
       display: flex;
-      align-items: flex-end;
-      height: 100%;
-      margin-top: auto;
+      align-items: center;
     }
 
     .status-badge-display {
@@ -1347,12 +1337,16 @@ interface TeamMetrics {
       background: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%);
       color: #27ae60;
       padding: 1.25rem 1.5rem;
-      border-radius: 15px;
+      border-radius: 18px; /* Match enhanced-select border-radius */
       font-weight: 600;
       font-size: 1rem;
       border: 3px solid transparent;
       background-image: linear-gradient(135deg, #e8f5e8 0%, #f0fff0 100%), 
                         linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+      height: 58px; /* Match enhanced-select height */
+      min-height: 58px;
+      width: 100%;
+      box-sizing: border-box;
       background-origin: border-box;
       background-clip: content-box, border-box;
       box-shadow: 0 4px 20px rgba(39, 174, 96, 0.15);
@@ -1772,6 +1766,27 @@ interface TeamMetrics {
       padding: 1.5rem;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       border: 1px solid #e9ecef;
+      height: 100%; /* Ensure equal height */
+    }
+
+    /* Force parallel layout for teams */
+    .row.g-3 .col-md-6 {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ensure teams stay side by side on screens 576px and up */
+    @media (min-width: 576px) {
+      .row.g-3 {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      
+      .row.g-3 .col-md-6 {
+        flex: 1;
+        max-width: 50%;
+        min-width: 0;
+      }
     }
 
 
@@ -2185,6 +2200,18 @@ interface TeamMetrics {
       }
     }
 
+    /* Stack teams vertically only on very small screens */
+    @media (max-width: 575px) {
+      .row.g-3 .col-md-6 {
+        flex: none;
+        max-width: 100%;
+      }
+      
+      .team-selector {
+        margin-bottom: 1rem;
+      }
+    }
+
     .factor-item {
       display: flex;
       justify-content: space-between;
@@ -2304,6 +2331,15 @@ interface TeamMetrics {
       color: #7f8c8d;
       font-size: 0.9rem;
       font-weight: 500;
+    }
+
+    /* Preserve circle backgrounds and proper text colors for monthly stats */
+    .modern-monthly-table .stat-value {
+      color: white !important; /* Keep white text for colored circle backgrounds */
+    }
+    
+    .modern-monthly-table .stat-label {
+      color: #000000 !important; /* Black color for labels only */
     }
 
     .no-analysis {
