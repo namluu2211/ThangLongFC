@@ -676,6 +676,17 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
       background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
     }
 
+    .modern-btn.btn-add {
+      background: linear-gradient(45deg, #28a745 0%, #20c997 100%);
+      color: white;
+    }
+
+    .modern-btn.btn-add:hover {
+      background: linear-gradient(45deg, #218838 0%, #1e7e34 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+    }
+
     .modern-btn.btn-info {
       background: linear-gradient(45deg, #17a2b8 0%, #20c997 100%);
     }
@@ -1147,27 +1158,29 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
       bottom: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.6) !important;
       z-index: 9999 !important;
       backdrop-filter: blur(5px);
       display: grid !important;
       place-items: center !important;
-      padding: 20px;
-      box-sizing: border-box;
+      padding: 20px !important;
+      box-sizing: border-box !important;
+      overflow-y: auto !important;
     }
 
     .player-modal {
-      background: white;
-      border-radius: 20px;
-      max-width: 600px;
-      width: 90%;
-      max-height: calc(90vh - 40px);
-      overflow-y: auto;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
-      position: relative;
+      background: white !important;
+      border-radius: 20px !important;
+      max-width: 700px !important;
+      width: 95% !important;
+      max-height: 85vh !important;
+      overflow-y: auto !important;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4) !important;
+      position: relative !important;
       animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      margin: 0;
-      flex-shrink: 0;
+      margin: auto !important;
+      flex-shrink: 0 !important;
+      transform-origin: center !important;
     }
 
 
@@ -1245,6 +1258,64 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
     .modal-content {
       padding: 30px;
       background: #fafbfc;
+      overflow-y: visible;
+    }
+
+    /* Ensure all form fields are properly displayed */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+    }
+
+    .form-group select {
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 16px;
+      padding-right: 40px;
+    }
+
+    /* Fix for textarea */
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+
+    /* Ensure form fields are visible and not cut off */
+    .player-modal .form-group {
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .player-modal .form-control:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+      z-index: 2;
+      position: relative;
+    }
+
+    /* Force modal centering - highest priority */
+    .modal-overlay[style] {
+      display: grid !important;
+      place-items: center !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      z-index: 9999 !important;
+    }
+
+    .player-modal[style] {
+      margin: auto !important;
+      position: relative !important;
     }
 
     .player-avatar-section {
@@ -2041,13 +2112,16 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: 20px;
+      margin-bottom: 20px;
+      align-items: start;
     }
 
     .form-group {
       display: flex;
       flex-direction: column;
+      min-height: 70px;
+      position: relative;
     }
 
     .form-group.full-width {
@@ -2056,18 +2130,25 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
 
     .form-group label {
       font-weight: 600;
-      margin-bottom: 6px;
-      color: #333;
+      margin-bottom: 8px;
+      color: #2c3e50;
       font-size: 14px;
+      display: block;
+      position: relative;
+      z-index: 1;
     }
 
     .form-control {
-      padding: 10px 12px;
-      border: 2px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-      transition: border-color 0.2s;
+      padding: 12px 15px;
+      border: 2px solid #e0e6ed;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.2s ease;
       background: white;
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 44px;
+      font-family: inherit;
     }
 
     .form-control:focus {
@@ -2135,8 +2216,27 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
     }
 
     @media (max-width: 768px) {
+      .modal-overlay {
+        display: grid !important;
+        place-items: center !important;
+        padding: 10px;
+      }
+      
+      .player-modal {
+        width: 100%;
+        max-width: 100%;
+        max-height: 95vh;
+        border-radius: 15px;
+        margin: 0;
+      }
+      
       .form-grid {
         grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .modal-content {
+        padding: 20px;
       }
       
       .admin-controls {
@@ -2145,6 +2245,12 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
       
       .modal-actions {
         flex-direction: column;
+        gap: 10px;
+      }
+      
+      .modal-actions button {
+        width: 100%;
+        padding: 12px;
       }
     }
   `]
@@ -2485,7 +2591,44 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   private centerModal(): void {
-    // Let CSS Grid handle centering like the working Edit modal
+    // Let CSS handle primary centering, but add JavaScript fallback
+    setTimeout(() => {
+      const modalOverlay = document.querySelector('.modal-overlay') as HTMLElement;
+      const playerModal = document.querySelector('.player-modal') as HTMLElement;
+      
+      console.log('🎯 centerModal called - modalOverlay:', !!modalOverlay, 'playerModal:', !!playerModal);
+      
+      if (modalOverlay && playerModal) {
+        // Force aggressive positioning with multiple methods
+        modalOverlay.style.position = 'fixed';
+        modalOverlay.style.top = '0';
+        modalOverlay.style.left = '0';
+        modalOverlay.style.right = '0';
+        modalOverlay.style.bottom = '0';
+        modalOverlay.style.width = '100vw';
+        modalOverlay.style.height = '100vh';
+        modalOverlay.style.zIndex = '9999';
+        
+        // Use CSS Grid for more reliable centering
+        modalOverlay.style.display = 'grid';
+        modalOverlay.style.placeItems = 'center';
+        
+        // Fallback to flexbox if grid doesn't work
+        modalOverlay.style.alignItems = 'center';
+        modalOverlay.style.justifyContent = 'center';
+        
+        // Ensure the modal is properly sized and centered
+        playerModal.style.maxWidth = '700px';
+        playerModal.style.width = '95%';
+        playerModal.style.maxHeight = '85vh';
+        playerModal.style.margin = 'auto';
+        playerModal.style.transform = 'translate(0, 0)';
+        
+        console.log('✅ Modal positioning applied');
+      } else {
+        console.warn('❌ Modal elements not found!');
+      }
+    }, 50);
   }
 
   savePlayers() {
@@ -3027,6 +3170,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   // Player Modal Methods
   openCreatePlayerModal(): void {
+    console.log('🎯 Add Player button clicked - openCreatePlayerModal called');
     this.isEditMode = false;
     this.playerFormData = {
       firstName: '',
@@ -3038,13 +3182,19 @@ export class PlayersComponent implements OnInit, OnDestroy {
       notes: '',
       avatar: ''
     };
+    
     this.showPlayerModal = true;
     
-    // Use the same pattern as the working Edit modal - let Angular handle the rendering
+    // Force change detection and immediate positioning
     setTimeout(() => {
+      this.centerModal();
       this.disableAvatarValidation();
-      console.log('Add Player modal should be visible now');
-    }, 100);
+    }, 0);
+    
+    // Additional backup positioning
+    setTimeout(() => {
+      this.centerModal();
+    }, 200);
   }
 
   openEditPlayerModal(player: Player): void {
@@ -3112,12 +3262,17 @@ export class PlayersComponent implements OnInit, OnDestroy {
       }
       
       this.showPlayerModal = true;
-      this.centerModal();
       
-      // Disable avatar validation after modal opens
+      // Force change detection and immediate positioning  
       setTimeout(() => {
+        this.centerModal();
         this.disableAvatarValidation();
-      }, 100);
+      }, 0);
+      
+      // Additional backup positioning
+      setTimeout(() => {
+        this.centerModal();
+      }, 200);
     }
   }
 

@@ -15,105 +15,169 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="enhanced-players-container">      
-      <!-- Header Section -->
-      <div class="header-section">
-        <h2>
-          <i class="fas fa-users me-2"></i>
-          Quản lý cầu thủ
-        </h2>
-        <p>Quản lý cầu thủ nâng cao với bộ lọc, tìm kiếm và thống kê</p>
-      </div>
-
-      <!-- Control Panel -->
-      <div class="control-panel">
-        <div class="controls-grid">
-          <!-- Search -->
-          <div class="control-group">
-            <label for="searchInput">🔍 Search Players:</label>
+      <!-- Enhanced Header Section -->
+      <div class="modern-header">
+        <div class="header-content">
+          <div class="title-section">
+            <div class="title-wrapper">
+              <div class="icon-wrapper">
+                <i class="fas fa-users"></i>
+              </div>
+              <div class="title-text">
+                <h1>Quản lý cầu thủ</h1>
+                <p>Hệ thống quản lý cầu thủ chuyên nghiệp với tính năng tìm kiếm và thống kê nâng cao</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Stats in Header -->
+          <div class="header-stats" *ngIf="allPlayers.length > 0">
+            <div class="quick-stat">
+              <span class="stat-number">{{ allPlayers.length }}</span>
+              <span class="stat-label">Cầu thủ</span>
+            </div>
+            <div class="quick-stat">
+              <span class="stat-number">{{ availablePositions.length }}</span>
+              <span class="stat-label">Vị trí</span>
+            </div>
+            <div class="quick-stat">
+              <span class="stat-number">{{ getAverageAge() }}</span>
+              <span class="stat-label">Tuổi TB</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Global Search Bar -->
+        <div class="global-search">
+          <div class="search-wrapper">
+            <i class="fas fa-search search-icon"></i>
             <input 
-              id="searchInput"
               type="text" 
               [(ngModel)]="searchTerm" 
               (input)="applyFilters()"
-              placeholder="Search by name or position..."
-              class="form-control">
+              placeholder="Tìm kiếm cầu thủ theo tên, vị trí, hoặc thông tin..."
+              class="global-search-input">
+            <button *ngIf="searchTerm" (click)="clearSearch()" class="clear-search">
+              <i class="fas fa-times"></i>
+            </button>
           </div>
+        </div>
+      </div>
 
-          <!-- Position Filter -->
-          <div class="control-group">
-            <label for="positionFilter">⚽ Filter by Position:</label>
-            <select 
-              id="positionFilter"
-              [(ngModel)]="selectedPosition" 
-              (change)="applyFilters()"
-              class="form-control">
-              <option value="">All Positions</option>
-              <option *ngFor="let position of availablePositions" [value]="position">
-                {{ position }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Sort Options -->
-          <div class="control-group">
-            <label for="sortBy">📊 Sort By:</label>
-            <select 
-              id="sortBy"
-              [(ngModel)]="sortBy" 
-              (change)="applyFilters()"
-              class="form-control">
-              <option value="firstName">Name (A-Z)</option>
-              <option value="position">Position</option>
-              <option value="age">Age</option>
-              <option value="height">Height</option>
-              <option value="weight">Weight</option>
-            </select>
-          </div>
-
-          <!-- Player Management Actions -->
-          <div class="control-group">
-            <span class="control-label">⚽ Player Management:</span>
-            <div class="button-group">
-              <button 
-                (click)="openCreatePlayerModal()" 
-                class="action-btn add-btn"
-                title="Thêm cầu thủ mới">
-                <i class="fas fa-user-plus"></i> Thêm cầu thủ
-              </button>
+      <!-- Enhanced Control Panel -->
+      <div class="modern-control-panel">
+        <div class="controls-section">
+          <h3 class="section-title">
+            <i class="fas fa-filter"></i>
+            Bộ lọc & Sắp xếp
+          </h3>
+          
+          <div class="filter-cards">
+            <!-- Position Filter Card -->
+            <div class="filter-card">
+              <div class="filter-header">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Vị trí</span>
+              </div>
+              <select 
+                [(ngModel)]="selectedPosition" 
+                (change)="applyFilters()"
+                class="modern-select">
+                <option value="">Tất cả vị trí</option>
+                <option *ngFor="let position of availablePositions" [value]="position">
+                  {{ position }}
+                </option>
+              </select>
             </div>
-          </div>
 
-          <!-- View Mode -->
-          <div class="control-group">
-            <span class="control-label">👁️ View Mode:</span>
-            <div class="button-group" role="radiogroup" aria-label="View mode selection">
-              <button 
-                (click)="viewMode = 'grid'" 
-                [class.active]="viewMode === 'grid'"
-                class="view-btn">
-                <i class="fas fa-th"></i> Grid
-              </button>
-              <button 
-                (click)="viewMode = 'list'" 
-                [class.active]="viewMode === 'list'"
-                class="view-btn">
-                <i class="fas fa-list"></i> List
-              </button>
+            <!-- Sort Options Card -->
+            <div class="filter-card">
+              <div class="filter-header">
+                <i class="fas fa-sort-amount-down"></i>
+                <span>Sắp xếp</span>
+              </div>
+              <select 
+                [(ngModel)]="sortBy" 
+                (change)="applyFilters()"
+                class="modern-select">
+                <option value="firstName">Tên (A-Z)</option>
+                <option value="position">Vị trí</option>
+                <option value="age">Tuổi</option>
+                <option value="height">Chiều cao</option>
+                <option value="weight">Cân nặng</option>
+              </select>
+            </div>
+
+            <!-- View Mode Card -->
+            <div class="filter-card">
+              <div class="filter-header">
+                <i class="fas fa-eye"></i>
+                <span>Hiển thị</span>
+              </div>
+              <div class="view-toggle" role="radiogroup" aria-label="View mode selection">
+                <button 
+                  (click)="viewMode = 'grid'" 
+                  [class.active]="viewMode === 'grid'"
+                  class="toggle-btn">
+                  <i class="fas fa-th"></i>
+                  <span>Lưới</span>
+                </button>
+                <button 
+                  (click)="viewMode = 'list'" 
+                  [class.active]="viewMode === 'list'"
+                  class="toggle-btn">
+                  <i class="fas fa-list"></i>
+                  <span>Danh sách</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-          <button (click)="testLoadPlayers()" class="action-btn primary">
-            <i class="fas fa-sync-alt"></i> Reload Data
-          </button>
-          <button (click)="testFetchDirect()" class="action-btn success">
-            <i class="fas fa-download"></i> Force Refresh
-          </button>
-          <button (click)="exportPlayerStats()" class="action-btn info">
-            <i class="fas fa-file-export"></i> Export Stats
-          </button>
+        <!-- Action Section -->
+        <div class="actions-section">
+          <h3 class="section-title">
+            <i class="fas fa-tools"></i>
+            Thao tác
+          </h3>
+          
+          <div class="action-cards">
+            <button 
+              (click)="openCreatePlayerModal()" 
+              class="action-card add-player">
+              <div class="action-icon">
+                <i class="fas fa-user-plus"></i>
+              </div>
+              <div class="action-content">
+                <h4>Thêm cầu thủ</h4>
+                <p>Tạo hồ sơ cầu thủ mới</p>
+              </div>
+            </button>
+
+            <button 
+              (click)="testLoadPlayers()" 
+              class="action-card reload-data">
+              <div class="action-icon">
+                <i class="fas fa-sync-alt"></i>
+              </div>
+              <div class="action-content">
+                <h4>Tải lại</h4>
+                <p>Cập nhật dữ liệu</p>
+              </div>
+            </button>
+
+            <button 
+              (click)="exportPlayerStats()" 
+              class="action-card export-data">
+              <div class="action-icon">
+                <i class="fas fa-file-export"></i>
+              </div>
+              <div class="action-content">
+                <h4>Xuất dữ liệu</h4>
+                <p>Tải thống kê cầu thủ</p>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -425,93 +489,388 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
   `,
   styles: [`
     .enhanced-players-container {
-      padding: 20px;
-      max-width: 1400px;
+      padding: 0;
+      max-width: 1600px;
       margin: 0 auto;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    .header-section {
-      text-align: center;
+    /* Modern Header Styles */
+    .modern-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 30px;
       color: white;
-      margin-bottom: 30px;
+      position: relative;
+      overflow: hidden;
     }
 
-    .header-section h2 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-      font-weight: 700;
+    .modern-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" fill="rgba(255,255,255,0.1)"><polygon points="0,100 1000,0 1000,100"/></svg>') bottom;
+      background-size: cover;
     }
 
-    .control-panel {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 25px;
-      margin-bottom: 30px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    }
-
-    .controls-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-
-    .control-group {
+    .header-content {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      flex-wrap: wrap;
+      gap: 20px;
     }
 
-    .control-group > div {
+    .title-section {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .title-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .icon-wrapper {
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .icon-wrapper i {
+      font-size: 2rem;
+      color: white;
+    }
+
+    .title-text h1 {
+      font-size: 2.8rem;
+      margin: 0 0 10px 0;
+      font-weight: 700;
+      background: linear-gradient(45deg, #ffffff, #f0f8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .title-text p {
+      font-size: 1.1rem;
+      margin: 0;
+      opacity: 0.9;
+      line-height: 1.5;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .quick-stat {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 15px 20px;
+      border-radius: 15px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      min-width: 80px;
+    }
+
+    .stat-number {
+      display: block;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .stat-label {
+      display: block;
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 2px;
+    }
+
+    .global-search {
+      margin-top: 30px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 20px;
+      color: #666;
+      font-size: 1.1rem;
+      z-index: 2;
+    }
+
+    .global-search-input {
+      width: 100%;
+      padding: 18px 20px 18px 55px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 25px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    .global-search-input:focus {
+      background: white;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .clear-search {
+      position: absolute;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .clear-search:hover {
+      background: rgba(0, 0, 0, 0.1);
+      color: #333;
+    }
+
+    /* Modern Control Panel Styles */
+    .modern-control-panel {
+      background: white;
+      margin: -50px 30px 30px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      position: relative;
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    .controls-section, .actions-section {
+      padding: 30px;
+    }
+
+    .controls-section {
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.3rem;
       font-weight: 600;
       color: #2c3e50;
-      font-size: 0.9rem;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f8f9fa;
     }
 
-    .form-control {
-      padding: 12px;
+    .section-title i {
+      color: #667eea;
+      font-size: 1.2rem;
+    }
+
+    .filter-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .filter-card {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 20px;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .filter-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .filter-card:hover {
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+    }
+
+    .filter-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .filter-header i {
+      color: #667eea;
+      font-size: 1.1rem;
+    }
+
+    .modern-select {
+      width: 100%;
+      padding: 12px 15px;
       border: 2px solid #e9ecef;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 1rem;
-      transition: border-color 0.3s ease;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 12px center;
+      background-repeat: no-repeat;
+      background-size: 16px;
+      padding-right: 40px;
     }
 
-    .form-control:focus {
+    .modern-select:focus {
       outline: none;
       border-color: #667eea;
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .button-group {
+    .view-toggle {
       display: flex;
-      gap: 10px;
+      background: #e9ecef;
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
     }
 
-    .view-btn {
+    .toggle-btn {
       flex: 1;
-      padding: 10px;
-      border: 2px solid #e9ecef;
-      background: white;
+      padding: 10px 15px;
+      border: none;
       border-radius: 8px;
-      color: #6c757d;
+      background: transparent;
       cursor: pointer;
       transition: all 0.3s ease;
-    }
-
-    .view-btn.active {
-      background: #667eea;
-      color: white;
-      border-color: #667eea;
-    }
-
-    .action-buttons {
       display: flex;
-      gap: 15px;
-      flex-wrap: wrap;
+      align-items: center;
       justify-content: center;
+      gap: 8px;
+      font-weight: 500;
+      color: #6c757d;
+    }
+
+    .toggle-btn.active {
+      background: white;
+      color: #667eea;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .action-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: 2px solid transparent;
+      border-radius: 15px;
+      padding: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      text-align: left;
+    }
+
+    .action-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-card.add-player:hover {
+      border-color: #28a745;
+      background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    }
+
+    .action-card.reload-data:hover {
+      border-color: #007bff;
+      background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    }
+
+    .action-card.export-data:hover {
+      border-color: #17a2b8;
+      background: linear-gradient(135deg, #d1ecf1, #b8e6e1);
+    }
+
+    .action-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .add-player .action-icon {
+      background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .reload-data .action-icon {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+    }
+
+    .export-data .action-icon {
+      background: linear-gradient(135deg, #17a2b8, #138496);
+    }
+
+    .action-content h4 {
+      margin: 0 0 5px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .action-content p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #6c757d;
+      line-height: 1.4;
     }
 
     .action-btn {
@@ -536,66 +895,279 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
+    /* Enhanced Statistics Section */
     .stats-section {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 25px;
-      margin-bottom: 30px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      background: white;
+      margin: 0 30px 30px;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stats-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .stats-section h3 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin: 0 0 25px 0;
     }
 
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 20px;
     }
 
     .stat-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #f8f9fa 100%);
+      padding: 25px;
+      border-radius: 16px;
       text-align: center;
-      padding: 20px;
-      background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 12px;
+      border: 2px solid #f0f0f0;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      border-color: #667eea;
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
+    }
+
+    .stat-card:hover::before {
+      transform: scaleX(1);
     }
 
     .stat-value {
-      font-size: 2rem;
-      font-weight: bold;
-      margin-bottom: 5px;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: block;
     }
 
+    .stat-label {
+      font-size: 0.9rem;
+      color: #6c757d;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Enhanced Players Section */
     .players-section {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 25px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      background: white;
+      margin: 0 30px 30px;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-header h3 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin: 0 0 30px 0;
     }
 
     .players-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 25px;
     }
 
     .player-card-enhanced {
       background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      padding: 0;
+      border: 2px solid #f0f0f0;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      position: relative;
+    }
+
+    .player-card-enhanced::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transform: scaleX(0);
       transition: transform 0.3s ease;
     }
 
     .player-card-enhanced:hover {
-      transform: translateY(-5px);
+      transform: translateY(-8px);
+      border-color: #667eea;
+      box-shadow: 0 20px 60px rgba(102, 126, 234, 0.15);
+    }
+
+    .player-card-enhanced:hover::before {
+      transform: scaleX(1);
+    }
+
+    .player-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 20px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    }
+
+    .player-avatar-enhanced {
+      width: 60px;
+      height: 60px;
+      border-radius: 15px;
+      object-fit: cover;
+      border: 3px solid white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .player-basic-info {
+      flex: 1;
+    }
+
+    .player-name-enhanced {
+      margin: 0 0 8px 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2c3e50;
+      line-height: 1.3;
     }
 
     .position-badge {
-      background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
+      padding: 6px 14px;
+      border-radius: 25px;
+      font-size: 0.8rem;
       font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+
+    .player-stats {
+      padding: 20px;
+      display: flex;
+      justify-content: space-around;
+      background: #fafbfc;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      color: #6c757d;
+      font-size: 0.85rem;
+    }
+
+    .stat-item i {
+      color: #667eea;
+      font-size: 1.1rem;
+    }
+
+    .stat-item span {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .player-actions {
+      padding: 15px 20px;
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid #f0f0f0;
+      background: white;
+    }
+
+    .detail-btn {
+      flex: 1;
+      padding: 10px 15px;
+      border: 2px solid #667eea;
+      background: transparent;
+      color: #667eea;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .detail-btn:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .edit-btn, .delete-btn {
+      width: 45px;
+      height: 45px;
+      border: 2px solid;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1rem;
+    }
+
+    .edit-btn {
+      border-color: #28a745;
+      color: #28a745;
+      background: transparent;
+    }
+
+    .edit-btn:hover {
+      background: #28a745;
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .delete-btn {
+      border-color: #dc3545;
+      color: #dc3545;
+      background: transparent;
+    }
+
+    .delete-btn:hover {
+      background: #dc3545;
+      color: white;
+      transform: translateY(-1px);
     }
 
     /* Modal Styles */
@@ -960,36 +1532,60 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       transform: translateY(-2px);
     }
 
+    /* Enhanced List View */
     .players-list {
       background: white;
-      border-radius: 12px;
+      border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      border: 1px solid #f0f0f0;
     }
 
     .list-header {
       display: grid;
-      grid-template-columns: 2fr 1fr 80px 80px 80px 100px;
-      gap: 15px;
-      padding: 15px 20px;
-      background: #f8f9fa;
-      font-weight: 600;
-      color: #495057;
-      border-bottom: 1px solid #dee2e6;
+      grid-template-columns: 2.5fr 1.2fr 90px 90px 90px 120px;
+      gap: 20px;
+      padding: 20px 25px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      font-weight: 700;
+      color: #2c3e50;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e9ecef;
     }
 
     .list-item {
       display: grid;
-      grid-template-columns: 2fr 1fr 80px 80px 80px 100px;
-      gap: 15px;
-      padding: 15px 20px;
+      grid-template-columns: 2.5fr 1.2fr 90px 90px 90px 120px;
+      gap: 20px;
+      padding: 18px 25px;
       align-items: center;
-      border-bottom: 1px solid #f1f3f4;
-      transition: background-color 0.2s ease;
+      border-bottom: 1px solid #f5f5f5;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .list-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      transform: scaleY(0);
+      transition: transform 0.3s ease;
     }
 
     .list-item:hover {
-      background-color: #f8f9fa;
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+      transform: translateX(5px);
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .list-item:hover::before {
+      transform: scaleY(1);
     }
 
     .list-item:last-child {
@@ -999,41 +1595,386 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
     .list-name {
       display: flex;
       align-items: center;
-      font-weight: 500;
+      gap: 15px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .list-avatar {
+      width: 45px;
+      height: 45px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 2px solid white;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .position-badge-small {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .col-age, .col-height, .col-weight {
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .col-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .list-action-btn {
+      width: 35px;
+      height: 35px;
+      border: 2px solid;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+      background: transparent;
+    }
+
+    .list-action-btn:first-child {
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .list-action-btn:first-child:hover {
+      background: #667eea;
+      color: white;
+      transform: scale(1.1);
+    }
+
+    .list-action-btn.edit-btn {
+      border-color: #28a745;
+      color: #28a745;
+    }
+
+    .list-action-btn.edit-btn:hover {
+      background: #28a745;
+      color: white;
+      transform: scale(1.1);
+    }
+
+    .list-action-btn.delete-btn {
+      border-color: #dc3545;
+      color: #dc3545;
+    }
+
+    .list-action-btn.delete-btn:hover {
+      background: #dc3545;
+      color: white;
+      transform: scale(1.1);
+    }
+
+    /* Enhanced Loading States */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 20px;
+      background: white;
+      margin: 0 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid #f0f0f0;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-state p {
+      color: #6c757d;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 20px;
+      background: white;
+      margin: 0 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+
+    .error-state i {
+      font-size: 4rem;
+      color: #dc3545;
+      margin-bottom: 20px;
+    }
+
+    .error-state h4 {
+      color: #2c3e50;
+      font-size: 1.5rem;
+      margin: 0 0 10px 0;
+    }
+
+    .error-state p {
+      color: #6c757d;
+      margin: 0 0 25px 0;
+      line-height: 1.5;
+    }
+
+    .retry-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .retry-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+
+    .no-results i {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      color: #dee2e6;
+    }
+
+    .no-results h4 {
+      font-size: 1.3rem;
+      margin: 0 0 10px 0;
+      color: #495057;
+    }
+
+    .no-results p {
+      margin: 0 0 25px 0;
+    }
+
+    .clear-filters-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .clear-filters-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Comprehensive Mobile Responsiveness */
+    @media (max-width: 1200px) {
+      .modern-control-panel {
+        margin: -30px 20px 20px;
+      }
+
+      .players-section, .stats-section {
+        margin: 0 20px 20px;
+      }
+    }
+
+    @media (max-width: 968px) {
+      .header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 30px;
+      }
+
+      .title-wrapper {
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .header-stats {
+        justify-content: center;
+      }
+
+      .filter-cards {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .action-cards {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
     }
 
     @media (max-width: 768px) {
-      .controls-grid {
-        grid-template-columns: 1fr;
+      .modern-header {
+        padding: 30px 20px;
       }
 
-      .player-avatar-enhanced {
-        width: 60px;
-        height: 60px;
-        border-width: 2px;
+      .title-text h1 {
+        font-size: 2.2rem;
       }
 
-      .list-avatar {
-        width: 40px;
-        height: 40px;
+      .modern-control-panel {
+        margin: -20px 15px 15px;
       }
 
-      .detail-avatar img {
-        width: 100px;
-        height: 100px;
-        border-width: 3px;
+      .controls-section, .actions-section {
+        padding: 20px;
+      }
+
+      .players-section, .stats-section {
+        margin: 0 15px 15px;
+        padding: 20px;
       }
 
       .players-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
       }
 
-      .list-header,
-      .list-item {
-        grid-template-columns: 2fr 1fr 60px 60px 60px 80px;
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+      }
+
+      .list-header, .list-item {
+        grid-template-columns: 2fr 1fr 60px 80px;
         gap: 10px;
-        padding: 10px 15px;
+        padding: 15px 20px;
         font-size: 0.9rem;
+      }
+
+      .col-height, .col-weight {
+        display: none;
+      }
+
+      .player-header {
+        padding: 15px;
+      }
+
+      .player-avatar-enhanced {
+        width: 50px;
+        height: 50px;
+      }
+
+      .player-name-enhanced {
+        font-size: 1.1rem;
+      }
+
+      .action-card {
+        padding: 20px;
+        gap: 15px;
+      }
+
+      .action-icon {
+        width: 45px;
+        height: 45px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .enhanced-players-container {
+        font-size: 14px;
+      }
+
+      .modern-header {
+        padding: 20px 15px;
+      }
+
+      .title-text h1 {
+        font-size: 1.8rem;
+      }
+
+      .global-search-input {
+        padding: 15px 15px 15px 45px;
+        font-size: 1rem;
+      }
+
+      .header-stats {
+        gap: 10px;
+      }
+
+      .quick-stat {
+        padding: 12px 15px;
+        min-width: 70px;
+      }
+
+      .stat-number {
+        font-size: 1.5rem;
+      }
+
+      .modern-control-panel {
+        margin: -15px 10px 10px;
+      }
+
+      .players-section, .stats-section {
+        margin: 0 10px 10px;
+        padding: 15px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .list-header, .list-item {
+        grid-template-columns: 2fr 1fr 50px;
+        padding: 12px 15px;
+        font-size: 0.85rem;
+      }
+
+      .col-age, .col-actions {
+        display: none;
+      }
+
+      .player-actions {
+        padding: 12px 15px;
+        gap: 8px;
+      }
+
+      .edit-btn, .delete-btn {
+        width: 40px;
+        height: 40px;
+      }
+
+      .detail-btn {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+    }
+
+      /* Smooth Animations */
+      * {
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       }
 
       .player-details-grid {
@@ -1664,6 +2605,11 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
+  clearSearch() {
+    this.searchTerm = '';
+    this.applyFilters();
+  }
+
 
 
   viewPlayerDetails(player: Player) {
@@ -1998,6 +2944,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
 
   // Player Management Methods
   openCreatePlayerModal(): void {
+    console.log('🎯 Add Player button clicked - openCreatePlayerModal called (Danh sách page)');
     this.isEditMode = false;
     this.playerFormData = {
       firstName: '',
