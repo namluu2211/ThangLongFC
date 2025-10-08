@@ -332,8 +332,14 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       <!-- Player Detail Modal - Now dynamically rendered at document.body level -->
 
       <!-- Admin Player Management Modal -->
-      <div *ngIf="showPlayerModal" class="modal-overlay" (click)="closePlayerFormModal()">
-        <div class="player-modal" (click)="$event.stopPropagation()">
+      <div *ngIf="showPlayerModal" class="modal-overlay" 
+           tabindex="-1"
+           (click)="closePlayerFormModal()"
+           (keydown)="$event.key === 'Escape' && closePlayerFormModal()">
+        <div class="player-modal" 
+             tabindex="-1"
+             (click)="$event.stopPropagation()"
+             (keydown)="$event.stopPropagation()">
           <div class="modal-header">
             <h3>
               <i class="fas fa-user-edit me-2"></i>
@@ -458,8 +464,14 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div *ngIf="showDeleteConfirm" class="modal-overlay" (click)="closeDeleteConfirm()">
-        <div class="confirm-modal" (click)="$event.stopPropagation()">
+      <div *ngIf="showDeleteConfirm" class="modal-overlay" 
+           tabindex="-1"
+           (click)="closeDeleteConfirm()"
+           (keydown)="$event.key === 'Escape' && closeDeleteConfirm()">
+        <div class="confirm-modal" 
+             tabindex="-1"
+             (click)="$event.stopPropagation()"
+             (keydown)="$event.stopPropagation()">
           <div class="modal-header">
             <h3>
               <i class="fas fa-exclamation-triangle me-2"></i>
@@ -2433,13 +2445,9 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     
     try {
-      console.log('🔄 Testing player loading...');
-      
       const cachedData = localStorage.getItem('players.json');
       if (cachedData) {
-        console.log('📦 Found cached data');
         this.allPlayers = JSON.parse(cachedData);
-        console.log('✅ Loaded from cache:', this.allPlayers.length, 'players');
         this.processPlayersData();
         
         // Complete performance monitoring after successful load
@@ -2448,13 +2456,12 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
           this.componentLoadId = null;
         }
       } else {
-        console.log('🌐 No cache, fetching from assets...');
         await this.testFetchDirect();
         return;
       }
       
     } catch (error) {
-      console.error('❌ Error in testLoadPlayers:', error);
+      console.error('Error loading players:', error);
       this.errorMessage = `Error loading players: ${error}`;
     } finally {
       this.isLoading = false;
@@ -2466,30 +2473,23 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     
     try {
-      console.log('🌐 Testing direct fetch...');
-      
       const response = await fetch('/assets/players.json');
-      console.log('📡 Fetch response:', response.status, response.statusText);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const text = await response.text();
-      console.log('📄 Raw response length:', text.length);
-      
       const data = JSON.parse(text);
       this.allPlayers = data;
-      console.log('✅ Parsed successfully:', this.allPlayers.length, 'players');
       
       localStorage.setItem('players.json', text);
-      console.log('💾 Cached to localStorage after test direct fetch');
       
       this.processPlayersData();
       
     } catch (error) {
-      console.error('❌ Error in testFetchDirect:', error);
-      this.errorMessage = `Direct fetch error: ${error}`;
+      console.error('Error fetching players:', error);
+      this.errorMessage = `Fetch error: ${error}`;
     } finally {
       this.isLoading = false;
     }
@@ -2883,8 +2883,6 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     
     try {
-      console.log('🔄 Loading players from PlayerService...');
-      
       // Force PlayerService to reload data
       await this.playerService.refreshPlayers();
       
@@ -2893,7 +2891,6 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (corePlayersData) => {
-            console.log('📥 Received players data from PlayerService:', corePlayersData.length);
             this.corePlayersData = corePlayersData;
             this.convertCorePlayersToLegacyFormat(corePlayersData);
             this.processPlayersData();
@@ -2906,7 +2903,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
             }
           },
           error: (error) => {
-            console.error('❌ Error loading players from service:', error);
+            console.error('Error loading players from service:', error);
             this.errorMessage = `Error loading players: ${error}`;
             this.isLoading = false;
             
@@ -2916,7 +2913,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
         });
       
     } catch (error) {
-      console.error('❌ Error in loadPlayersFromService:', error);
+      console.error('Error in loadPlayersFromService:', error);
       this.errorMessage = `Service error: ${error}`;
       this.isLoading = false;
       
@@ -2938,13 +2935,10 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
       weight: playerInfo.weight || 0,
       note: playerInfo.notes || ''
     } as Player));
-    
-    console.log('🔄 Converted core players to legacy format:', this.allPlayers.length);
   }
 
   // Player Management Methods
   openCreatePlayerModal(): void {
-    console.log('🎯 Add Player button clicked - openCreatePlayerModal called (Danh sách page)');
     this.isEditMode = false;
     this.playerFormData = {
       firstName: '',
@@ -2962,24 +2956,18 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   openEditPlayerModal(player: Player): void {
-    console.log('🔧 Edit button clicked for player:', player);
-    console.log('📊 Available corePlayersData:', this.corePlayersData.length);
-    
     // Find the corresponding PlayerInfo from corePlayersData
     const playerInfo = this.corePlayersData.find(p => 
       p.firstName === player.firstName && 
       p.lastName === player.lastName
     );
     
-    console.log('🔍 Found playerInfo:', playerInfo);
-    
     if (playerInfo) {
       this.isEditMode = true;
       this.playerFormData = { ...playerInfo };
       this.openDynamicEditModal(playerInfo);
-      console.log('✅ Edit modal should be shown now');
     } else {
-      console.error('❌ No matching PlayerInfo found for:', player);
+      console.error('No matching PlayerInfo found for:', player);
       alert('Could not find player data for editing. Please try refreshing the page.');
     }
   }
@@ -3034,8 +3022,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   confirmDeletePlayer(player: Player): void {
-    console.log('🗑️ Delete button clicked for player:', player);
-    console.log('📊 Available corePlayersData:', this.corePlayersData.length);
+
     
     // Find the corresponding PlayerInfo from corePlayersData
     const playerInfo = this.corePlayersData.find(p => 
@@ -3043,12 +3030,12 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
       p.lastName === player.lastName
     );
     
-    console.log('🔍 Found playerInfo for deletion:', playerInfo);
+
     
     if (playerInfo) {
       this.playerToDelete = playerInfo;
       this.openDynamicDeleteModal(playerInfo);
-      console.log('✅ Delete confirmation modal should be shown now');
+
     } else {
       console.error('❌ No matching PlayerInfo found for deletion:', player);
       alert('Could not find player data for deletion. Please try refreshing the page.');
@@ -3574,12 +3561,12 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
       avatar: formData.get('avatar') as string || undefined
     };
 
-    console.log('Updating player:', updatedPlayer);
+
 
     try {
       // Call the service to update player
-      const result = await this.playerService.updatePlayer(updatedPlayer.id, updatedPlayer);
-      console.log('Player updated successfully:', result);
+      await this.playerService.updatePlayer(updatedPlayer.id, updatedPlayer);
+
       this.loadPlayersFromService(); // Reload the list
       this.closeDynamicModal();
       alert('Cập nhật thông tin cầu thủ thành công!');
@@ -3590,11 +3577,11 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   private async handleDeleteConfirmation(playerInfo: PlayerInfo): Promise<void> {
-    console.log('Deleting player:', playerInfo);
+
 
     try {
       await this.playerService.deletePlayer(playerInfo.id);
-      console.log('Player deleted successfully');
+
       this.loadPlayersFromService(); // Reload the list
       this.closeDynamicModal();
       alert('Xóa cầu thủ thành công!');

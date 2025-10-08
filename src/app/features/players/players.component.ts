@@ -147,8 +147,15 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
       </div>
 
       <!-- Admin Player Management Modal -->
-      <div *ngIf="showPlayerModal" class="modal-overlay" (click)="closePlayerFormModal()">
-        <div class="player-modal" (click)="$event.stopPropagation()">
+      <div *ngIf="showPlayerModal" 
+           class="modal-overlay" 
+           tabindex="0"
+           (click)="closePlayerFormModal()" 
+           (keydown.escape)="closePlayerFormModal()">
+        <div class="player-modal" 
+             tabindex="-1"
+             (click)="$event.stopPropagation()"
+             (keydown)="$event.stopPropagation()">
           <div class="modal-header">
             <h3>
               <i class="fas fa-user-edit me-2"></i>
@@ -284,8 +291,14 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div *ngIf="showDeleteConfirm" class="modal-overlay" (click)="closeDeleteConfirm()">
-        <div class="confirm-modal" (click)="$event.stopPropagation()">
+      <div *ngIf="showDeleteConfirm" class="modal-overlay" 
+           tabindex="-1"
+           (click)="closeDeleteConfirm()"
+           (keydown)="$event.key === 'Escape' && closeDeleteConfirm()">
+        <div class="confirm-modal" 
+             tabindex="-1"
+             (click)="$event.stopPropagation()"
+             (keydown)="$event.stopPropagation()">
           <div class="modal-header">
             <h3>
               <i class="fas fa-exclamation-triangle me-2"></i>
@@ -502,110 +515,6 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
             </div>
           </div>
         </div>
-
-        <!-- AI/ML Analysis Section (Below Both Teams) -->
-        <div class="ai-analysis-section">
-          <div class="analysis-container">
-            <div class="analysis-header">
-              <div class="battle-icon">
-                <i class="fas fa-brain analysis-brain"></i>
-                <div class="vs-divider">
-                  <span class="vs-text">VS</span>
-                  <div class="crossed-swords">
-                    <i class="fas fa-sword sword-1"></i>
-                    <i class="fas fa-sword sword-2"></i>
-                  </div>
-                </div>
-                <i class="fas fa-chart-line analysis-chart"></i>
-              </div>
-            </div>
-            
-            <div class="analysis-content" [class.analyzing]="isAnalyzing">
-              <div class="analysis-status">
-                <div class="status-indicator" [class.active]="isAnalyzing">
-                  <div class="pulse-ring"></div>
-                  <div class="pulse-core"></div>
-                </div>
-                <h4 class="analysis-title">{{ isAnalyzing ? 'Đang phân tích đội hình...' : 'Phân tích AI/ML' }}</h4>
-              </div>
-              
-              <div class="analysis-details" *ngIf="!isAnalyzing">
-                <div class="analysis-grid">
-                  <div class="analysis-item">
-                    <div class="metric-icon team-a-color">
-                      <i class="fas fa-users"></i>
-                    </div>
-                    <div class="metric-info">
-                      <span class="metric-label">Đội Xanh</span>
-                      <span class="metric-value">{{ teamA.length }} cầu thủ</span>
-                    </div>
-                  </div>
-                  
-                  <div class="analysis-item">
-                    <div class="metric-icon balance-color">
-                      <i class="fas fa-balance-scale"></i>
-                    </div>
-                    <div class="metric-info">
-                      <span class="metric-label">Cân bằng</span>
-                      <span class="metric-value">{{ getTeamBalance() }}</span>
-                    </div>
-                  </div>
-                  
-                  <div class="analysis-item">
-                    <div class="metric-icon team-b-color">
-                      <i class="fas fa-users"></i>
-                    </div>
-                    <div class="metric-info">
-                      <span class="metric-label">Đội Cam</span>
-                      <span class="metric-value">{{ teamB.length }} cầu thủ</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="quick-actions">
-                  <button class="ai-btn analyze-btn" (click)="startAIAnalysis()" [disabled]="isAnalyzing">
-                    <i class="fas fa-robot me-2"></i>
-                    {{ isAnalyzing ? 'Đang phân tích...' : 'Phân tích AI' }}
-                  </button>
-                  
-                  <button class="ai-btn balance-btn" (click)="autoBalance()" [disabled]="isAnalyzing">
-                    <i class="fas fa-magic me-2"></i>
-                    Cân bằng tự động
-                  </button>
-                </div>
-              </div>
-              
-              <div class="loading-analysis" *ngIf="isAnalyzing">
-                <div class="analysis-progress">
-                  <div class="progress-bar">
-                    <div class="progress-fill" [style.width.%]="analysisProgress"></div>
-                  </div>
-                  <span class="progress-text">{{ analysisProgress }}%</span>
-                </div>
-                <div class="analysis-steps">
-                  <div class="step" [class.active]="analysisStep >= 1" [class.completed]="analysisStep > 1">
-                    <i class="fas fa-user-friends"></i>
-                    <span>Phân tích cầu thủ</span>
-                  </div>
-                  <div class="step" [class.active]="analysisStep >= 2" [class.completed]="analysisStep > 2">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Tính toán thống kê</span>
-                  </div>
-                  <div class="step" [class.active]="analysisStep >= 3" [class.completed]="analysisStep > 3">
-                    <i class="fas fa-balance-scale"></i>
-                    <span>Đánh giá cân bằng</span>
-                  </div>
-                  <div class="step" [class.active]="analysisStep >= 4">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Hoàn thành</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
       </div>
     </div>
   `,
@@ -1581,437 +1490,6 @@ import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalTy
       }
     }
 
-    /* AI/ML Analysis Section Styles */
-    .ai-analysis-section {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 40px 0;
-      padding: 0 20px;
-    }
-
-    .analysis-container {
-      background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 248, 255, 0.95) 100%);
-      border-radius: 25px;
-      padding: 30px;
-      box-shadow: 
-        0 20px 60px rgba(0, 0, 0, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(20px);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      width: 100%;
-      max-width: 500px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .analysis-container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
-      animation: shimmer 3s infinite;
-      pointer-events: none;
-    }
-
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(200%); }
-    }
-
-    .analysis-header {
-      text-align: center;
-      margin-bottom: 25px;
-    }
-
-    .battle-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      position: relative;
-    }
-
-    .analysis-brain, .analysis-chart {
-      font-size: 2.5rem;
-      color: #4f46e5;
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-
-    .vs-divider {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .vs-text {
-      font-size: 1.8rem;
-      font-weight: 900;
-      color: #dc2626;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-      letter-spacing: 3px;
-    }
-
-    .crossed-swords {
-      position: relative;
-      width: 60px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .sword-1, .sword-2 {
-      position: absolute;
-      font-size: 1.8rem;
-      color: #8b5cf6;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-    }
-
-    .sword-1 {
-      transform: rotate(45deg);
-      animation: sword-clash-1 3s ease-in-out infinite;
-    }
-
-    .sword-2 {
-      transform: rotate(-45deg);
-      animation: sword-clash-2 3s ease-in-out infinite;
-    }
-
-    @keyframes sword-clash-1 {
-      0%, 100% { transform: rotate(45deg) translateX(0); }
-      50% { transform: rotate(45deg) translateX(-3px); }
-    }
-
-    @keyframes sword-clash-2 {
-      0%, 100% { transform: rotate(-45deg) translateX(0); }
-      50% { transform: rotate(-45deg) translateX(3px); }
-    }
-
-    @keyframes pulse-glow {
-      0%, 100% { 
-        opacity: 1; 
-        transform: scale(1);
-        filter: drop-shadow(0 0 10px rgba(79, 70, 229, 0.3));
-      }
-      50% { 
-        opacity: 0.8; 
-        transform: scale(1.05);
-        filter: drop-shadow(0 0 20px rgba(79, 70, 229, 0.5));
-      }
-    }
-
-    .analysis-content {
-      text-align: center;
-    }
-
-    .analysis-status {
-      margin-bottom: 25px;
-    }
-
-    .status-indicator {
-      position: relative;
-      display: inline-block;
-      margin-bottom: 15px;
-    }
-
-    .pulse-ring, .pulse-core {
-      position: absolute;
-      border-radius: 50%;
-    }
-
-    .pulse-core {
-      width: 20px;
-      height: 20px;
-      background: linear-gradient(45deg, #4f46e5, #7c3aed);
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-
-    .pulse-ring {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(79, 70, 229, 0.3);
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-
-    .status-indicator.active .pulse-ring {
-      animation: pulse-ring-animation 2s ease-out infinite;
-    }
-
-    @keyframes pulse-ring-animation {
-      0% {
-        transform: translate(-50%, -50%) scale(0.8);
-        opacity: 1;
-      }
-      100% {
-        transform: translate(-50%, -50%) scale(2);
-        opacity: 0;
-      }
-    }
-
-    .analysis-title {
-      color: #1f2937;
-      font-size: 1.3rem;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .analysis-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-bottom: 25px;
-    }
-
-    .analysis-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.6);
-      border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    .metric-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      color: white;
-    }
-
-    .metric-icon.team-a-color {
-      background: linear-gradient(45deg, #3b82f6, #1d4ed8);
-    }
-
-    .metric-icon.team-b-color {
-      background: linear-gradient(45deg, #f97316, #ea580c);
-    }
-
-    .metric-icon.balance-color {
-      background: linear-gradient(45deg, #10b981, #059669);
-    }
-
-    .metric-info {
-      text-align: center;
-    }
-
-    .metric-label {
-      display: block;
-      font-size: 0.85rem;
-      color: #6b7280;
-      font-weight: 500;
-    }
-
-    .metric-value {
-      display: block;
-      font-size: 1.1rem;
-      color: #1f2937;
-      font-weight: 600;
-    }
-
-    .quick-actions {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .ai-btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 25px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .analyze-btn {
-      background: linear-gradient(45deg, #4f46e5, #7c3aed);
-      color: white;
-    }
-
-    .balance-btn {
-      background: linear-gradient(45deg, #10b981, #059669);
-      color: white;
-    }
-
-    .ai-btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-
-    .ai-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .loading-analysis {
-      padding: 20px 0;
-    }
-
-    .analysis-progress {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 25px;
-    }
-
-    .progress-bar {
-      flex: 1;
-      height: 8px;
-      background: rgba(79, 70, 229, 0.1);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #4f46e5, #7c3aed);
-      border-radius: 4px;
-      transition: width 0.3s ease;
-      position: relative;
-    }
-
-    .progress-fill::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 20px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
-      animation: progress-shine 2s infinite;
-    }
-
-    @keyframes progress-shine {
-      0% { transform: translateX(-20px); }
-      100% { transform: translateX(20px); }
-    }
-
-    .progress-text {
-      font-weight: 600;
-      color: #4f46e5;
-      font-size: 0.9rem;
-    }
-
-    .analysis-steps {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-      padding: 12px 8px;
-      border-radius: 12px;
-      transition: all 0.3s ease;
-      opacity: 0.4;
-    }
-
-    .step.active {
-      opacity: 1;
-      background: rgba(79, 70, 229, 0.1);
-      color: #4f46e5;
-    }
-
-    .step.completed {
-      opacity: 1;
-      background: rgba(16, 185, 129, 0.1);
-      color: #10b981;
-    }
-
-    .step i {
-      font-size: 1.2rem;
-    }
-
-    .step span {
-      font-size: 0.7rem;
-      font-weight: 500;
-      text-align: center;
-    }
-
-    /* Responsive Design for AI Section */
-    @media (max-width: 768px) {
-      .ai-analysis-section {
-        margin: 20px 0;
-        padding: 0 10px;
-      }
-
-      .analysis-container {
-        padding: 20px;
-        max-width: 100%;
-      }
-
-      .battle-icon {
-        gap: 15px;
-      }
-
-      .analysis-brain, .analysis-chart {
-        font-size: 2rem;
-      }
-
-      .vs-text {
-        font-size: 1.4rem;
-      }
-
-      .analysis-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-      }
-
-      .quick-actions {
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .ai-btn {
-        width: 100%;
-        justify-content: center;
-      }
-
-      .analysis-steps {
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .step {
-        flex-direction: row;
-        justify-content: flex-start;
-        padding: 10px 15px;
-      }
-
-      .step span {
-        text-align: left;
-      }
-    }
-
     /* Admin Controls */
     .admin-controls {
       display: flex;
@@ -2315,10 +1793,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   async loadPlayers() {
     try {
       this.isLoadingPlayers = true;
-      console.log('🔄 Loading players from PlayerService...');
       
       // Force PlayerService to reload data
-      console.log('⚡ Triggering PlayerService refresh...');
       await this.playerService.refreshPlayers();
       
       // Subscribe to core players data
@@ -2326,7 +1802,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (corePlayersData) => {
-            console.log('📥 Received players data from PlayerService:', corePlayersData.length);
             this.corePlayersData = corePlayersData;
             this.convertCorePlayersToLegacyFormat(corePlayersData);
             this.updateFilteredPlayers();
@@ -2336,14 +1811,13 @@ export class PlayersComponent implements OnInit, OnDestroy {
             if (this.allPlayers.length === 0) {
               setTimeout(() => {
                 if (this.allPlayers.length === 0) {
-                  console.log('🔧 No players loaded, trying fallback method...');
                   this.loadPlayersDirectly();
                 }
               }, 1000);
             }
           },
           error: (error) => {
-            console.error('❌ Error in PlayerService subscription:', error);
+            console.error('Error in PlayerService subscription:', error);
             this.loadPlayersDirectly();
           }
         });
@@ -2351,25 +1825,21 @@ export class PlayersComponent implements OnInit, OnDestroy {
       // Also try direct load immediately as fallback
       setTimeout(() => {
         if (this.allPlayers.length === 0) {
-          console.log('🔧 Fallback: Loading directly as PlayerService seems slow...');
           this.loadPlayersDirectly();
         }
       }, 500);
       
-      console.log('✅ PlayerService subscription established');
     } catch (error) {
-      console.error('❌ Error loading players:', error);
+      console.error('Error loading players:', error);
       this.loadPlayersDirectly();
     }
   }
 
   private async loadPlayersDirectly() {
     try {
-      console.log('🔧 Loading players directly from assets...');
       const response = await fetch('assets/players.json');
       if (response.ok) {
         const legacyPlayers = await response.json();
-        console.log('📁 Direct load successful:', legacyPlayers.length);
         
         // Convert directly to allPlayers format
         this.allPlayers = legacyPlayers.map((player: { id: number; firstName: string; lastName?: string; position: string; DOB: number | string; height?: number; weight?: number; avatar?: string; note?: string }) => ({
@@ -2386,12 +1856,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
         
         this.updateFilteredPlayers();
         this.isLoadingPlayers = false;
-        console.log('✅ Direct load completed:', this.allPlayers.length);
       } else {
         throw new Error('Failed to fetch players.json');
       }
     } catch (error) {
-      console.error('❌ Direct load failed:', error);
+      console.error('Direct load failed:', error);
       this.allPlayers = [];
       this.isLoadingPlayers = false;
     }
@@ -2483,13 +1952,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   onDragStarted(player: Player) {
-    console.log('🚀 DRAG STARTED:', player.firstName);
     this.isDragging = true;
     this.draggedPlayer = player;
   }
 
   onDragEnded() {
-    console.log('🛑 DRAG ENDED:', this.draggedPlayer?.firstName || 'unknown');
     this.isDragging = false;
     this.draggedPlayer = null;
   }
@@ -2509,7 +1976,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     target.src = defaultAvatar;
     player.avatar = defaultAvatar;
     
-    console.log(`Avatar failed to load for player: ${player.firstName}, using default avatar: ${defaultAvatar}`);
+
     
     // If the default avatar also fails, use the generated avatar service
     target.onerror = () => {
@@ -2517,7 +1984,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       target.src = generatedAvatar;
       player.avatar = generatedAvatar;
       target.onerror = null; // Prevent infinite loop
-      console.log(`Using generated avatar for player: ${player.firstName}`);
+
     };
   }
 
@@ -2536,7 +2003,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     target.removeAttribute('pattern');
     target.removeAttribute('required');
     
-    console.log('Avatar URL updated:', inputValue || 'empty');
+
   }
 
   private getValidAvatarUrl(avatarUrl: string, playerName: string): string {
@@ -2568,7 +2035,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       // Make sure it's not part of any form validation
       avatarInput.setAttribute('novalidate', 'true');
       
-      console.log('Avatar validation completely disabled');
+
     }
   }
 
@@ -2596,7 +2063,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       const modalOverlay = document.querySelector('.modal-overlay') as HTMLElement;
       const playerModal = document.querySelector('.player-modal') as HTMLElement;
       
-      console.log('🎯 centerModal called - modalOverlay:', !!modalOverlay, 'playerModal:', !!playerModal);
+
       
       if (modalOverlay && playerModal) {
         // Force aggressive positioning with multiple methods
@@ -2624,7 +2091,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
         playerModal.style.margin = 'auto';
         playerModal.style.transform = 'translate(0, 0)';
         
-        console.log('✅ Modal positioning applied');
+
       } else {
         console.warn('❌ Modal elements not found!');
       }
@@ -2643,31 +2110,22 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   async saveMatchInfo() {
     try {
-      console.log('🚀 Starting match save process...');
-      console.log('📊 Current teams:', { teamA: this.teamA, teamB: this.teamB });
+
       
       const matchData = await this.createMatchDataWithServices();
-      console.log('📝 Match data created:', matchData);
       
-      console.log('💾 Saving match to database...');
       await this.matchService.createMatch(matchData);
-      console.log('✅ Match saved successfully');
       
       // Also add fund transaction for the match
-      console.log('💰 Adding fund transaction...');
       await this.addMatchFundTransaction(matchData);
-      console.log('✅ Fund transaction added');
       
       this.showTemporaryMessage('matchSaveMessage', '\u0110\u00e3 l\u01b0u tr\u1eadn \u0111\u1ea5u v\u00e0o h\u1ec7 th\u1ed1ng!');
       
       // Refresh data to reflect changes in the UI
-      console.log('🔄 Refreshing player data...');
       await this.loadPlayers();
-      console.log('✅ Data refresh complete');
       
       // Clear match data after saving
       this.clearMatchData();
-      console.log('🧹 Match data cleared');
     } catch (error) {
       console.error('❌ Error saving match info:', error);
       console.error('📋 Error details:', {
@@ -2885,7 +2343,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
-    console.log('🔄 Converting core players to legacy format:', corePlayers.length);
+
     
     this.allPlayers = corePlayers.map(player => ({
       id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
@@ -2899,8 +2357,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       note: player.notes || ''
     }));
     
-    console.log('✅ Converted to allPlayers:', this.allPlayers.length);
-    console.log('📋 Sample player:', this.allPlayers[0]);
+
   }
 
   private showTemporaryMessage(messageProperty: keyof Pick<PlayersComponent, 'matchSaveMessage' | 'saveMessage' | 'saveRegisteredMessage'>, message: string) {
@@ -2950,7 +2407,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(loading => {
         if (!loading && this.isLoadingPlayers) {
-          console.log('\u2705 Core data loaded, refreshing players');
           this.loadPlayers();
         }
       });
@@ -3132,7 +2588,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
           }
         });
 
-        console.log('\u2705 Auto-balance completed with AI recommendations');
+
       }
     } catch (error) {
       console.warn('Auto-balance failed, using fallback:', error);
@@ -3153,10 +2609,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private showAnalysisResults(): void {
     // Show analysis completion message
     const balanceScore = this.getTeamBalance();
-    console.log('🤖 AI Analysis completed!');
-    console.log(`Team balance: ${balanceScore}`);
-    console.log(`Team A: ${this.teamA.length} players`);
-    console.log(`Team B: ${this.teamB.length} players`);
+
     
     // You could show a modal or toast message here
     alert(`✅ Phân tích hoàn thành!\n\nCân bằng đội hình: ${balanceScore}\nĐội Xanh: ${this.teamA.length} cầu thủ\nĐội Cam: ${this.teamB.length} cầu thủ`);
@@ -3170,7 +2623,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   // Player Modal Methods
   openCreatePlayerModal(): void {
-    console.log('🎯 Add Player button clicked - openCreatePlayerModal called');
+
     this.isEditMode = false;
     this.playerFormData = {
       firstName: '',
@@ -3284,18 +2737,18 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   async savePlayerData(): Promise<void> {
-    console.log('🔍 savePlayerData called with:', this.playerFormData);
+
     
     if (!this.playerFormData.firstName || !this.playerFormData.position) {
       alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
       return;
     }
 
-    console.log('✅ Validation passed, starting save...');
+
     this.isSaving = true;
     try {
       if (this.isEditMode && this.playerFormData.id) {
-        console.log('📝 Updating existing player with ID:', this.playerFormData.id);
+
         // Update existing player - preserve original avatar if field is empty
         const originalPlayer = this.corePlayersData.find(p => p.id === this.playerFormData.id);
         const avatarUrl = this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '';
@@ -3304,12 +2757,10 @@ export class PlayersComponent implements OnInit, OnDestroy {
           // Use provided avatar or fallback to default - no URL validation
           avatar: this.getValidAvatarUrl(avatarUrl, this.playerFormData.firstName || 'Player')
         };
-        console.log('📊 Player data to update:', playerDataToUpdate);
         await this.playerService.updatePlayer(this.playerFormData.id, playerDataToUpdate);
-        console.log('✅ Player updated successfully');
         alert('Cập nhật cầu thủ thành công!');
       } else {
-        console.log('🆕 Creating new player...');
+
         // Create new player
         const newPlayer = {
           firstName: this.playerFormData.firstName!,
@@ -3323,14 +2774,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
           isRegistered: true,
           status: PlayerStatus.ACTIVE
         };
-        console.log('📊 New player data:', newPlayer);
         await this.playerService.createPlayer(newPlayer);
-        console.log('✅ New player created successfully');
         alert('Thêm cầu thủ mới thành công!');
       }
       
       // Refresh player data to reflect changes in the UI
-      console.log('🔄 Refreshing player data after save...');
       await this.loadPlayers();
       this.closePlayerFormModal();
     } catch (error) {
@@ -3392,7 +2840,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Admin Action Methods
   async syncWithFirebase(): Promise<void> {
     try {
-      console.log('🔄 Syncing with Firebase...');
+
       await this.playerService.refreshPlayers();
       alert('Đồng bộ Firebase thành công!');
     } catch (error) {

@@ -541,3 +541,104 @@
     font-size: 2rem;
   }
 }
+
+/* Match Statistics Section */
+.match-statistics {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stats-header {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.stats-title {
+  font-weight: 600;
+  color: #374151;
+  font-size: 1.1rem;
+}
+
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.stat-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+  margin-bottom: 5px;
+}
+
+.stat-title i {
+  font-size: 0.9rem;
+}
+
+.stat-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-left: 20px;
+}
+
+.team-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.team-stat.blue {
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.team-stat.orange {
+  background: #fff7ed;
+  border-left: 3px solid #ea580c;
+}
+
+.team-label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.85rem;
+}
+
+/* Responsive adjustments for match statistics */
+@media (max-width: 768px) {
+  .match-statistics {
+    padding: 15px;
+  }
+  
+  .stats-content {
+    gap: 12px;
+  }
+  
+  .team-stat {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+}
