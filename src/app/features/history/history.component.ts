@@ -186,6 +186,87 @@ import { take } from 'rxjs/operators';
               </div>
             </div>
 
+            <!-- Match Statistics -->
+            <div class="match-statistics" *ngIf="getGoalScorers(match, 'A') || getGoalScorers(match, 'B') || getAssists(match, 'A') || getAssists(match, 'B') || getCards(match, 'A', 'yellow') || getCards(match, 'B', 'yellow') || getCards(match, 'A', 'red') || getCards(match, 'B', 'red')">
+              <div class="stats-header">
+                <span class="stats-title">📊 Thống kê trận đấu</span>
+              </div>
+              
+              <div class="stats-content">
+                <!-- Goals Section -->
+                <div class="stat-section" *ngIf="getGoalScorers(match, 'A') || getGoalScorers(match, 'B')">
+                  <div class="stat-title">
+                    <i class="fas fa-futbol"></i>
+                    Bàn thắng
+                  </div>
+                  <div class="stat-teams">
+                    <div class="team-stat blue" *ngIf="getGoalScorers(match, 'A')">
+                      <span class="team-label">Đội Xanh:</span>
+                      <span class="stat-value">{{ getGoalScorers(match, 'A') }}</span>
+                    </div>
+                    <div class="team-stat orange" *ngIf="getGoalScorers(match, 'B')">
+                      <span class="team-label">Đội Cam:</span>
+                      <span class="stat-value">{{ getGoalScorers(match, 'B') }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Assists Section -->
+                <div class="stat-section" *ngIf="getAssists(match, 'A') || getAssists(match, 'B')">
+                  <div class="stat-title">
+                    <i class="fas fa-hands-helping"></i>
+                    Kiến tạo
+                  </div>
+                  <div class="stat-teams">
+                    <div class="team-stat blue" *ngIf="getAssists(match, 'A')">
+                      <span class="team-label">Đội Xanh:</span>
+                      <span class="stat-value">{{ getAssists(match, 'A') }}</span>
+                    </div>
+                    <div class="team-stat orange" *ngIf="getAssists(match, 'B')">
+                      <span class="team-label">Đội Cam:</span>
+                      <span class="stat-value">{{ getAssists(match, 'B') }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Yellow Cards Section -->
+                <div class="stat-section" *ngIf="getCards(match, 'A', 'yellow') || getCards(match, 'B', 'yellow')">
+                  <div class="stat-title">
+                    <i class="fas fa-square text-warning"></i>
+                    Thẻ vàng
+                  </div>
+                  <div class="stat-teams">
+                    <div class="team-stat blue" *ngIf="getCards(match, 'A', 'yellow')">
+                      <span class="team-label">Đội Xanh:</span>
+                      <span class="stat-value">{{ getCards(match, 'A', 'yellow') }}</span>
+                    </div>
+                    <div class="team-stat orange" *ngIf="getCards(match, 'B', 'yellow')">
+                      <span class="team-label">Đội Cam:</span>
+                      <span class="stat-value">{{ getCards(match, 'B', 'yellow') }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Red Cards Section -->
+                <div class="stat-section" *ngIf="getCards(match, 'A', 'red') || getCards(match, 'B', 'red')">
+                  <div class="stat-title">
+                    <i class="fas fa-square text-danger"></i>
+                    Thẻ đỏ
+                  </div>
+                  <div class="stat-teams">
+                    <div class="team-stat blue" *ngIf="getCards(match, 'A', 'red')">
+                      <span class="team-label">Đội Xanh:</span>
+                      <span class="stat-value">{{ getCards(match, 'A', 'red') }}</span>
+                    </div>
+                    <div class="team-stat orange" *ngIf="getCards(match, 'B', 'red')">
+                      <span class="team-label">Đội Cam:</span>
+                      <span class="stat-value">{{ getCards(match, 'B', 'red') }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Financial Info -->
             <div class="match-finance" *ngIf="match.thu || match.chi_total">
               <div class="finance-header">
