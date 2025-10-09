@@ -661,82 +661,126 @@ interface HistoryEntry {
             </div>
           </div>
 
-          <!-- AI Analysis Results -->
-          <div *ngIf="aiAnalysisResults && !isAnalyzing" class="analysis-results">
-            <div class="results-header mb-4">
-              <h4 class="text-center">
-                <i class="fas fa-brain me-2"></i>
+          <!-- AI Analysis Results - Enhanced UI/UX -->
+          <div *ngIf="aiAnalysisResults && !isAnalyzing" class="analysis-results-enhanced">
+            <div class="results-header-enhanced mb-4">
+              <div class="ai-badge">
+                <i class="fas fa-robot me-2"></i>
+                AI Analysis
+              </div>
+              <h3 class="results-title">
                 🎯 Kết Quả Phân Tích AI
-              </h4>
-              <p class="text-center text-muted">Dự đoán dựa trên {{aiAnalysisResults.matchesAnalyzed}} trận đấu được phân tích</p>
+              </h3>
+              <p class="results-subtitle">
+                Dự đoán dựa trên <span class="highlight">{{aiAnalysisResults.matchesAnalyzed}} trận đấu</span> được phân tích
+              </p>
             </div>
-            <div class="row">
-              <!-- Predicted Score -->
-              <div class="col-lg-4">
-                <div class="prediction-card score-prediction">
-                  <h5 class="prediction-title">⚽ Tỷ Số Dự Đoán</h5>
-                  <div class="predicted-score">
-                    <div class="score-display">
-                      <div class="team-score xanh-score">
-                        <div class="score-team">🔵 Xanh</div>
-                        <div class="score-number">{{aiAnalysisResults.predictedScore.xanh}}</div>
-                      </div>
-                      <div class="vs-separator">-</div>
-                      <div class="team-score cam-score">
-                        <div class="score-team">🟠 Cam</div>
-                        <div class="score-number">{{aiAnalysisResults.predictedScore.cam}}</div>
-                      </div>
-                    </div>
-                    <div class="score-confidence">
-                      <small class="text-muted">Độ tin cậy: {{aiAnalysisResults.confidence}}%</small>
-                    </div>
+
+            <!-- Main Predictions Grid -->
+            <div class="predictions-grid">
+              <!-- Score Prediction Card -->
+              <div class="prediction-card-enhanced score-card">
+                <div class="card-header">
+                  <div class="card-icon score-icon">⚽</div>
+                  <div class="card-title">
+                    <h4>Tỷ Số Dự Đoán</h4>
+                    <span class="card-subtitle">Predicted Score</span>
                   </div>
                 </div>
+                <div class="score-display-enhanced">
+                  <div class="team-score-enhanced xanh-team">
+                    <div class="team-indicator">
+                      <span class="team-dot xanh-dot"></span>
+                      <span class="team-name">Xanh</span>
+                    </div>
+                    <div class="score-number-large">{{aiAnalysisResults.predictedScore.xanh}}</div>
+                  </div>
+                  <div class="vs-separator-enhanced">
+                    <div class="vs-text">VS</div>
+                  </div>
+                  <div class="team-score-enhanced cam-team">
+                    <div class="team-indicator">
+                      <span class="team-dot cam-dot"></span>
+                      <span class="team-name">Cam</span>
+                    </div>
+                    <div class="score-number-large">{{aiAnalysisResults.predictedScore.cam}}</div>
+                  </div>
+                </div>
+                <div class="confidence-badge">
+                  <i class="fas fa-chart-line me-1"></i>
+                  Độ tin cậy: {{aiAnalysisResults.confidence}}%
+                </div>
               </div>
-              
-              <!-- Win Probability -->
-              <div class="col-lg-4">
-                <div class="prediction-card">
-                  <h5 class="prediction-title">📊 Tỷ Lệ Thắng</h5>
-                  <div class="probability-bars">
-                    <div class="prob-item xanh-prob">
-                      <div class="prob-header">
-                        <span class="team-name">🔵 Xanh</span>
-                        <span class="prob-value">{{aiAnalysisResults.xanhWinProb}}%</span>
-                      </div>
-                      <div class="progress">
-                        <div class="progress-bar bg-primary" 
-                             [style.width.%]="aiAnalysisResults.xanhWinProb"></div>
+
+              <!-- Win Probability Card -->
+              <div class="prediction-card-enhanced probability-card">
+                <div class="card-header">
+                  <div class="card-icon probability-icon">📊</div>
+                  <div class="card-title">
+                    <h4>Tỷ Lệ Thắng</h4>
+                    <span class="card-subtitle">Win Probability</span>
+                  </div>
+                </div>
+                <div class="probability-display-enhanced">
+                  <div class="prob-item-enhanced xanh-prob">
+                    <div class="prob-team-info">
+                      <span class="team-dot xanh-dot"></span>
+                      <span class="team-name">Xanh</span>
+                      <span class="prob-percentage">{{aiAnalysisResults.xanhWinProb}}%</span>
+                    </div>
+                    <div class="progress-enhanced">
+                      <div class="progress-bar-enhanced xanh-bar" 
+                           [style.width.%]="aiAnalysisResults.xanhWinProb">
+                        <div class="progress-shine"></div>
                       </div>
                     </div>
-                    <div class="prob-item cam-prob">
-                      <div class="prob-header">
-                        <span class="team-name">🟠 Cam</span>
-                        <span class="prob-value">{{aiAnalysisResults.camWinProb}}%</span>
-                      </div>
-                      <div class="progress">
-                        <div class="progress-bar bg-warning" 
-                             [style.width.%]="aiAnalysisResults.camWinProb"></div>
+                  </div>
+                  <div class="prob-item-enhanced cam-prob">
+                    <div class="prob-team-info">
+                      <span class="team-dot cam-dot"></span>
+                      <span class="team-name">Cam</span>
+                      <span class="prob-percentage">{{aiAnalysisResults.camWinProb}}%</span>
+                    </div>
+                    <div class="progress-enhanced">
+                      <div class="progress-bar-enhanced cam-bar" 
+                           [style.width.%]="aiAnalysisResults.camWinProb">
+                        <div class="progress-shine"></div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Key Factors -->
-              <div class="col-lg-4">
-                <div class="factors-card">
-                  <h5 class="factors-title">🎯 Yếu Tố Quyết Định</h5>
-                  <div class="factor-list">
-                    <div *ngFor="let factor of aiAnalysisResults.keyFactors; trackBy: trackByFactorName" 
-                         class="factor-item"
-                         [class.positive]="factor.impact > 0"
-                         [class.negative]="factor.impact < 0">
-                      <div class="factor-name">{{factor.name}}</div>
-                      <div class="factor-impact">
-                        <span class="impact-value">{{factor.impact > 0 ? '+' : ''}}{{factor.impact}}%</span>
-                        <i [class]="factor.impact > 0 ? 'fas fa-arrow-up text-success' : 'fas fa-arrow-down text-danger'"></i>
+              <!-- Key Factors Card -->
+              <div class="prediction-card-enhanced factors-card-enhanced">
+                <div class="card-header">
+                  <div class="card-icon factors-icon">🎯</div>
+                  <div class="card-title">
+                    <h4>Yếu Tố Quyết Định</h4>
+                    <span class="card-subtitle">Key Factors</span>
+                  </div>
+                </div>
+                <div class="factors-list-enhanced">
+                  <div *ngFor="let factor of aiAnalysisResults.keyFactors; trackBy: trackByFactorName" 
+                       class="factor-item-enhanced"
+                       [class.factor-positive]="factor.impact > 0"
+                       [class.factor-negative]="factor.impact < 0">
+                    <div class="factor-content">
+                      <div class="factor-name-enhanced">{{factor.name}}</div>
+                      <div class="factor-impact-enhanced">
+                        <span class="impact-badge" 
+                              [class.positive-impact]="factor.impact > 0"
+                              [class.negative-impact]="factor.impact < 0">
+                          <i [class]="factor.impact > 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
+                          {{factor.impact > 0 ? '+' : ''}}{{factor.impact}}%
+                        </span>
                       </div>
+                    </div>
+                    <div class="factor-progress">
+                      <div class="factor-bar" 
+                           [style.width.%]="Math.abs(factor.impact) * 2"
+                           [class.positive-bar]="factor.impact > 0"
+                           [class.negative-bar]="factor.impact < 0"></div>
                     </div>
                   </div>
                 </div>
@@ -2420,203 +2464,366 @@ interface HistoryEntry {
       transform: translateY(-1px);
     }
 
-    /* Analysis Results */
-    .analysis-results {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border-radius: 15px;
-      padding: 2rem;
+    /* Enhanced Analysis Results - Modern UI/UX */
+    .analysis-results-enhanced {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.98) 100%);
+      border-radius: 24px;
+      padding: 2.5rem;
       margin-top: 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
     }
 
-    .results-header h4 {
-      color: #2c3e50;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .prediction-card {
-      background: white;
-      border-radius: 15px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      margin-bottom: 1rem;
-      border-top: 4px solid #667eea;
-      transition: transform 0.2s ease;
-    }
-
-    .prediction-card:hover {
-      transform: translateY(-2px);
-    }
-
-    .prediction-title {
-      color: #2c3e50;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      font-size: 1.1rem;
-    }
-
-    .score-prediction {
-      border-top-color: #28a745;
-    }
-
-    .predicted-score {
+    .results-header-enhanced {
       text-align: center;
+      margin-bottom: 2.5rem;
     }
 
-    .score-display {
-      display: flex;
-      justify-content: center;
+    .ai-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 2rem;
-      margin-bottom: 1rem;
-    }
-
-    .team-score {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .score-team {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.5rem 1.2rem;
+      border-radius: 25px;
       font-size: 0.9rem;
       font-weight: 600;
-      color: #6c757d;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
 
-    .score-number {
-      font-size: 2.5rem;
+    .results-title {
+      color: #1a202c;
       font-weight: 800;
-      color: #2c3e50;
+      margin-bottom: 0.5rem;
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    .xanh-score .score-number {
-      color: #3498db;
+    .results-subtitle {
+      color: #64748b;
+      font-size: 1rem;
+      margin: 0;
     }
 
-    .cam-score .score-number {
-      color: #f39c12;
+    .highlight {
+      color: #667eea;
+      font-weight: 700;
     }
 
-    .vs-separator {
-      font-size: 1.5rem;
-      color: #6c757d;
-      font-weight: 600;
+    /* Predictions Grid */
+    .predictions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
     }
 
-    .score-confidence {
-      color: #6c757d;
-      font-style: italic;
+    .prediction-card-enhanced {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
 
-    /* Probability Bars */
-    .probability-bars {
+    .prediction-card-enhanced::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .prediction-card-enhanced:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+    }
+
+    .score-card::before {
+      background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    }
+
+    .probability-card::before {
+      background: linear-gradient(90deg, #007bff 0%, #6610f2 100%);
+    }
+
+    .factors-card-enhanced::before {
+      background: linear-gradient(90deg, #dc3545 0%, #fd7e14 100%);
+    }
+
+    /* Card Header */
+    .card-header {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 1rem;
+      margin-bottom: 1.5rem;
     }
 
-    .prob-item {
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
       display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      flex-shrink: 0;
     }
 
-    .prob-header {
+    .score-icon {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .probability-icon {
+      background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    }
+
+    .factors-icon {
+      background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+    }
+
+    .card-title h4 {
+      color: #1a202c;
+      font-weight: 700;
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .card-subtitle {
+      color: #64748b;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Enhanced Score Display */
+    .score-display-enhanced {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+
+    .team-score-enhanced {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .team-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .team-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .xanh-dot {
+      background: #3b82f6;
+    }
+
+    .cam-dot {
+      background: #f59e0b;
     }
 
     .team-name {
       font-weight: 600;
-      color: #2c3e50;
+      color: #475569;
+      font-size: 0.9rem;
     }
 
-    .prob-value {
+    .score-number-large {
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #1e293b;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .vs-separator-enhanced {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .vs-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
       font-weight: 700;
-      font-size: 1.1rem;
-      color: #2c3e50;
+      font-size: 0.9rem;
     }
 
-    .progress {
-      height: 12px;
-      background-color: #e9ecef;
-      border-radius: 6px;
-      overflow: hidden;
+    .confidence-badge {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 25px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.9rem;
     }
 
-    .progress-bar {
-      height: 100%;
-      transition: width 1s ease-in-out;
-      border-radius: 6px;
+    /* Enhanced Probability Display */
+    .probability-display-enhanced {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
     }
 
-    .bg-primary {
-      background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
-    }
-
-    .bg-warning {
-      background: linear-gradient(90deg, #f39c12 0%, #e67e22 100%);
-    }
-
-    /* Factors Card */
-    .factors-card {
-      background: white;
-      border-radius: 15px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      border-top: 4px solid #e74c3c;
-    }
-
-    .factors-title {
-      color: #2c3e50;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      font-size: 1.1rem;
-    }
-
-    .factor-list {
+    .prob-item-enhanced {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
     }
 
-    .factor-item {
+    .prob-team-info {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.75rem;
-      background: #f8f9fa;
-      border-radius: 8px;
-      border-left: 3px solid #dee2e6;
+    }
+
+    .prob-percentage {
+      font-weight: 800;
+      font-size: 1.5rem;
+      color: #1e293b;
+    }
+
+    .progress-enhanced {
+      height: 16px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-enhanced {
+      height: 100%;
+      border-radius: 10px;
+      position: relative;
+      transition: width 2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .xanh-bar {
+      background: linear-gradient(90deg, #3b82f6 0%, #1e40af 100%);
+    }
+
+    .cam-bar {
+      background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .progress-shine {
+      position: absolute;
+      top: 0;
+      left: -100%;
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: shine 2s infinite;
+    }
+
+    @keyframes shine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+
+    /* Enhanced Factors */
+    .factors-list-enhanced {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .factor-item-enhanced {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 1rem;
+      border-left: 4px solid #e2e8f0;
       transition: all 0.3s ease;
     }
 
-    .factor-item.positive {
-      border-left-color: #28a745;
-      background: rgba(40, 167, 69, 0.1);
+    .factor-item-enhanced.factor-positive {
+      border-left-color: #10b981;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.1) 100%);
     }
 
-    .factor-item.negative {
-      border-left-color: #dc3545;
-      background: rgba(220, 53, 69, 0.1);
+    .factor-item-enhanced.factor-negative {
+      border-left-color: #ef4444;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.1) 100%);
     }
 
-    .factor-name {
-      font-weight: 500;
-      color: #2c3e50;
-    }
-
-    .factor-impact {
+    .factor-content {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
+      margin-bottom: 0.75rem;
     }
 
-    .impact-value {
+    .factor-name-enhanced {
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.95rem;
+    }
+
+    .impact-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
       font-weight: 700;
-      color: #2c3e50;
+      font-size: 0.8rem;
+    }
+
+    .positive-impact {
+      background: #10b981;
+      color: white;
+    }
+
+    .negative-impact {
+      background: #ef4444;
+      color: white;
+    }
+
+    .factor-progress {
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .factor-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 1s ease-out;
+    }
+
+    .positive-bar {
+      background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    }
+
+    .negative-bar {
+      background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
     }
 
     /* Metric Cards */
