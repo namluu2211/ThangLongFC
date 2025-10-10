@@ -5,7 +5,7 @@ import { DragDropModule, CdkDragDrop, transferArrayItem } from '@angular/cdk/dra
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Player } from './player-utils';
-import { PlayerService } from '../../core/services/player.service';
+import { FirebasePlayerService } from '../../core/services/firebase-player.service';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
@@ -57,7 +57,13 @@ interface HistoryEntry {
             <i class="fas fa-users me-2"></i>
             ⚽ Quản lý đội hình
           </h2>
-          <p class="page-subtitle">Chia đội và ghi nhận thành tích trận đấu</p>
+          <p class="page-subtitle">
+            Chia đội và ghi nhận thành tích trận đấu
+            <span class="sync-indicator" [ngClass]="getSyncStatusClass()">
+              <i [class]="getSyncStatusIcon()"></i>
+              {{getSyncStatusText()}}
+            </span>
+          </p>
         </div>
       </div>
 
@@ -76,11 +82,18 @@ interface HistoryEntry {
           <div *ngIf="isAdmin()" class="admin-controls">
             <button 
               class="modern-btn btn-info"
-              (click)="syncPlayersToFirebase()"
-              title="Đồng bộ cầu thủ lên Firebase"
-              [disabled]="isSyncing">
-              <i [class]="isSyncing ? 'fas fa-spinner fa-spin me-2' : 'fas fa-cloud-upload-alt me-2'"></i>
-              {{ isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ Firebase' }}
+              (click)="syncWithFirebase()"
+              title="Kiểm tra trạng thái đồng bộ Firebase">
+              <i class="fas fa-cloud-upload-alt me-2"></i>
+              Kiểm tra đồng bộ
+            </button>
+            
+            <button 
+              class="modern-btn btn-primary"
+              (click)="migrateToFirebase()"
+              title="Chuyển dữ liệu từ localStorage sang Firebase">
+              <i class="fas fa-database me-2"></i>
+              Migrate Firebase
             </button>
             
             <button 
@@ -135,8 +148,8 @@ interface HistoryEntry {
             </div>
           </div>
           
-          <div class="players-grid" *ngIf="allPlayers.length > 0; else noPlayersTemplate">
-            <div *ngFor="let player of allPlayers; trackBy: trackByPlayerId" 
+          <div class="players-grid" *ngIf="getDisplayPlayers().length > 0; else noPlayersTemplate">
+            <div *ngFor="let player of getDisplayPlayers(); trackBy: trackByPlayerId" 
                  class="player-item"
                  [class.registered]="isRegistered(player)">
               <div class="player-info" tabindex="0" (click)="viewPlayer(player)" (keyup)="onPlayerInfoKey($event, player)">
@@ -285,24 +298,52 @@ interface HistoryEntry {
               </div>
             </form>
             
-            <!-- Avatar field completely outside the form -->
+            <!-- Avatar Management Section -->
             <div class="form-group full-width" style="padding: 0 30px;">
-              <label for="avatar">Avatar URL (tùy chọn)</label>
-              <input 
-                type="text" 
-                id="avatar"
-                [value]="playerFormData.avatar || ''"
-                (input)="onAvatarInputChange($event)"
-                class="form-control"
-                autocomplete="off"
-                placeholder="https://example.com/avatar.jpg hoặc assets/images/avatar_players/TenCauThu.png"
-                title="Nhập URL hình ảnh hoặc đường dẫn file"
-                novalidate
-                [attr.pattern]="null"
-                [attr.required]="null">
+              <div class="avatar-section-label">
+                <i class="fas fa-user-circle me-2"></i>
+                <strong>Avatar của cầu thủ</strong>
+              </div>
+              
+              <!-- Current Avatar Display -->
+              <div class="current-avatar-display" *ngIf="playerFormData.avatar">
+                <div class="avatar-preview">
+                  <img [src]="playerFormData.avatar" 
+                       [alt]="playerFormData.firstName"
+                       class="current-avatar-img"
+                       (error)="onAvatarError($event)">
+                  <div class="avatar-path"> 
+                    <small class="text-muted">
+                      <i class="fas fa-link me-1"></i>  
+                      {{playerFormData.avatar}}
+                    </small>
+                  </div>
+                </div>
+                <button type="button" 
+                        class="btn btn-outline-warning btn-sm update-avatar-btn"
+                        (click)="openAvatarModal()">
+                  <i class="fas fa-edit me-1"></i>
+                  Cập nhật Avatar
+                </button>
+              </div>
+              
+              <!-- No Avatar State -->
+              <div class="no-avatar-display" *ngIf="!playerFormData.avatar">
+                <div class="default-avatar-placeholder">
+                  <i class="fas fa-user-circle default-avatar-icon"></i>
+                  <p class="no-avatar-text">Chưa có avatar</p>
+                </div>
+                <button type="button" 
+                        class="btn btn-primary btn-sm add-avatar-btn"
+                        (click)="openAvatarModal()">
+                  <i class="fas fa-plus me-1"></i>
+                  Thêm Avatar
+                </button>
+              </div>
+              
               <small class="form-text text-muted mt-2">
                 <i class="fas fa-info-circle me-1"></i>
-                Nếu URL không hợp lệ, hệ thống sẽ tự động sử dụng ảnh mặc định
+                Avatar sẽ được sử dụng để hiển thị trong danh sách cầu thủ
               </small>
             </div>
             
@@ -319,6 +360,94 @@ interface HistoryEntry {
                 {{ isSaving ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Thêm mới') }}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avatar Selection Modal -->
+      <div *ngIf="showAvatarModal" class="modal-overlay"
+           tabindex="-1"
+           (click)="closeAvatarModal()"
+           (keydown)="$event.key === 'Escape' && closeAvatarModal()">
+        <div class="avatar-modal" 
+             tabindex="-1"
+             (click)="$event.stopPropagation()"
+             (keydown)="$event.stopPropagation()">
+          
+          <div class="modal-header">
+            <h3>
+              <i class="fas fa-user-circle me-2"></i>
+              Chọn Avatar
+            </h3>
+            <button type="button" class="close-btn" (click)="closeAvatarModal()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <!-- Current Avatar Display -->
+            <div *ngIf="playerFormData.avatar" class="current-avatar-section">
+              <h5><i class="fas fa-eye me-2"></i>Avatar hiện tại:</h5>
+              <div class="current-avatar-preview">
+                <img [src]="playerFormData.avatar" 
+                     [alt]="playerFormData.firstName"
+                     class="avatar-preview-img"
+                     (error)="onAvatarPreviewError($event)">
+                <p class="avatar-path-display">{{playerFormData.avatar}}</p>
+              </div>
+            </div>
+            
+            <!-- Avatar Options -->
+            <div class="avatar-options-section">
+              <h5><i class="fas fa-images me-2"></i>Chọn avatar mới:</h5>
+              
+              <!-- Quick Suggestions -->
+              <div class="avatar-quick-options">
+                <button type="button" 
+                        class="avatar-option-btn"
+                        (click)="setAvatarPathAndClose('assets/images/avatar_players/' + (playerFormData.firstName || 'Player') + '.png')">
+                  <i class="fas fa-file-image me-2"></i>
+                  <div>
+                    <strong>Local File</strong>
+                    <small>assets/images/avatar_players/{{playerFormData.firstName || 'Player'}}.png</small>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        class="avatar-option-btn"
+                        (click)="setAvatarPathAndClose('https://ui-avatars.com/api/?name=' + encodeURIComponent(playerFormData.firstName || 'Player') + '&background=667eea&color=fff&size=200')">
+                  <i class="fas fa-user-circle me-2"></i>
+                  <div>
+                    <strong>Generated Avatar</strong>
+                    <small>Tự động tạo từ tên cầu thủ</small>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        class="avatar-option-btn"
+                        (click)="setAvatarPathAndClose('assets/images/avatar_players/default.png')">
+                  <i class="fas fa-user me-2"></i>
+                  <div>
+                    <strong>Default Avatar</strong>
+                    <small>Avatar mặc định của hệ thống</small>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeAvatarModal()">
+              <i class="fas fa-times me-1"></i>
+              Hủy
+            </button>
+            <button type="button" 
+                    class="btn btn-outline-danger"
+                    *ngIf="playerFormData.avatar"
+                    (click)="removeAvatarAndClose()">
+              <i class="fas fa-trash me-1"></i>
+              Xóa Avatar
+            </button>
           </div>
         </div>
       </div>
@@ -787,66 +916,117 @@ interface HistoryEntry {
               </div>
             </div>
 
-            <!-- Detailed Analytics -->
-            <div class="detailed-analytics mt-4">
-              <div class="row">
-                <div class="col-md-4">
-                  <div class="metric-card">
-                    <div class="metric-icon">⚽</div>
-                    <div class="metric-content">
-                      <div class="metric-value">{{aiAnalysisResults.avgGoalsDiff}}</div>
-                      <div class="metric-label">Chênh lệch bàn thắng trung bình</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="metric-card">
-                    <div class="metric-icon">📈</div>
-                    <div class="metric-content">
-                      <div class="metric-value">{{aiAnalysisResults.confidence}}%</div>
-                      <div class="metric-label">Độ tin cậy dự đoán</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="metric-card">
-                    <div class="metric-icon">🎲</div>
-                    <div class="metric-content">
-                      <div class="metric-value">{{aiAnalysisResults.matchesAnalyzed}}</div>
-                      <div class="metric-label">Trận đã phân tích</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Historical Performance -->
-            <div class="historical-performance mt-4">
-              <h5 class="history-title">📚 Lịch Sử Đối Đầu</h5>
-              <div class="history-stats">
-                <div class="row">
-                  <div class="col-md-3">
-                    <div class="history-stat xanh-wins">
-                      <div class="stat-number">{{aiAnalysisResults.historicalStats.xanhWins}}</div>
-                      <div class="stat-label">Đội Xanh thắng</div>
+            <!-- Enhanced Match History Section -->
+            <div class="match-history-enhanced">
+              <!-- Header with Badge -->
+              <div class="history-header-enhanced">
+                <div class="history-badge">
+                  <span class="badge-icon">📈</span>
+                  <span class="badge-text">Phân Tích Lịch Sử</span>
+                </div>
+                <h4 class="history-title-enhanced">Lịch Sử Đối Đầu</h4>
+                <p class="history-subtitle">Dựa trên dữ liệu từ các trận đấu trước</p>
+              </div>
+
+              <!-- History Stats Grid -->
+              <div class="history-cards-grid">
+                <!-- Xanh Wins Card -->
+                <div class="history-card xanh-card">
+                  <div class="card-header-history">
+                    <div class="card-icon-history xanh-icon">
+                      <span>🏆</span>
+                    </div>
+                    <div class="card-info">
+                      <h5 class="card-title-history">Đội Xanh</h5>
+                      <p class="card-subtitle-history">Số trận thắng</p>
                     </div>
                   </div>
-                  <div class="col-md-3">
-                    <div class="history-stat cam-wins">
-                      <div class="stat-number">{{aiAnalysisResults.historicalStats.camWins}}</div>
-                      <div class="stat-label">Đội Cam thắng</div>
+                  <div class="stat-display">
+                    <div class="stat-number-large">{{aiAnalysisResults.historicalStats.xanhWins}}</div>
+                    <div class="stat-percentage">
+                      {{((aiAnalysisResults.historicalStats.xanhWins / aiAnalysisResults.historicalStats.totalMatches) * 100).toFixed(0)}}%
                     </div>
                   </div>
-                  <div class="col-md-3">
-                    <div class="history-stat draws">
-                      <div class="stat-number">{{aiAnalysisResults.historicalStats.draws}}</div>
-                      <div class="stat-label">Hòa</div>
+                  <div class="progress-indicator">
+                    <div class="progress-track">
+                      <div class="progress-fill xanh-progress" 
+                           [style.width.%]="(aiAnalysisResults.historicalStats.xanhWins / aiAnalysisResults.historicalStats.totalMatches) * 100">
+                      </div>
                     </div>
                   </div>
-                  <div class="col-md-3">
-                    <div class="history-stat total">
-                      <div class="stat-number">{{aiAnalysisResults.historicalStats.totalMatches}}</div>
-                      <div class="stat-label">Tổng trận</div>
+                </div>
+
+                <!-- Cam Wins Card -->
+                <div class="history-card cam-card">
+                  <div class="card-header-history">
+                    <div class="card-icon-history cam-icon">
+                      <span>🏆</span>
+                    </div>
+                    <div class="card-info">
+                      <h5 class="card-title-history">Đội Cam</h5>
+                      <p class="card-subtitle-history">Số trận thắng</p>
+                    </div>
+                  </div>
+                  <div class="stat-display">
+                    <div class="stat-number-large">{{aiAnalysisResults.historicalStats.camWins}}</div>
+                    <div class="stat-percentage">
+                      {{((aiAnalysisResults.historicalStats.camWins / aiAnalysisResults.historicalStats.totalMatches) * 100).toFixed(0)}}%
+                    </div>
+                  </div>
+                  <div class="progress-indicator">
+                    <div class="progress-track">
+                      <div class="progress-fill cam-progress" 
+                           [style.width.%]="(aiAnalysisResults.historicalStats.camWins / aiAnalysisResults.historicalStats.totalMatches) * 100">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Draws Card -->
+                <div class="history-card draws-card">
+                  <div class="card-header-history">
+                    <div class="card-icon-history draws-icon">
+                      <span>🤝</span>
+                    </div>
+                    <div class="card-info">
+                      <h5 class="card-title-history">Hòa</h5>
+                      <p class="card-subtitle-history">Số trận hòa</p>
+                    </div>
+                  </div>
+                  <div class="stat-display">
+                    <div class="stat-number-large">{{aiAnalysisResults.historicalStats.draws}}</div>
+                    <div class="stat-percentage">
+                      {{((aiAnalysisResults.historicalStats.draws / aiAnalysisResults.historicalStats.totalMatches) * 100).toFixed(0)}}%
+                    </div>
+                  </div>
+                  <div class="progress-indicator">
+                    <div class="progress-track">
+                      <div class="progress-fill draws-progress" 
+                           [style.width.%]="(aiAnalysisResults.historicalStats.draws / aiAnalysisResults.historicalStats.totalMatches) * 100">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Total Matches Card -->
+                <div class="history-card total-card">
+                  <div class="card-header-history">
+                    <div class="card-icon-history total-icon">
+                      <span>⚽</span>
+                    </div>
+                    <div class="card-info">
+                      <h5 class="card-title-history">Tổng Cộng</h5>
+                      <p class="card-subtitle-history">Tổng số trận</p>
+                    </div>
+                  </div>
+                  <div class="stat-display">
+                    <div class="stat-number-large">{{aiAnalysisResults.historicalStats.totalMatches}}</div>
+                    <div class="stat-label-enhanced">trận đấu</div>
+                  </div>
+                  <div class="summary-indicator">
+                    <div class="summary-text">
+                      Dữ liệu phân tích
                     </div>
                   </div>
                 </div>
@@ -890,6 +1070,39 @@ interface HistoryEntry {
       color: #7f8c8d;
       margin: 0;
       font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .sync-indicator {
+      font-size: 0.9rem;
+      padding: 4px 8px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+    }
+
+    .sync-synced {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .sync-syncing {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+
+    .sync-offline {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
     }
 
     .action-section {
@@ -1124,16 +1337,8 @@ interface HistoryEntry {
       animation: bounce 0.5s infinite alternate;
     }
 
-    @keyframes pulse {
-      0% { opacity: 0.8; }
-      50% { opacity: 1; }
-      100% { opacity: 0.8; }
-    }
-
-    @keyframes bounce {
-      0% { transform: translate(-50%, -50%) scale(1); }
-      100% { transform: translate(-50%, -50%) scale(1.1); }
-    }
+    /* Basic animations - simplified */
+    @keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
 
     /* Specific styling for each drop zone during drag */
 
@@ -1626,54 +1831,13 @@ interface HistoryEntry {
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
     }
 
-    .detail-section.full-width {
-      grid-column: 1 / -1;
-      border-top-color: #28a745;
-    }
-
-    .detail-section h5 {
-      color: #2c3e50;
-      margin: 0 0 20px 0;
-      font-size: 1.2rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #f1f3f4;
-    }
-
-    .detail-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      padding: 12px 0;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-    }
-
-    .detail-item:last-child {
-      margin-bottom: 0;
-      border-bottom: none;
-    }
-
-    .detail-label {
-      font-weight: 600;
-      color: #5a6c7d;
-      font-size: 1rem;
-    }
-
-    .detail-value {
-      color: #2c3e50;
-      font-weight: 500;
-      font-size: 1rem;
-      text-align: right;
-    }
-
-    .age-value {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
+    .detail-section.full-width { grid-column: 1 / -1; border-top-color: #28a745; }
+    .detail-section h5 { color: #2c3e50; margin: 0 0 20px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid #f1f3f4; }
+    .detail-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    .detail-item:last-child { margin-bottom: 0; border-bottom: none; }
+    .detail-label { font-weight: 600; color: #5a6c7d; }
+    .detail-value { color: #2c3e50; font-weight: 500; text-align: right; }
+    .age-value { display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
     }
 
     .age-text {
@@ -1835,32 +1999,11 @@ interface HistoryEntry {
       margin-top: 8px;
     }
 
-    .admin-player-actions button {
-      padding: 4px 8px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      transition: all 0.2s;
-    }
-
-    .btn-edit {
-      background: #007bff;
-      color: white;
-    }
-
-    .btn-edit:hover {
-      background: #0056b3;
-    }
-
-    .btn-delete {
-      background: #dc3545;
-      color: white;
-    }
-
-    .btn-delete:hover {
-      background: #c82333;
-    }
+    .admin-player-actions button { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .btn-edit { background: #007bff; color: white; }
+    .btn-edit:hover { background: #0056b3; }
+    .btn-delete { background: #dc3545; color: white; }
+    .btn-delete:hover { background: #c82333; }
 
     /* Modal Styles */
     .confirm-modal {
@@ -1971,6 +2114,26 @@ interface HistoryEntry {
       border-color: #dc3545;
     }
 
+    /* Completely disable validation styling for avatar input */
+    .avatar-no-validation {
+      border-color: #ced4da !important;
+    }
+
+    .avatar-no-validation:invalid {
+      border-color: #ced4da !important;
+      box-shadow: none !important;
+    }
+
+    .avatar-no-validation:focus {
+      border-color: #80bdff !important;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    }
+
+    .avatar-no-validation:focus:invalid {
+      border-color: #80bdff !important;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    }
+
     .modal-actions {
       display: flex;
       gap: 12px;
@@ -2004,64 +2167,116 @@ interface HistoryEntry {
       padding: 10px 20px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
       transition: all 0.2s;
-      display: flex;
-      align-items: center;
     }
 
-    .btn-save:hover:not(:disabled) {
-      background: #218838;
-    }
-
-    .btn-save:disabled {
-      background: #6c757d;
-      cursor: not-allowed;
-    }
-
-    .warning-text {
-      color: #dc3545;
-      font-style: italic;
-      margin: 10px 0;
-    }
+    .btn-save:hover:not(:disabled) { background: #218838; }
+    .btn-save:disabled { background: #6c757d; cursor: not-allowed; }
+    .warning-text { color: #dc3545; font-style: italic; margin: 10px 0; }
 
     @media (max-width: 768px) {
-      .modal-overlay {
-        display: grid !important;
-        place-items: center !important;
-        padding: 10px;
-      }
-      
-      .player-modal {
-        width: 100%;
-        max-width: 100%;
-        max-height: 95vh;
-        border-radius: 15px;
-        margin: 0;
-      }
-      
-      .form-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-      }
-      
-      .modal-content {
-        padding: 20px;
-      }
-      
-      .admin-controls {
-        justify-content: center;
-      }
-      
-      .modal-actions {
-        flex-direction: column;
-        gap: 10px;
-      }
-      
-      .modal-actions button {
-        width: 100%;
-        padding: 12px;
-      }
+      .modal-overlay { padding: 10px; }
+      .player-modal { width: 100%; max-height: 95vh; border-radius: 15px; }
+      .form-grid { grid-template-columns: 1fr; gap: 15px; }
+      .modal-content { padding: 20px; }
+      .modal-actions { flex-direction: column; gap: 10px; }
+      .modal-actions button { width: 100%; padding: 12px; }
+    }
+
+    /* Simplified Avatar Styles */
+    .avatar-management-section {
+      margin-bottom: 20px;
+    }
+    
+    .avatar-section-label {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+
+    .current-avatar-display, .no-avatar-display {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border: 1px solid #e9ecef;
+    }
+
+    .no-avatar-display {
+      border: 2px dashed #dee2e6;
+    }
+
+    .current-avatar-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .default-avatar-icon {
+      font-size: 3rem;
+      color: #6c757d;
+    }
+
+    .avatar-modal {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .avatar-preview-img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #667eea;
+    }
+
+    .avatar-quick-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .avatar-option-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: left;
+    }
+
+    .avatar-option-btn:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+
+    .avatar-option-btn i {
+      font-size: 24px;
+      color: #667eea;
+    }
+
+    .avatar-option-btn strong {
+      display: block;
+      color: #2c3e50;
+      margin-bottom: 4px;
+    }
+
+    .avatar-option-btn small {
+      color: #6c757d;
+      font-size: 12px;
     }
 
     /* AI Analysis Styles */
@@ -2093,43 +2308,12 @@ interface HistoryEntry {
       padding: 2rem;
     }
 
-    /* Team Formation Preview */
-    .team-formation-preview {
-      background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
-      border-radius: 15px;
-      padding: 1.5rem;
-      border: 2px solid rgba(52, 152, 219, 0.2);
-    }
-
-    .preview-title {
-      color: #2c3e50;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      text-align: center;
-      font-size: 1.1rem;
-    }
-
-    .formation-display {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 2rem;
-      flex-wrap: wrap;
-    }
-
-    .formation-team {
-      background: white;
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      min-width: 200px;
-      flex: 1;
-      max-width: 300px;
-    }
-
-    .formation-xanh {
-      border-left: 4px solid #3498db;
-    }
+    /* Simplified Formation Preview */
+    .team-formation-preview { background: #f0f8ff; border-radius: 15px; padding: 1.5rem; border: 2px solid #3498db; }
+    .preview-title { color: #2c3e50; font-weight: 700; margin-bottom: 1rem; text-align: center; }
+    .formation-display { display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+    .formation-team { background: white; border-radius: 12px; padding: 1rem; min-width: 200px; flex: 1; max-width: 300px; }
+    .formation-xanh { border-left: 4px solid #3498db; }
 
     .formation-cam {
       border-left: 4px solid #f39c12;
@@ -2235,24 +2419,8 @@ interface HistoryEntry {
       cursor: not-allowed;
     }
 
-    .enhanced-analysis-btn.pulsing {
-      animation: pulseAnalysis 2s infinite;
-    }
-
-    @keyframes pulseAnalysis {
-      0% { 
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
-        transform: scale(1);
-      }
-      50% { 
-        box-shadow: 0 12px 48px rgba(102, 126, 234, 0.7);
-        transform: scale(1.02);
-      }
-      100% { 
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
-        transform: scale(1);
-      }
-    }
+    /* Simplified pulse animation */
+    .enhanced-analysis-btn.pulsing { animation: pulse 2s infinite; }
 
     .btn-content {
       display: flex;
@@ -2295,56 +2463,15 @@ interface HistoryEntry {
 
     .progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, #fff 0%, rgba(255, 255, 255, 0.8) 50%, #fff 100%);
-      animation: progressMove 1.5s infinite;
+      background: rgba(255, 255, 255, 0.8);
     }
 
-    @keyframes progressMove {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(200%); }
-    }
-
-    /* Custom Dropdown Styles */
-    .custom-select-dropdown {
-      position: relative;
-      width: 100%;
-      margin-bottom: 1rem;
-    }
-
-    .select-header {
-      background: white;
-      border: 2px solid #e9ecef;
-      border-radius: 10px;
-      padding: 1rem;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      min-height: 80px;
-      transition: all 0.3s ease;
-    }
-
-    .select-header:hover {
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
-    }
-
-    .xanh-dropdown .select-header:hover {
-      border-color: #3498db;
-    }
-
-    .cam-dropdown .select-header:hover {
-      border-color: #f39c12;
-    }
-
-    .selected-text {
-      font-weight: 600;
-      color: #2c3e50;
-      flex: 1;
-      line-height: 1.4;
-    }
-
-    .selected-text.has-selection {
-      color: #27ae60;
+    /* Simplified Dropdown */
+    .custom-select-dropdown { position: relative; width: 100%; margin-bottom: 1rem; }
+    .select-header { background: white; border: 2px solid #e9ecef; border-radius: 10px; padding: 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 80px; }
+    .select-header:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .selected-text { font-weight: 600; color: #2c3e50; flex: 1; }
+    .selected-text.has-selection { color: #27ae60;
       font-weight: 700;
     }
 
@@ -2475,45 +2602,11 @@ interface HistoryEntry {
       border: 1px solid rgba(255,255,255,0.2);
     }
 
-    .results-header-enhanced {
-      text-align: center;
-      margin-bottom: 2.5rem;
-    }
-
-    .ai-badge {
-      display: inline-flex;
-      align-items: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 0.5rem 1.2rem;
-      border-radius: 25px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-
-    .results-title {
-      color: #1a202c;
-      font-weight: 800;
-      margin-bottom: 0.5rem;
-      font-size: 1.8rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .results-subtitle {
-      color: #64748b;
-      font-size: 1rem;
-      margin: 0;
-    }
-
-    .highlight {
-      color: #667eea;
-      font-weight: 700;
-    }
+    .results-header-enhanced { text-align: center; margin-bottom: 2.5rem; }
+    .ai-badge { background: #667eea; color: white; padding: 0.5rem 1.2rem; border-radius: 25px; font-weight: 600; margin-bottom: 1rem; }
+    .results-title { color: #667eea; font-weight: 800; margin-bottom: 0.5rem; font-size: 1.8rem; }
+    .results-subtitle { color: #64748b; margin: 0; }
+    .highlight { color: #667eea; font-weight: 700; }
 
     /* Predictions Grid */
     .predictions-grid {
@@ -2523,43 +2616,15 @@ interface HistoryEntry {
       margin-bottom: 2rem;
     }
 
+    /* Simplified prediction cards */
     .prediction-card-enhanced {
       background: white;
       border-radius: 20px;
       padding: 2rem;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-      border: 1px solid rgba(0,0,0,0.05);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border: 1px solid #e0e0e0;
     }
-
-    .prediction-card-enhanced::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    }
-
-    .prediction-card-enhanced:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 16px 48px rgba(0,0,0,0.12);
-    }
-
-    .score-card::before {
-      background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
-    }
-
-    .probability-card::before {
-      background: linear-gradient(90deg, #007bff 0%, #6610f2 100%);
-    }
-
-    .factors-card-enhanced::before {
-      background: linear-gradient(90deg, #dc3545 0%, #fd7e14 100%);
-    }
+    .prediction-card-enhanced:hover { transform: translateY(-4px); }
 
     /* Card Header */
     .card-header {
@@ -2742,42 +2807,14 @@ interface HistoryEntry {
       animation: shine 2s infinite;
     }
 
-    @keyframes shine {
-      0% { left: -100%; }
-      100% { left: 100%; }
-    }
+    /* Removed complex shine animation to reduce CSS size */
 
-    /* Enhanced Factors */
-    .factors-list-enhanced {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .factor-item-enhanced {
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 1rem;
-      border-left: 4px solid #e2e8f0;
-      transition: all 0.3s ease;
-    }
-
-    .factor-item-enhanced.factor-positive {
-      border-left-color: #10b981;
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.1) 100%);
-    }
-
-    .factor-item-enhanced.factor-negative {
-      border-left-color: #ef4444;
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.1) 100%);
-    }
-
-    .factor-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.75rem;
-    }
+    /* Simplified Factors */
+    .factors-list-enhanced { display: flex; flex-direction: column; gap: 1rem; }
+    .factor-item-enhanced { background: #f8fafc; border-radius: 12px; padding: 1rem; border-left: 4px solid #e2e8f0; }
+    .factor-item-enhanced.factor-positive { border-left-color: #10b981; }
+    .factor-item-enhanced.factor-negative { border-left-color: #ef4444; }
+    .factor-content { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
 
     .factor-name-enhanced {
       font-weight: 600;
@@ -2826,141 +2863,181 @@ interface HistoryEntry {
       background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
     }
 
-    /* Metric Cards */
-    .metric-card {
+
+
+    /* Enhanced Match History Section */
+    .match-history-enhanced { background: white; border-radius: 24px; padding: 2.5rem; margin-top: 2rem; box-shadow: 0 8px 25px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; }
+    .history-header-enhanced { text-align: center; margin-bottom: 2.5rem; }
+    .history-badge { background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 25px; font-weight: 600; margin-bottom: 1rem; }
+    .badge-icon { font-size: 1.2rem; }
+
+    .badge-text {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .history-title-enhanced {
+      color: #1a202c;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .history-subtitle {
+      color: #64748b;
+      font-size: 1rem;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    /* History Cards Grid */
+    .history-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .history-card {
       background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      text-align: center;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .history-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .history-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+    }
+
+    .xanh-card::before {
+      background: linear-gradient(90deg, #3b82f6 0%, #1e40af 100%);
+    }
+
+    .cam-card::before {
+      background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .draws-card::before {
+      background: linear-gradient(90deg, #6b7280 0%, #4b5563 100%);
+    }
+
+    .total-card::before {
+      background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    /* Card Header */
+    .card-header-history {
       display: flex;
       align-items: center;
       gap: 1rem;
-      border-top: 3px solid #667eea;
-      transition: transform 0.2s ease;
+      margin-bottom: 1.5rem;
     }
 
-    .metric-card:hover {
-      transform: translateY(-2px);
-    }
-
-    .metric-icon {
-      font-size: 2rem;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .card-icon-history {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 1.5rem;
       color: white;
       flex-shrink: 0;
     }
+    .xanh-icon { background: #3b82f6; }
+    .cam-icon { background: #f59e0b; }
+    .draws-icon { background: #6b7280; }
+    .total-icon { background: #8b5cf6; }
 
-    .metric-content {
+    .card-info {
       flex: 1;
-      text-align: left;
     }
 
-    .metric-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #2c3e50;
-      margin-bottom: 0.25rem;
-    }
+    .card-title-history { color: #1a202c; font-weight: 700; margin: 0 0 0.25rem 0; }
+    .card-subtitle-history { color: #64748b; font-size: 0.85rem; margin: 0; }
 
-    .metric-label {
-      color: #7f8c8d;
-      font-size: 0.9rem;
-      line-height: 1.4;
-    }
-
-    /* Historical Performance */
-    .historical-performance {
-      background: white;
-      border-radius: 15px;
-      padding: 2rem;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      border-top: 4px solid #9b59b6;
-    }
-
-    .history-title {
-      color: #2c3e50;
-      font-weight: 700;
+    /* Stat Display */
+    .stat-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 1.5rem;
-      text-align: center;
-      font-size: 1.2rem;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border-radius: 16px;
+      padding: 1.5rem;
     }
 
-    .history-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
+    .stat-number-large {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #1e293b;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    .history-stat {
-      text-align: center;
-      padding: 1.5rem 1rem;
-      background: #f8f9fa;
-      border-radius: 12px;
-      border-top: 3px solid #6c757d;
-      transition: transform 0.2s ease;
+    .stat-percentage {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 1rem;
     }
 
-    .history-stat:hover {
-      transform: translateY(-2px);
+    .stat-label-enhanced {
+      color: #64748b;
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    .history-stat.xanh-wins {
-      border-top-color: #3498db;
-      background: rgba(52, 152, 219, 0.1);
+    /* Progress Indicators */
+    .progress-indicator {
+      margin-bottom: 1rem;
     }
 
-    .history-stat.cam-wins {
-      border-top-color: #f39c12;
-      background: rgba(243, 156, 18, 0.1);
+    .progress-track {
+      height: 12px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
     }
 
-    .history-stat.draws {
-      border-top-color: #95a5a6;
-      background: rgba(149, 165, 166, 0.1);
-    }
+    .progress-fill { height: 100%; border-radius: 8px; position: relative; }
 
-    .history-stat.total {
-      border-top-color: #9b59b6;
-      background: rgba(155, 89, 182, 0.1);
-    }
+    .xanh-progress { background: #3b82f6; }
+    .cam-progress { background: #f59e0b; }
+    .draws-progress { background: #6b7280; }
 
-    .stat-number {
-      font-size: 2rem;
-      font-weight: 800;
-      color: #2c3e50;
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-label {
-      color: #6c757d;
-      font-size: 0.9rem;
-      font-weight: 500;
+    /* Summary Indicator */
+    .summary-indicator { background: rgba(139,92,246,0.1); border-radius: 12px; padding: 1rem; text-align: center; }
+    .summary-text { color: #7c3aed; font-weight: 600;
     }
 
     /* Responsive Design for AI Section */
     @media (max-width: 768px) {
-      .ai-header {
-        padding: 1.5rem;
-      }
-
-      .ai-body {
-        padding: 1.5rem;
-      }
-
-      .team-selector {
-        padding: 1rem;
-      }
-
-      .enhanced-analysis-btn {
-        padding: 1rem 1.5rem;
-        min-height: 70px;
+      .ai-header, .ai-body { padding: 1.5rem; }
+      .team-selector { padding: 1rem; }
+      .enhanced-analysis-btn { padding: 1rem 1.5rem; min-height: 70px;
       }
 
       .btn-text {
@@ -2979,19 +3056,45 @@ interface HistoryEntry {
         font-size: 2rem;
       }
 
-      .history-stats {
-        grid-template-columns: repeat(2, 1fr);
+      .history-cards-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+      }
+
+      .match-history-enhanced {
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      .history-header-enhanced {
+        margin-bottom: 1.5rem;
+      }
+
+      .history-title-enhanced {
+        font-size: 1.4rem;
+      }
+
+      .stat-number-large {
+        font-size: 2.5rem;
+      }
+
+      .card-header-history {
+        flex-direction: column;
+        text-align: center;
         gap: 0.75rem;
       }
 
-      .metric-card {
-        flex-direction: column;
+      .card-info {
         text-align: center;
       }
 
-      .metric-content {
+      .stat-display {
+        flex-direction: column;
+        gap: 1rem;
         text-align: center;
       }
+
+
 
       .quick-actions {
         flex-direction: column;
@@ -3014,7 +3117,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   @Input() canEdit = false;
   
   private destroy$ = new Subject<void>();
-  private readonly playerService = inject(PlayerService);
+  private readonly playerService = inject(FirebasePlayerService);
   private readonly matchService = inject(MatchService);
   private readonly dataStore = inject(DataStoreService);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -3030,6 +3133,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Service-managed data
   corePlayersData: PlayerInfo[] = [];
   isLoadingPlayers = false;
+  syncStatus: 'synced' | 'syncing' | 'offline' = 'offline';
   
   // Match data
   scoreA = 0;
@@ -3054,10 +3158,13 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Admin modal state
   showPlayerModal = false;
   showDeleteConfirm = false;
+  showAvatarModal = false;
   isEditMode = false;
   isSaving = false;
   playerToDelete: PlayerInfo | null = null;
   playerFormData: Partial<PlayerInfo> = {};
+
+  // Avatar management - no longer needed with button-based system
 
   // AI/ML Analysis Properties
   allPlayersForAI: string[] = [];
@@ -3086,46 +3193,30 @@ export class PlayersComponent implements OnInit, OnDestroy {
   trackByPlayerName = (index: number, name: string) => name;
 
   async loadPlayers() {
+    // Since we're using Firebase real-time service, don't create new subscriptions
+    // Just trigger the data conversion with current data
     try {
+      console.log('🔄 loadPlayers called...');
       this.isLoadingPlayers = true;
       
-      // Force PlayerService to reload data
-      await this.playerService.refreshPlayers();
+      const currentData = this.playerService.getAllPlayers();
+      console.log('📊 Current Firebase data:', currentData?.length || 0);
       
-      // Subscribe to core players data
-      this.playerService.players$
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (corePlayersData) => {
-            this.corePlayersData = corePlayersData;
-            this.convertCorePlayersToLegacyFormat(corePlayersData);
-            this.updateFilteredPlayers();
-            this.isLoadingPlayers = false;
-            
-            // If still no players after 1 second, try fallback
-            if (this.allPlayers.length === 0) {
-              setTimeout(() => {
-                if (this.allPlayers.length === 0) {
-                  this.loadPlayersDirectly();
-                }
-              }, 1000);
-            }
-          },
-          error: (error) => {
-            console.error('Error in PlayerService subscription:', error);
-            this.loadPlayersDirectly();
-          }
-        });
-      
-      // Also try direct load immediately as fallback
-      setTimeout(() => {
-        if (this.allPlayers.length === 0) {
-          this.loadPlayersDirectly();
-        }
-      }, 500);
+      if (currentData && currentData.length > 0) {
+        console.log('✅ Using Firebase data');
+        this.corePlayersData = currentData;
+        this.convertCorePlayersToLegacyFormat(currentData);
+        this.updateFilteredPlayers();
+        this.isLoadingPlayers = false;
+        console.log('✅ loadPlayers completed with Firebase data:', this.allPlayers.length);
+      } else {
+        // Fallback to direct load if Firebase data is not available
+        console.log('⚠️ No Firebase data available, falling back to assets/players.json');
+        this.loadPlayersDirectly();
+      }
       
     } catch (error) {
-      console.error('Error loading players:', error);
+      console.error('❌ Error in loadPlayers:', error);
       this.loadPlayersDirectly();
     }
   }
@@ -3180,6 +3271,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.teamB = [];
     
     const availablePlayers = this.useRegistered ? [...this.registeredPlayers] : [...this.allPlayers];
+    console.log(`🔄 shuffleTeams: useRegistered=${this.useRegistered}, using ${availablePlayers.length} players`);
+    console.log('📋 Available players for shuffle:', availablePlayers.map(p => p.firstName));
     
     // Shuffle the array
     for (let i = availablePlayers.length - 1; i > 0; i--) {
@@ -3297,13 +3390,21 @@ export class PlayersComponent implements OnInit, OnDestroy {
     
     // Completely clear any browser validation messages
     target.setCustomValidity('');
-    target.reportValidity();
     
     // Remove any validation-related attributes that might have been added dynamically
     target.removeAttribute('pattern');
     target.removeAttribute('required');
+    target.removeAttribute('minlength');
+    target.removeAttribute('maxlength');
     
-
+    // Prevent validation on this field
+    target.setAttribute('novalidate', 'true');
+    target.setAttribute('data-no-validation', 'true');
+    
+    // Force browser to accept the value as valid
+    if (target.validity && !target.validity.valid) {
+      target.setCustomValidity('');
+    }
   }
 
   private getValidAvatarUrl(avatarUrl: string, playerName: string): string {
@@ -3320,23 +3421,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   private disableAvatarValidation(): void {
-    // Find the avatar input element and completely disable any validation
-    const avatarInput = document.getElementById('avatar') as HTMLInputElement;
-    if (avatarInput) {
-      // Remove all validation attributes
-      avatarInput.removeAttribute('pattern');
-      avatarInput.removeAttribute('required');
-      avatarInput.removeAttribute('minlength');
-      avatarInput.removeAttribute('maxlength');
-      
-      // Clear any custom validation messages
-      avatarInput.setCustomValidity('');
-      
-      // Make sure it's not part of any form validation
-      avatarInput.setAttribute('novalidate', 'true');
-      
-
-    }
+    // No longer needed - avatar system is now button-based without input validation
+    // This method is kept for compatibility but does nothing
   }
 
   isRegistered(player: Player): boolean {
@@ -3643,21 +3729,31 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
-
+    console.log('🔄 Converting core players to legacy format:', corePlayers?.length || 0);
     
-    this.allPlayers = corePlayers.map(player => ({
-      id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
-      firstName: player.firstName,
-      lastName: player.lastName || '',
-      position: player.position || 'Chưa xác định',
-      DOB: player.dateOfBirth ? new Date(player.dateOfBirth).getFullYear() : 0,
-      height: player.height,
-      weight: player.weight,
-      avatar: player.avatar || 'assets/images/default-avatar.svg',
-      note: player.notes || ''
-    }));
+    if (!corePlayers || corePlayers.length === 0) {
+      console.warn('⚠️ No core players to convert');
+      this.allPlayers = [];
+      return;
+    }
     
-
+    this.allPlayers = corePlayers.map(player => {
+      const converted = {
+        id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
+        firstName: player.firstName,
+        lastName: player.lastName || '',
+        position: player.position || 'Chưa xác định',
+        DOB: player.dateOfBirth ? new Date(player.dateOfBirth).getFullYear() : 0,
+        height: player.height || 0,
+        weight: player.weight || 0,
+        avatar: player.avatar || 'assets/images/default-avatar.svg',
+        note: player.notes || ''
+      };
+      console.log('🔄 Converted player:', player.firstName, '->', converted);
+      return converted;
+    });
+    
+    console.log('✅ Conversion completed:', this.allPlayers.length, 'players');
   }
 
   private showTemporaryMessage(messageProperty: keyof Pick<PlayersComponent, 'matchSaveMessage' | 'saveMessage' | 'saveRegisteredMessage'>, message: string) {
@@ -3673,7 +3769,16 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   toggleUseRegistered() {
     this.useRegistered = !this.useRegistered;
+    console.log(`🔄 toggleUseRegistered: now useRegistered=${this.useRegistered}`);
+    console.log(`📊 Available: allPlayers=${this.allPlayers.length}, registeredPlayers=${this.registeredPlayers.length}`);
     this.updateFilteredPlayers();
+    this.cdr.detectChanges(); // Force change detection for OnPush strategy
+  }
+
+  getDisplayPlayers(): Player[] {
+    const players = this.useRegistered ? this.registeredPlayers : this.allPlayers;
+    console.log(`📋 getDisplayPlayers: useRegistered=${this.useRegistered}, returning ${players.length} players`);
+    return players;
   }
 
   toggleRegistration(player: Player) {
@@ -3699,9 +3804,19 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.loadPlayers();
-    this.loadRegisteredPlayers();
     this.initializeAI();
+    this.loadRegisteredPlayers();
+    
+    // Set up single Firebase subscription for real-time updates
+    this.setupFirebaseSubscription();
+    
+    // Subscribe to Firebase sync status
+    this.playerService.syncStatus$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(status => {
+        this.syncStatus = status;
+        this.cdr.detectChanges();
+      });
     
     // Subscribe to data store changes
     this.dataStore.isLoading$
@@ -3709,6 +3824,42 @@ export class PlayersComponent implements OnInit, OnDestroy {
       .subscribe(loading => {
         if (!loading && this.isLoadingPlayers) {
           this.loadPlayers();
+        }
+      });
+  }
+
+  private setupFirebaseSubscription() {
+    // Set up single subscription to Firebase players data
+    console.log('🔄 Setting up Firebase subscription...');
+    this.isLoadingPlayers = true;
+    
+    this.playerService.players$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (corePlayersData) => {
+          console.log('📊 Firebase players data updated:', corePlayersData?.length || 0);
+          console.log('📋 Raw Firebase data:', corePlayersData);
+          
+          if (corePlayersData && corePlayersData.length > 0) {
+            this.corePlayersData = corePlayersData;
+            this.convertCorePlayersToLegacyFormat(corePlayersData);
+            this.updateFilteredPlayers();
+            console.log('✅ Player list updated - allPlayers:', this.allPlayers.length);
+            console.log('📋 Converted allPlayers:', this.allPlayers);
+          } else {
+            console.warn('⚠️ No Firebase data received, trying fallback...');
+            this.loadPlayersDirectly();
+          }
+          
+          this.isLoadingPlayers = false;
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('❌ Firebase players subscription error:', error);
+          this.isLoadingPlayers = false;
+          // Fallback to assets/players.json
+          console.log('🔄 Falling back to assets/players.json');
+          this.loadPlayersDirectly();
         }
       });
   }
@@ -3852,10 +4003,17 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   openEditPlayerModal(player: Player): void {
     // Find the corresponding PlayerInfo from corePlayersData
-    const playerInfo = this.corePlayersData.find(p => 
-      p.firstName === player.firstName && 
-      p.lastName === player.lastName
-    );
+    // Match by firstName primarily, and lastName only if both exist
+    const playerInfo = this.corePlayersData.find(p => {
+      const firstNameMatch = p.firstName === player.firstName;
+      
+      // If both have lastName, match both, otherwise just match firstName
+      if (p.lastName && player.lastName) {
+        return firstNameMatch && p.lastName === player.lastName;
+      }
+      
+      return firstNameMatch;
+    });
     
     if (playerInfo) {
       this.isEditMode = true;
@@ -3922,10 +4080,71 @@ export class PlayersComponent implements OnInit, OnDestroy {
         this.disableAvatarValidation();
       }, 0);
       
-      // Additional backup positioning
+      // Additional backup positioning and validation disabling
       setTimeout(() => {
         this.centerModal();
+        this.disableAvatarValidation();
+      }, 50);
+      
+      // Final validation disabling
+      setTimeout(() => {
+        this.disableAvatarValidation();
       }, 200);
+    } else {
+      // Handle case when no matching PlayerInfo is found
+      console.warn(`No matching PlayerInfo found for:`, {
+        id: player.id,
+        firstName: player.firstName,
+        lastName: player.lastName,
+        position: player.position
+      });
+      
+      // Create a new PlayerInfo entry based on the Player data
+      // Type assertion for extended player properties from players.json
+      interface ExtendedPlayer extends Player {
+        height?: number;
+        weight?: number;
+        age?: number;
+        DOB?: string | number;
+        note?: string;
+      }
+      
+      const playerData = player as ExtendedPlayer;
+      const newPlayerInfo: Partial<PlayerInfo> = {
+        firstName: player.firstName,
+        lastName: player.lastName || '',
+        position: player.position || '',
+        avatar: player.avatar || '',
+        height: playerData.height || 0,
+        weight: playerData.weight || 0,
+        age: playerData.age || 0,
+        dateOfBirth: '',
+        isRegistered: false,
+        status: PlayerStatus.ACTIVE,
+        notes: playerData.note || ''
+      };
+      
+      this.isEditMode = true;
+      this.playerFormData = newPlayerInfo;
+      this.showPlayerModal = true;
+      
+      // Force change detection and positioning
+      setTimeout(() => {
+        this.centerModal();
+        this.disableAvatarValidation();
+      }, 0);
+      
+      setTimeout(() => {
+        this.centerModal();
+        this.disableAvatarValidation();
+      }, 50);
+      
+      // Final validation disabling
+      setTimeout(() => {
+        this.disableAvatarValidation();
+      }, 200);
+      
+      console.log(`Created temporary PlayerInfo for editing: ${player.firstName}`);
     }
   }
 
@@ -3965,6 +4184,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
         const newPlayer = {
           firstName: this.playerFormData.firstName!,
           lastName: this.playerFormData.lastName || '',
+          fullName: `${this.playerFormData.firstName!} ${this.playerFormData.lastName || ''}`.trim(),
           position: this.playerFormData.position!,
           dateOfBirth: this.playerFormData.dateOfBirth || '',
           height: this.playerFormData.height || 0,
@@ -3978,8 +4198,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
         alert('Thêm cầu thủ mới thành công!');
       }
       
-      // Refresh player data to reflect changes in the UI
-      await this.loadPlayers();
+      // Real-time updates will automatically refresh the UI
       this.closePlayerFormModal();
     } catch (error) {
       console.error('❌ Error saving player:', error);
@@ -4026,8 +4245,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       await this.playerService.deletePlayer(this.playerToDelete.id);
       alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
       
-      // Refresh player data to reflect changes in the UI
-      await this.loadPlayers();
+      // Real-time updates will automatically refresh the UI
       this.closeDeleteConfirm();
     } catch (error) {
       console.error('Error deleting player:', error);
@@ -4040,12 +4258,33 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Admin Action Methods
   async syncWithFirebase(): Promise<void> {
     try {
-
-      await this.playerService.refreshPlayers();
-      alert('Đồng bộ Firebase thành công!');
+      // Firebase service automatically syncs in real-time
+      // Show current sync status
+      this.playerService.syncStatus$.pipe(takeUntil(this.destroy$)).subscribe(status => {
+        if (status === 'synced') {
+          alert('Firebase đã được đồng bộ!');
+        } else if (status === 'syncing') {
+          alert('Đang đồng bộ Firebase...');
+        } else {
+          alert('Firebase đang offline - sẽ đồng bộ khi có kết nối');
+        }
+      });
     } catch (error) {
-      console.error('Error syncing with Firebase:', error);
-      alert('Có lỗi khi đồng bộ với Firebase!');
+      console.error('Error checking Firebase sync:', error);
+      alert('Có lỗi khi kiểm tra đồng bộ Firebase!');
+    }
+  }
+
+  async migrateToFirebase(): Promise<void> {
+    try {
+      const confirm = window.confirm('Bạn có muốn chuyển dữ liệu từ localStorage sang Firebase? Thao tác này sẽ tạo mới các cầu thủ chưa có trong Firebase.');
+      if (!confirm) return;
+
+      await this.playerService.migrateFromLocalStorage();
+      alert('Migration thành công! Dữ liệu đã được chuyển sang Firebase.');
+    } catch (error) {
+      console.error('Error migrating to Firebase:', error);
+      alert('Có lỗi khi migrate dữ liệu: ' + error.message);
     }
   }
 
@@ -4065,6 +4304,53 @@ export class PlayersComponent implements OnInit, OnDestroy {
       console.error('Error exporting data:', error);
       alert('Có lỗi khi xuất dữ liệu!');
     }
+  }
+
+  // Avatar Management Methods
+  openAvatarModal(): void {
+    this.showAvatarModal = true;
+    
+    // Focus on modal for accessibility
+    setTimeout(() => {
+      const modal = document.querySelector('.avatar-modal') as HTMLElement;
+      if (modal) {
+        modal.focus();
+      }
+    }, 200);
+  }
+
+  closeAvatarModal(): void {
+    this.showAvatarModal = false;
+  }
+
+  onAvatarPreviewError(event: Event): void {
+    const target = event.target as HTMLImageElement;
+    // Use default generated avatar if preview fails
+    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.playerFormData.firstName || 'Player')}&background=667eea&color=fff&size=200`;
+  }
+
+  setAvatarPath(path: string): void {
+    this.playerFormData.avatar = path;
+  }
+
+  setAvatarPathAndClose(path: string): void {
+    this.playerFormData.avatar = path;
+    this.closeAvatarModal();
+  }
+
+  removeAvatarAndClose(): void {
+    this.playerFormData.avatar = '';
+    this.closeAvatarModal();
+  }
+
+  useExamplePath(path: string): void {
+    // No longer needed - using direct button-based avatar setting
+    this.setAvatarPath(path);
+  }
+
+  removeAvatar(): void {
+    this.playerFormData.avatar = '';
+    this.closeAvatarModal();
   }
 
   // AI/ML Analysis Methods
@@ -4736,6 +5022,34 @@ export class PlayersComponent implements OnInit, OnDestroy {
         totalMatches: 15
       }
     };
+  }
+
+  // Firebase sync status helper methods
+  getSyncStatusClass(): string {
+    switch (this.syncStatus) {
+      case 'synced': return 'sync-synced';
+      case 'syncing': return 'sync-syncing';
+      case 'offline': return 'sync-offline';
+      default: return 'sync-offline';
+    }
+  }
+
+  getSyncStatusIcon(): string {
+    switch (this.syncStatus) {
+      case 'synced': return 'fas fa-check-circle';
+      case 'syncing': return 'fas fa-sync-alt fa-spin';
+      case 'offline': return 'fas fa-exclamation-triangle';
+      default: return 'fas fa-question-circle';
+    }
+  }
+
+  getSyncStatusText(): string {
+    switch (this.syncStatus) {
+      case 'synced': return 'Đã đồng bộ';
+      case 'syncing': return 'Đang đồng bộ...';
+      case 'offline': return 'Offline';
+      default: return 'Không xác định';
+    }
   }
 
 }

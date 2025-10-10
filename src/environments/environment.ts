@@ -7,13 +7,13 @@ export const environment = {
   enableAnalytics: false, // Disable analytics in development
   firebase: {
     // Firebase config - use placeholder for build replacement, or real config for development
-    apiKey: '{{NG_APP_FIREBASE_API_KEY}}',
-    authDomain: '{{NG_APP_FIREBASE_AUTH_DOMAIN}}',
-    databaseURL: '{{NG_APP_FIREBASE_DATABASE_URL}}',
-    projectId: '{{NG_APP_FIREBASE_PROJECT_ID}}',
-    storageBucket: '{{NG_APP_FIREBASE_STORAGE_BUCKET}}',
-    messagingSenderId: '{{NG_APP_FIREBASE_MESSAGING_SENDER_ID}}',
-    appId: '{{NG_APP_FIREBASE_APP_ID}}',
-    measurementId: '{{NG_APP_FIREBASE_MEASUREMENT_ID}}'
+    apiKey: 'AIzaSyA8LGY9V5Y_mMAdo76vRslUaeykzzUbx48',
+    authDomain: 'mia-fcm-d8555.firebaseapp.com',
+    databaseURL: 'https://mia-fcm-d8555-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'mia-fcm-d8555',
+    storageBucket: 'mia-fcm-d8555.appspot.com',
+    messagingSenderId: '673675435415',
+    appId: '1:673675435415:web:7a73f1c143c3dee6f3b8d2',
+    measurementId: 'G-JC3CBSN2BF'
   }
 };
