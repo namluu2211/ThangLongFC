@@ -435,15 +435,27 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
                   placeholder="Thông tin thêm về cầu thủ..."></textarea>
               </div>
               
+              <!-- Avatar Input - Validation Free -->
               <div class="form-group full-width">
-                <label for="avatar">Avatar URL</label>
+                <label for="avatar">
+                  <i class="fas fa-user-circle me-2"></i>
+                  Đường dẫn Avatar (tùy chọn)
+                </label>
                 <input 
-                  type="url" 
+                  type="text"
                   id="avatar"
                   name="avatar"
                   [(ngModel)]="playerFormData.avatar" 
-                  class="form-control"
-                  placeholder="https://example.com/avatar.jpg">
+                  class="form-control avatar-input-simple"
+                  placeholder="assets/images/avatar_players/TenCauThu.png"
+                  autocomplete="off"
+                  spellcheck="false"
+                  data-no-validation="true"
+                  novalidate>
+                <small class="form-text text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Nhập đường dẫn file ảnh hoặc để trống để sử dụng ảnh mặc định
+                </small>
               </div>
               
               <div class="modal-actions">
@@ -1544,51 +1556,10 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       transform: translateY(-2px);
     }
 
-    /* Enhanced List View */
-    .players-list {
-      background: white;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-      border: 1px solid #f0f0f0;
-    }
-
-    .list-header {
-      display: grid;
-      grid-template-columns: 2.5fr 1.2fr 90px 90px 90px 120px;
-      gap: 20px;
-      padding: 20px 25px;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      font-weight: 700;
-      color: #2c3e50;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 2px solid #e9ecef;
-    }
-
-    .list-item {
-      display: grid;
-      grid-template-columns: 2.5fr 1.2fr 90px 90px 90px 120px;
-      gap: 20px;
-      padding: 18px 25px;
-      align-items: center;
-      border-bottom: 1px solid #f5f5f5;
-      transition: all 0.3s ease;
-      position: relative;
-    }
-
-    .list-item::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      transform: scaleY(0);
-      transition: transform 0.3s ease;
-    }
+    /* Simplified List View */
+    .players-list { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .list-header { display: grid; grid-template-columns: 2.5fr 1.2fr 90px 90px 90px 120px; gap: 20px; padding: 20px 25px; background: #f8f9fa; font-weight: 700; }
+    .list-item { display: grid; grid-template-columns: 2.5fr 1.2fr 90px 90px 90px 120px; gap: 20px; padding: 18px 25px; border-bottom: 1px solid #f5f5f5; }
 
     .list-item:hover {
       background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
@@ -2400,6 +2371,39 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
     /* Force viewport positioning */
     .modal-overlay {
       transform: translate3d(0, 0, 0) !important;
+    }
+
+    /* Simple Avatar Input Styles */
+    .avatar-input-simple {
+      border: 2px solid #e3f2fd;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
+
+    .avatar-input-simple:focus {
+      outline: none;
+      border-color: #2196f3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+      background: #fff;
+    }
+
+    .avatar-input-simple::placeholder {
+      color: #9e9e9e;
+      font-style: italic;
+    }
+
+    /* Prevent any validation styling */
+    .avatar-input-simple:invalid {
+      border-color: #e3f2fd !important;
+      box-shadow: none !important;
+    }
+
+    .avatar-input-simple:valid {
+      border-color: #e3f2fd !important;
+      box-shadow: none !important;
     }
   `]
 })
