@@ -185,7 +185,7 @@ interface HistoryEntry {
                  class="player-item"
                  [class.registered]="isRegistered(player)">
               <div class="player-info" tabindex="0" (click)="viewPlayer(player)" (keyup)="onPlayerInfoKey($event, player)">
-                <img [src]="player.avatar || 'assets/images/default-avatar.svg'" 
+                <img [src]="getPlayerAvatar(player)" 
                      [alt]="player.firstName"
                      class="player-thumb"
                      loading="lazy"
@@ -632,7 +632,7 @@ interface HistoryEntry {
                        [cdkDragData]="player"
                        (cdkDragStarted)="onDragStarted(player)"
                        (cdkDragEnded)="onDragEnded()">
-                    <img [src]="player.avatar" 
+                    <img [src]="getPlayerAvatar(player)" 
                          [alt]="player.firstName"
                          class="player-avatar"
                          (error)="onAvatarError($event, player)">
@@ -696,7 +696,7 @@ interface HistoryEntry {
                        [cdkDragData]="player"
                        (cdkDragStarted)="onDragStarted(player)"
                        (cdkDragEnded)="onDragEnded()">
-                    <img [src]="player.avatar" 
+                    <img [src]="getPlayerAvatar(player)" 
                          [alt]="player.firstName"
                          class="player-avatar"
                          (error)="onAvatarError($event, player)">
@@ -1467,17 +1467,24 @@ interface HistoryEntry {
       transform: rotate(5deg);
     }
 
-    .player-avatar {
-      width: 50px;
-      height: 50px;
+    .team-formation .team-member .player-avatar,
+    .team-member .player-avatar {
+      width: 50px !important;
+      height: 50px !important;
       border-radius: 50%;
       object-fit: cover;
       margin-bottom: 8px;
       border: 3px solid #ecf0f1;
       transition: border-color 0.3s ease;
+      display: block;
+      max-width: 50px !important;
+      max-height: 50px !important;
+      min-width: 50px;
+      min-height: 50px;
+      box-sizing: border-box;
     }
 
-    .player-card:hover .player-avatar {
+    .team-member:hover .player-avatar {
       border-color: #3498db;
     }
 
@@ -1662,7 +1669,7 @@ interface HistoryEntry {
       flex-shrink: 0;
     }
 
-    .player-avatar {
+    .player-avatar-wrapper .player-avatar {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -3437,6 +3444,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   matchSaveMessage = '';
   saveMessage = '';
   saveRegisteredMessage = '';
+  syncStatus: 'synced' | 'syncing' | 'offline' = 'offline';
   
   // Admin modal state
   showPlayerModal = false;
@@ -3662,29 +3670,24 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   onAvatarError(event: Event, player: Player) {
-    // Use a reliable default avatar - try multiple fallbacks
-    const defaultAvatars = [
-      'assets/images/default-avatar.svg',
-      'assets/images/avatar_players/default.png', 
-      'https://ui-avatars.com/api/?name=' + encodeURIComponent(player.firstName || 'Player') + '&background=667eea&color=fff&size=200'
-    ];
-    
     const target = event.target as HTMLImageElement;
     
-    // Try the first available default avatar
-    const defaultAvatar = defaultAvatars[0];
-    target.src = defaultAvatar;
-    player.avatar = defaultAvatar;
+    // Generate a personalized avatar using the player's name
+    const playerName = player.firstName + (player.lastName ? ' ' + player.lastName : '');
+    const colors = ['667eea', '764ba2', '48c6ef', '6f86d6', 'a8edea', 'fed6e3', 'd299c2', 'ffecd2', 'fcb69f'];
+    const colorIndex = Math.abs(playerName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
+    const backgroundColor = colors[colorIndex];
     
-
+    const generatedAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName || 'Player')}&background=${backgroundColor}&color=fff&size=200&font-size=0.33&bold=true`;
     
-    // If the default avatar also fails, use the generated avatar service
+    // Use generated avatar directly
+    target.src = generatedAvatar;
+    player.avatar = generatedAvatar;
+    
+    // Prevent infinite loop if generated avatar also fails
     target.onerror = () => {
-      const generatedAvatar = defaultAvatars[2];
-      target.src = generatedAvatar;
-      player.avatar = generatedAvatar;
-      target.onerror = null; // Prevent infinite loop
-
+      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+';
+      target.onerror = null;
     };
   }
 
@@ -5619,6 +5622,21 @@ export class PlayersComponent implements OnInit, OnDestroy {
         totalMatches: 15
       }
     };
+  }
+
+  // Avatar helper methods
+  generatePlayerAvatar(player: Player): string {
+    const playerName = player.firstName + (player.lastName ? ' ' + player.lastName : '');
+    const colors = ['667eea', '764ba2', '48c6ef', '6f86d6', 'a8edea', 'fed6e3', 'd299c2', 'ffecd2', 'fcb69f'];
+    const colorIndex = Math.abs(playerName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
+    const backgroundColor = colors[colorIndex];
+    
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName || 'Player')}&background=${backgroundColor}&color=fff&size=200&font-size=0.33&bold=true`;
+  }
+
+  getPlayerAvatar(player: Player): string {
+    // If player has an avatar, use it; otherwise generate one
+    return player.avatar || this.generatePlayerAvatar(player);
   }
 
   // Firebase sync status helper methods
