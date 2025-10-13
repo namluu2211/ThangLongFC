@@ -5621,4 +5621,32 @@ export class PlayersComponent implements OnInit, OnDestroy {
     };
   }
 
+  // Firebase sync status helper methods
+  getSyncStatusClass(): string {
+    switch (this.syncStatus) {
+      case 'synced': return 'sync-synced';
+      case 'syncing': return 'sync-syncing';
+      case 'offline': return 'sync-offline';
+      default: return 'sync-offline';
+    }
+  }
+
+  getSyncStatusIcon(): string {
+    switch (this.syncStatus) {
+      case 'synced': return 'fas fa-check-circle';
+      case 'syncing': return 'fas fa-sync-alt fa-spin';
+      case 'offline': return 'fas fa-exclamation-triangle';
+      default: return 'fas fa-question-circle';
+    }
+  }
+
+  getSyncStatusText(): string {
+    switch (this.syncStatus) {
+      case 'synced': return 'Đã đồng bộ';
+      case 'syncing': return 'Đang đồng bộ...';
+      case 'offline': return 'Offline';
+      default: return 'Không xác định';
+    }
+  }
+
 }
