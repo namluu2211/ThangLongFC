@@ -59,10 +59,6 @@ interface HistoryEntry {
           </h2>
           <p class="page-subtitle">
             Chia đội và ghi nhận thành tích trận đấu
-            <span class="sync-indicator" [ngClass]="getSyncStatusClass()">
-              <i [class]="getSyncStatusIcon()"></i>
-              {{getSyncStatusText()}}
-            </span>
           </p>
         </div>
       </div>
@@ -80,14 +76,6 @@ interface HistoryEntry {
           
           <!-- Admin Controls -->
           <div *ngIf="isAdmin()" class="admin-controls">
-            <button 
-              class="modern-btn btn-info"
-              (click)="syncWithFirebase()"
-              title="Kiểm tra trạng thái đồng bộ Firebase">
-              <i class="fas fa-cloud-upload-alt me-2"></i>
-              Kiểm tra đồng bộ
-            </button>
-            
             <button 
               class="modern-btn btn-primary"
               (click)="migrateToFirebase()"
@@ -1609,6 +1597,187 @@ interface HistoryEntry {
       font-size: 1.5rem;
     }
 
+    /* Table-based Player List */
+    .players-table-container {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .players-table-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 0.8fr 1fr 1fr 1.2fr;
+      gap: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .header-cell {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .players-table-body {
+      background: white;
+    }
+
+    .player-row-item {
+      display: grid;
+      grid-template-columns: 2fr 1fr 0.8fr 1fr 1fr 1.2fr;
+      gap: 16px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f1f3f4;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .player-row-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .player-row-item.registered {
+      background: linear-gradient(90deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+      border-left: 4px solid #28a745;
+    }
+
+    .player-info-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .player-avatar-wrapper {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid #e9ecef;
+      flex-shrink: 0;
+    }
+
+    .player-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .player-name {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 0.95rem;
+    }
+
+    .player-position-cell,
+    .player-age-cell,
+    .player-height-cell,
+    .player-weight-cell {
+      display: flex;
+      align-items: center;
+      font-size: 0.9rem;
+      color: #495057;
+    }
+
+    .position-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .position-gk {
+      background: #ffeaa7;
+      color: #fdcb6e;
+    }
+
+    .position-df {
+      background: #74b9ff;
+      color: #0984e3;
+    }
+
+    .position-mf {
+      background: #fd79a8;
+      color: #e84393;
+    }
+
+    .position-fw {
+      background: #55a3ff;
+      color: #2d3436;
+    }
+
+    .position-default {
+      background: #ddd6fe;
+      color: #8b5cf6;
+    }
+
+    .player-actions-cell {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+    }
+
+    .view-btn {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .view-btn:hover {
+      background: #138496;
+      transform: translateY(-1px);
+    }
+
+    .edit-btn {
+      background: #ffc107;
+      color: #212529;
+    }
+
+    .edit-btn:hover {
+      background: #e0a800;
+      transform: translateY(-1px);
+    }
+
+    .register-btn {
+      background: #28a745;
+      color: white;
+    }
+
+    .register-btn:hover {
+      background: #218838;
+      transform: translateY(-1px);
+    }
+
+    .unregister-btn {
+      background: #dc3545;
+      color: white;
+    }
+
+    .unregister-btn:hover {
+      background: #c82333;
+      transform: translateY(-1px);
+    }
+
+    /* Legacy grid styles - kept for compatibility */
     .players-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -3248,7 +3417,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Service-managed data
   corePlayersData: PlayerInfo[] = [];
   isLoadingPlayers = false;
-  syncStatus: 'synced' | 'syncing' | 'offline' = 'offline';
   
   // Match data
   scoreA = 0;
@@ -4179,14 +4347,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
     // Set up single Firebase subscription for real-time updates
     this.setupFirebaseSubscription();
     
-    // Subscribe to Firebase sync status
-    this.playerService.syncStatus$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(status => {
-        this.syncStatus = status;
-        this.cdr.detectChanges();
-      });
-    
     // Subscribe to data store changes
     this.dataStore.isLoading$
       .pipe(takeUntil(this.destroy$))
@@ -4647,28 +4807,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   // Admin Action Methods
-  async syncWithFirebase(): Promise<void> {
-    try {
-      // Firebase service automatically syncs in real-time
-      // Show current sync status (temporarily disabled to avoid popup spam)
-      console.log('🔄 Firebase sync status check initiated');
-      this.playerService.syncStatus$.pipe(takeUntil(this.destroy$)).subscribe(status => {
-        console.log(`🔥 Firebase sync status: ${status}`);
-        // Alerts temporarily disabled - check console for status
-        // if (status === 'synced') {
-        //   alert('Firebase đã được đồng bộ!');
-        // } else if (status === 'syncing') {
-        //   alert('Đang đồng bộ Firebase...');
-        // } else {
-        //   alert('Firebase đang offline - sẽ đồng bộ khi có kết nối');
-        // }
-      });
-    } catch (error) {
-      console.error('Error checking Firebase sync:', error);
-      console.warn('🔥 Firebase sync check failed - this is not critical for app functionality');
-    }
-  }
-
   async migrateToFirebase(): Promise<void> {
     try {
       const confirm = window.confirm('Bạn có muốn chuyển dữ liệu từ localStorage sang Firebase? Thao tác này sẽ tạo mới các cầu thủ chưa có trong Firebase.');
@@ -5481,34 +5619,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
         totalMatches: 15
       }
     };
-  }
-
-  // Firebase sync status helper methods
-  getSyncStatusClass(): string {
-    switch (this.syncStatus) {
-      case 'synced': return 'sync-synced';
-      case 'syncing': return 'sync-syncing';
-      case 'offline': return 'sync-offline';
-      default: return 'sync-offline';
-    }
-  }
-
-  getSyncStatusIcon(): string {
-    switch (this.syncStatus) {
-      case 'synced': return 'fas fa-check-circle';
-      case 'syncing': return 'fas fa-sync-alt fa-spin';
-      case 'offline': return 'fas fa-exclamation-triangle';
-      default: return 'fas fa-question-circle';
-    }
-  }
-
-  getSyncStatusText(): string {
-    switch (this.syncStatus) {
-      case 'synced': return 'Đã đồng bộ';
-      case 'syncing': return 'Đang đồng bộ...';
-      case 'offline': return 'Offline';
-      default: return 'Không xác định';
-    }
   }
 
 }

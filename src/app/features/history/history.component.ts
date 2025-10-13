@@ -138,7 +138,41 @@ import { take } from 'rxjs/operators';
         </div>
 
         <div class="matches-list" *ngIf="filteredMatches.length > 0; else noMatches">
-          <div class="match-card" *ngFor="let match of filteredMatches; trackBy: trackByMatchId">
+          <!-- Date Groups -->
+          <div class="date-group" *ngFor="let dateGroup of getMatchesByDate(); trackBy: trackByDateGroup">
+            <!-- Date Group Header -->
+            <div 
+              class="date-group-header"
+              [class.collapsed]="isDateCollapsed(dateGroup.date)"
+              (click)="toggleDateCollapse(dateGroup.date)"
+              (keydown)="toggleDateCollapse(dateGroup.date, $event)"
+              tabindex="0"
+              role="button"
+              [attr.aria-expanded]="!isDateCollapsed(dateGroup.date)"
+              [attr.aria-controls]="'date-group-' + dateGroup.date"
+              [attr.aria-label]="'Toggle matches for ' + getDateDisplayText(dateGroup.date)">
+              
+              <div class="date-header-content">
+                <h3 class="date-title">{{ getDateDisplayText(dateGroup.date) }}</h3>
+                <span class="match-count">{{ getMatchCountForDate(dateGroup.matches) }}</span>
+              </div>
+              
+              <div class="collapse-indicator">
+                <span class="collapse-icon" [attr.aria-hidden]="true">
+                  {{ isDateCollapsed(dateGroup.date) ? '▶' : '▼' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Date Group Content -->
+            <div 
+              class="date-group-content"
+              [class.collapsed]="isDateCollapsed(dateGroup.date)"
+              [id]="'date-group-' + dateGroup.date"
+              [attr.aria-hidden]="isDateCollapsed(dateGroup.date)">
+              
+              <!-- Individual match cards for this date -->
+              <div class="match-card" *ngFor="let match of dateGroup.matches; trackBy: trackByMatchId">
             <!-- Match Date -->
             <div class="match-date-header">
               <span class="date-text">{{ formatMatchDate(match.date) }}</span>
@@ -306,6 +340,8 @@ import { take } from 'rxjs/operators';
                     <strong>Tổng: {{ match.chi_total | number:'1.0-0' }} đ</strong>
                   </div>
                 </div>
+              </div>
+            </div>
               </div>
             </div>
           </div>
@@ -763,6 +799,109 @@ import { take } from 'rxjs/operators';
         transform: translateY(0);
       }
     }
+
+    /* Date Group Styles */
+    .date-group {
+      margin-bottom: 24px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .date-group:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .date-group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-bottom: 1px solid #e9ecef;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .date-group-header:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+
+    .date-group-header:focus {
+      outline: 2px solid #007bff;
+      outline-offset: -2px;
+    }
+
+    .date-group-header.collapsed {
+      border-bottom: none;
+    }
+
+    .date-header-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .date-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin: 0;
+    }
+
+    .match-count {
+      background: #007bff;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .collapse-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+    }
+
+    .date-group-header.collapsed .collapse-indicator {
+      transform: rotate(-90deg);
+    }
+
+    .collapse-icon {
+      font-size: 1.2rem;
+      color: #6c757d;
+      font-weight: bold;
+    }
+
+    .date-group-content {
+      padding: 0;
+      max-height: 2000px;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 1;
+    }
+
+    .date-group-content.collapsed {
+      max-height: 0;
+      padding: 0;
+      opacity: 0;
+    }
+
+    .date-group-content .match-card {
+      margin: 16px 20px;
+      border-radius: 8px;
+    }
+
+    .date-group-content .match-card:last-child {
+      margin-bottom: 20px;
+    }
     
     @media (max-width: 768px) {
       .search-controls {
@@ -805,8 +944,13 @@ export class HistoryComponent implements OnInit {
   fundSyncMessage = '';
   showFundSyncResult = false;
 
+  // Collapse state properties for date groups
+  dateCollapseStates: Record<string, boolean> = {};
+  private readonly COLLAPSE_STATES_KEY = 'history_date_collapse_states';
+
   ngOnInit(): void {
     this.loadMatches();
+    this.loadCollapseStates();
   }
 
   async loadMatches(): Promise<void> {
@@ -844,6 +988,10 @@ export class HistoryComponent implements OnInit {
 
   trackByMatchId(index: number, match: HistoryEntry): string {
     return match.id || index.toString();
+  }
+
+  trackByDateGroup(index: number, group: { date: string; matches: HistoryEntry[] }): string {
+    return group.date;
   }
 
   formatMatchDate(date: string | undefined): string {
@@ -1232,5 +1380,76 @@ export class HistoryComponent implements OnInit {
     
     URL.revokeObjectURL(url);
     console.log('✅ Data exported successfully');
+  }
+
+  // Date grouping and collapse functionality
+  getMatchesByDate(): { date: string; matches: HistoryEntry[] }[] {
+    const groups: Record<string, HistoryEntry[]> = {};
+    
+    // Group filtered matches by date
+    this.filteredMatches.forEach(match => {
+      const dateKey = match.date || 'unknown';
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(match);
+    });
+
+    // Convert to sorted array of groups
+    return Object.keys(groups)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime()) // Most recent first
+      .map(date => ({
+        date,
+        matches: groups[date].sort((a, b) => 
+          new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
+        )
+      }));
+  }
+
+  isDateCollapsed(date: string): boolean {
+    return this.dateCollapseStates[date] === true;
+  }
+
+  toggleDateCollapse(date: string, event?: KeyboardEvent): void {
+    // Handle keyboard events for accessibility
+    if (event && event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    if (event) {
+      event.preventDefault();
+    }
+
+    this.dateCollapseStates[date] = !this.dateCollapseStates[date];
+    this.saveCollapseStates();
+  }
+
+  private loadCollapseStates(): void {
+    try {
+      const saved = localStorage.getItem(this.COLLAPSE_STATES_KEY);
+      if (saved) {
+        this.dateCollapseStates = JSON.parse(saved);
+      }
+    } catch (error) {
+      console.warn('Could not load collapse states:', error);
+      this.dateCollapseStates = {};
+    }
+  }
+
+  private saveCollapseStates(): void {
+    try {
+      localStorage.setItem(this.COLLAPSE_STATES_KEY, JSON.stringify(this.dateCollapseStates));
+    } catch (error) {
+      console.warn('Could not save collapse states:', error);
+    }
+  }
+
+  getDateDisplayText(date: string): string {
+    if (!date || date === 'unknown') return 'Ngày không xác định';
+    return this.formatMatchDate(date);
+  }
+
+  getMatchCountForDate(matches: HistoryEntry[]): string {
+    const count = matches.length;
+    return count === 1 ? '1 trận' : `${count} trận`;
   }
 }

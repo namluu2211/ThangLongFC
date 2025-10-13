@@ -181,31 +181,6 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
         </div>
       </div>
 
-      <!-- Statistics Section -->
-      <div class="stats-section" *ngIf="allPlayers.length > 0">
-        <h3><i class="fas fa-chart-bar me-2"></i>Statistics</h3>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value">{{ allPlayers.length }}</div>
-            <div class="stat-label">Total Players</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ filteredPlayers.length }}</div>
-            <div class="stat-label">Filtered Results</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ availablePositions.length }}</div>
-            <div class="stat-label">Positions</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ getAverageAge() }}</div>
-            <div class="stat-label">Avg Age</div>
-          </div>
-        </div>
-      </div>
-
-
-
       <!-- Loading State -->
       <div *ngIf="isLoading" class="loading-state">
         <div class="spinner"></div>
@@ -231,7 +206,7 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 
         <!-- Grid View -->
         <div *ngIf="viewMode === 'grid'" class="players-grid">
-          <div *ngFor="let player of filteredPlayers; let i = index" class="player-card-enhanced">
+          <div *ngFor="let player of paginatedPlayers; let i = index" class="player-card-enhanced">
             <div class="player-header">
               <img [src]="player.avatar" 
                    [alt]="player.firstName"
@@ -289,7 +264,7 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
             <div class="col-actions">Actions</div>
           </div>
           
-          <div *ngFor="let player of filteredPlayers" class="list-item">
+          <div *ngFor="let player of paginatedPlayers" class="list-item">
             <div class="list-name">
               <img [src]="player.avatar" [alt]="player.firstName" class="list-avatar" (error)="onAvatarError($event)">
               <span>{{ player.firstName }} {{ player.lastName }}</span>
@@ -317,6 +292,40 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
                 <i class="fas fa-trash"></i>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div *ngIf="totalPages > 1" class="pagination-section">
+          <div class="pagination-info">
+            <ng-container *ngIf="getPaginationInfo() as pagination">
+              <span class="text-muted">
+                Hiển thị {{ pagination.start }}-{{ pagination.end }} 
+                trong tổng số {{ pagination.total }} cầu thủ
+              </span>
+            </ng-container>
+          </div>
+          
+          <div class="pagination-controls">
+            <button 
+              class="btn btn-sm btn-outline-primary"
+              [disabled]="currentPage === 0"
+              (click)="previousPage()"
+              title="Trang trước">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            
+            <span class="pagination-info mx-3">
+              Trang {{ currentPage + 1 }} / {{ totalPages }}
+            </span>
+            
+            <button 
+              class="btn btn-sm btn-outline-primary"
+              [disabled]="currentPage >= totalPages - 1"
+              (click)="nextPage()"
+              title="Trang sau">
+              <i class="fas fa-chevron-right"></i>
+            </button>
           </div>
         </div>
 
@@ -1780,6 +1789,65 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
     }
 
+    /* Pagination Styles */
+    .pagination-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      margin: 20px 0;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .pagination-info {
+      color: #6c757d;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .pagination-controls .btn {
+      border: 2px solid #667eea;
+      background: transparent;
+      color: #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .pagination-controls .btn:not(:disabled):hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .pagination-controls .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .pagination-info.mx-3 {
+      margin: 0 1.5rem;
+      color: #495057;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
     /* Comprehensive Mobile Responsiveness */
     @media (max-width: 1200px) {
       .modern-control-panel {
@@ -1882,6 +1950,22 @@ import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
       .action-icon {
         width: 45px;
         height: 45px;
+      }
+
+      /* Pagination Mobile Styles */
+      .pagination-section {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1rem;
+      }
+
+      .pagination-controls {
+        justify-content: center;
+      }
+
+      .pagination-info {
+        font-size: 0.8rem;
       }
     }
 
@@ -2422,6 +2506,12 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   lastUpdate?: Date;
   selectedPlayer: Player | null = null;
 
+  // Pagination properties
+  currentPage = 0;
+  pageSize = 10;
+  totalPages = 0;
+  paginatedPlayers: Player[] = [];
+
   // Filter and display properties
   searchTerm = '';
   selectedPosition = '';
@@ -2545,6 +2635,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     });
 
     this.filteredPlayers = filtered;
+    this.updatePagination();
   }
 
   calculateAge(dob?: string | number): number | null {
@@ -3610,5 +3701,46 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     
     // Clean up any existing modal
     this.closePlayerDetails();
+  }
+
+  // Pagination Methods
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredPlayers.length / this.pageSize);
+    
+    // Reset to first page if current page is beyond available pages
+    if (this.currentPage >= this.totalPages && this.totalPages > 0) {
+      this.currentPage = 0;
+    }
+    
+    const startIndex = this.currentPage * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    this.paginatedPlayers = this.filteredPlayers.slice(startIndex, endIndex);
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+      this.updatePagination();
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this.updatePagination();
+    }
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
+  }
+
+  getPaginationInfo(): { start: number; end: number; total: number } {
+    const start = this.currentPage * this.pageSize + 1;
+    const end = Math.min((this.currentPage + 1) * this.pageSize, this.filteredPlayers.length);
+    return { start, end, total: this.filteredPlayers.length };
   }
 }
