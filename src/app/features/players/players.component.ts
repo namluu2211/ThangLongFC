@@ -97,6 +97,14 @@ interface HistoryEntry {
             </button>
             
             <button 
+              class="modern-btn btn-danger"
+              (click)="cleanupDuplicateFirebaseData()"
+              title="Dọn dẹp dữ liệu trùng lặp trong Firebase">
+              <i class="fas fa-broom me-2"></i>
+              Dọn Firebase
+            </button>
+            
+            <button 
               class="modern-btn btn-warning"
               (click)="exportPlayersData()"
               title="Xuất dữ liệu cầu thủ">
@@ -3234,6 +3242,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private updateTimeout: NodeJS.Timeout | null = null;
   private renderTimeout: NodeJS.Timeout | null = null;
   
+  // Subscription guard
+  private firebaseSubscriptionActive = false;
+  
   // Service-managed data
   corePlayersData: PlayerInfo[] = [];
   isLoadingPlayers = false;
@@ -3858,6 +3869,17 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
     console.log('🔄 Converting core players to legacy format:', corePlayers?.length || 0);
+    console.log('📊 Current allPlayers before conversion:', this.allPlayers?.length || 0);
+    
+    // Check for duplicate players in the input
+    if (corePlayers && corePlayers.length > 0) {
+      const uniqueIds = new Set(corePlayers.map(p => p.id));
+      console.log('🔍 Unique player IDs in Firebase data:', uniqueIds.size, 'vs total:', corePlayers.length);
+      if (uniqueIds.size !== corePlayers.length) {
+        console.warn('⚠️ DUPLICATE PLAYERS DETECTED in Firebase data!');
+        console.log('📋 Duplicate analysis:', corePlayers.map(p => ({ id: p.id, name: p.firstName })));
+      }
+    }
     
     if (!corePlayers || corePlayers.length === 0) {
       console.warn('⚠️ No core players to convert');
@@ -3865,7 +3887,27 @@ export class PlayersComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.allPlayers = corePlayers.map(player => {
+    // More aggressive deduplication by name (since IDs might be different for same player)
+    const seenPlayers = new Map<string, PlayerInfo>();
+    
+    corePlayers.forEach(player => {
+      const nameKey = `${player.firstName.toLowerCase().trim()}_${(player.lastName || '').toLowerCase().trim()}`;
+      
+      if (seenPlayers.has(nameKey)) {
+        console.warn('🔧 DUPLICATE DETECTED by name:', nameKey, 'existing:', seenPlayers.get(nameKey), 'duplicate:', player);
+      } else {
+        seenPlayers.set(nameKey, player);
+      }
+    });
+    
+    const uniquePlayers = Array.from(seenPlayers.values());
+    
+    if (uniquePlayers.length !== corePlayers.length) {
+      console.warn('🔧 DEDUPLICATION: Removed', corePlayers.length - uniquePlayers.length, 'duplicate players by name matching');
+      console.log('🔧 Unique players after dedup:', uniquePlayers.length);
+    }
+    
+    this.allPlayers = uniquePlayers.map(player => {
       const converted = {
         id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
         firstName: player.firstName,
@@ -3877,7 +3919,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
         avatar: player.avatar || 'assets/images/default-avatar.svg',
         note: player.notes || ''
       };
-      console.log('🔄 Converted player:', player.firstName, '->', converted);
       return converted;
     });
     
@@ -4157,16 +4198,24 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   private setupFirebaseSubscription() {
+    // Prevent multiple subscriptions
+    if (this.firebaseSubscriptionActive) {
+      console.log('⚠️ Firebase subscription already active, skipping...');
+      return;
+    }
+    
     // Set up single subscription to Firebase players data
     console.log('🔄 Setting up Firebase subscription...');
+    this.firebaseSubscriptionActive = true;
     this.isLoadingPlayers = true;
     
     this.playerService.players$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (corePlayersData) => {
-          console.log('📊 Firebase players data updated:', corePlayersData?.length || 0);
-          console.log('📋 Raw Firebase data:', corePlayersData);
+          console.log('� FIREBASE SUBSCRIPTION TRIGGERED - Players received:', corePlayersData?.length || 0);
+          console.log('📊 Current state before update - allPlayers:', this.allPlayers?.length || 0);
+          console.log('📋 Raw Firebase data sample:', corePlayersData?.slice(0, 3));
           
           if (corePlayersData && corePlayersData.length > 0) {
             this.corePlayersData = corePlayersData;
@@ -4630,6 +4679,71 @@ export class PlayersComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Error migrating to Firebase:', error);
       alert('Có lỗi khi migrate dữ liệu: ' + error.message);
+    }
+  }
+
+  async cleanupDuplicateFirebaseData(): Promise<void> {
+    try {
+      const confirm = window.confirm('Bạn có muốn dọn dẹp dữ liệu trùng lặp trong Firebase? Thao tác này sẽ xóa các cầu thủ bị trùng lặp.');
+      if (!confirm) return;
+
+      console.log('🧹 Starting Firebase duplicate cleanup...');
+      
+      // Get current Firebase data
+      const currentData = this.corePlayersData;
+      if (!currentData || currentData.length === 0) {
+        alert('Không có dữ liệu để dọn dẹp!');
+        return;
+      }
+
+      // Group players by name to find duplicates
+      const playerGroups = new Map<string, typeof currentData>();
+      currentData.forEach(player => {
+        const key = `${player.firstName.toLowerCase()}_${player.lastName?.toLowerCase() || ''}`;
+        if (!playerGroups.has(key)) {
+          playerGroups.set(key, []);
+        }
+        playerGroups.get(key)!.push(player);
+      });
+
+      // Find duplicates
+      const duplicatesToDelete: string[] = [];
+      
+      playerGroups.forEach((players, key) => {
+        if (players.length > 1) {
+          console.log(`🔍 Found ${players.length} duplicates for: ${key}`);
+          // Keep the first one, mark others for deletion
+          for (let i = 1; i < players.length; i++) {
+            if (players[i].id) {
+              duplicatesToDelete.push(players[i].id!);
+            }
+          }
+        }
+      });
+
+      if (duplicatesToDelete.length === 0) {
+        alert('Không tìm thấy dữ liệu trùng lặp nào!');
+        return;
+      }
+
+      console.log(`🗑️ Will delete ${duplicatesToDelete.length} duplicate players`);
+      
+      // Delete duplicates one by one
+      let deleted = 0;
+      for (const playerId of duplicatesToDelete) {
+        try {
+          await this.playerService.deletePlayer(playerId);
+          deleted++;
+          console.log(`✅ Deleted duplicate player ${deleted}/${duplicatesToDelete.length}`);
+        } catch (error) {
+          console.error(`❌ Failed to delete player ${playerId}:`, error);
+        }
+      }
+
+      alert(`Đã dọn dẹp thành công! Xóa ${deleted} cầu thủ trùng lặp.`);
+    } catch (error) {
+      console.error('Error cleaning up Firebase data:', error);
+      alert('Có lỗi khi dọn dẹp dữ liệu: ' + error.message);
     }
   }
 
