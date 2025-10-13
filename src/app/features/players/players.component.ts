@@ -107,18 +107,37 @@ interface HistoryEntry {
           
           <button 
             class="modern-btn btn-warning"
+            [class.btn-danger]="useRegistered && registeredPlayers.length === 0"
             (click)="toggleUseRegistered()"
             title="Chuyển đổi giữa tất cả cầu thủ và cầu thủ đã đăng ký">
             <i class="fas fa-toggle-on me-2"></i>
-            {{ useRegistered ? 'Dùng tất cả' : 'Chỉ đã đăng ký' }}
+            {{ useRegistered ? 'Chỉ đã đăng ký (' + registeredPlayers.length + ')' : 'Dùng tất cả (' + allPlayers.length + ')' }}
+          </button>
+          
+          <button 
+            class="modern-btn btn-outline-secondary btn-sm"
+            (click)="clearRegisteredPlayers()"
+            title="Xóa tất cả cầu thủ đã đăng ký">
+            <i class="fas fa-trash me-1"></i>
+            Xóa đăng ký
+          </button>
+          
+          <button 
+            class="modern-btn btn-outline-info btn-sm"
+            (click)="logPerformanceMetrics()"
+            title="Kiểm tra hiệu suất">
+            <i class="fas fa-chart-line me-1"></i>
+            Hiệu suất
           </button>
           
           <button 
             class="modern-btn btn-primary"
+            [disabled]="!canDivideTeams()"
             (click)="shuffleTeams()"
-            title="Chia đội ngẫu nhiên">
+            [title]="canDivideTeams() ? 'Chia đội ngẫu nhiên' : 'Cần ít nhất 2 cầu thủ để chia đội'">
             <i class="fas fa-shuffle me-2"></i>
             Chia đội ngẫu nhiên
+            <span *ngIf="!canDivideTeams()" class="text-muted ms-2">({{getDisplayPlayers().length}}/2)</span>
           </button>
           
           <button 
@@ -132,6 +151,13 @@ interface HistoryEntry {
           </div>
           <div *ngIf="saveMessage" class="status-message success">
             {{ saveMessage }}
+          </div>
+          <div class="status-message info" *ngIf="useRegistered && registeredPlayers.length === 0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Chưa có cầu thủ nào đã đăng ký! Hãy đăng ký cầu thủ để chia đội.
+          </div>
+          <div class="player-mode-status">
+            <small class="text-muted">{{ getPlayerModeStatus() }}</small>
           </div>
         </div>
       </div>
@@ -148,14 +174,25 @@ interface HistoryEntry {
             </div>
           </div>
           
+          <!-- Pagination Controls -->
+          <div class="pagination-info" *ngIf="getDisplayPlayers().length > pageSize">
+            <ng-container *ngIf="getPaginationDisplay() as pagination">
+              <span class="text-muted">
+                Hiển thị {{ pagination.start }}-{{ pagination.end }} 
+                trong tổng số {{ pagination.total }} cầu thủ
+              </span>
+            </ng-container>
+          </div>
+
           <div class="players-grid" *ngIf="getDisplayPlayers().length > 0; else noPlayersTemplate">
-            <div *ngFor="let player of getDisplayPlayers(); trackBy: trackByPlayerId" 
+            <div *ngFor="let player of getPaginatedPlayers(); trackBy: trackByPlayerId" 
                  class="player-item"
                  [class.registered]="isRegistered(player)">
               <div class="player-info" tabindex="0" (click)="viewPlayer(player)" (keyup)="onPlayerInfoKey($event, player)">
-                <img [src]="player.avatar" 
+                <img [src]="player.avatar || 'assets/images/default-avatar.svg'" 
                      [alt]="player.firstName"
                      class="player-thumb"
+                     loading="lazy"
                      (error)="onAvatarError($event, player)">
                 <div class="player-details">
                   <span class="player-name">{{ player.firstName }} {{ player.lastName }}</span>
@@ -175,6 +212,29 @@ interface HistoryEntry {
 
               </div>
             </div>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="pagination-controls" *ngIf="totalPages > 1">
+            <button 
+              class="btn btn-sm btn-outline-primary"
+              [disabled]="currentPage === 0"
+              (click)="previousPage()"
+              title="Trang trước">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            
+            <span class="pagination-info mx-3">
+              Trang {{ currentPage + 1 }} / {{ totalPages }}
+            </span>
+            
+            <button 
+              class="btn btn-sm btn-outline-primary"
+              [disabled]="currentPage >= totalPages - 1"
+              (click)="nextPage()"
+              title="Trang sau">
+              <i class="fas fa-chevron-right"></i>
+            </button>
           </div>
 
           <ng-template #noPlayersTemplate>
@@ -1180,6 +1240,39 @@ interface HistoryEntry {
       background: #d4edda;
       color: #155724;
       border: 1px solid #c3e6cb;
+    }
+
+    .status-message.info {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+
+    .player-mode-status {
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* Pagination Controls */
+    .pagination-controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 20px 0;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    .pagination-info {
+      margin: 10px 0;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
+    .pagination-controls .btn {
+      margin: 0 5px;
     }
 
     .teams-container {
@@ -3130,6 +3223,17 @@ export class PlayersComponent implements OnInit, OnDestroy {
   useRegistered = false;
   selectedPlayer: Player | null = null;
   
+  // Pagination for performance
+  currentPage = 0;
+  pageSize = 20;
+  totalPages = 0;
+  private _paginatedPlayers: Player[] = [];
+  private _lastPaginationState = { useRegistered: false, currentPage: -1, dataLength: 0 };
+
+  // Debouncing timers
+  private updateTimeout: NodeJS.Timeout | null = null;
+  private renderTimeout: NodeJS.Timeout | null = null;
+  
   // Service-managed data
   corePlayersData: PlayerInfo[] = [];
   isLoadingPlayers = false;
@@ -3263,6 +3367,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
         p => !this.teamA.some(ta => ta.id === p.id) && !this.teamB.some(tb => tb.id === p.id)
       );
     }
+    
+    // Invalidate pagination cache since filtered data may have changed
+    this._invalidatePaginationCache();
   }
 
   shuffleTeams() {
@@ -3274,6 +3381,23 @@ export class PlayersComponent implements OnInit, OnDestroy {
     console.log(`🔄 shuffleTeams: useRegistered=${this.useRegistered}, using ${availablePlayers.length} players`);
     console.log('📋 Available players for shuffle:', availablePlayers.map(p => p.firstName));
     
+    // Check if we have enough players
+    if (availablePlayers.length === 0) {
+      console.warn('⚠️ No players available for team division!');
+      if (this.useRegistered) {
+        alert('Không có cầu thủ nào đã đăng ký! Vui lòng đăng ký một số cầu thủ trước hoặc chuyển sang chế độ "Dùng tất cả".');
+      } else {
+        alert('Không có cầu thủ nào để chia đội!');
+      }
+      return;
+    }
+    
+    if (availablePlayers.length < 2) {
+      console.warn('⚠️ Need at least 2 players to divide into teams!');
+      alert('Cần ít nhất 2 cầu thủ để chia đội!');
+      return;
+    }
+    
     // Shuffle the array
     for (let i = availablePlayers.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -3284,6 +3408,10 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const half = Math.ceil(availablePlayers.length / 2);
     this.teamA = availablePlayers.slice(0, half);
     this.teamB = availablePlayers.slice(half);
+    
+    console.log(`✅ Teams divided: Team A (${this.teamA.length}), Team B (${this.teamB.length})`);
+    console.log('👥 Team A:', this.teamA.map(p => p.firstName));
+    console.log('👥 Team B:', this.teamB.map(p => p.firstName));
     
     this.updateFilteredPlayers();
     this.syncAIWithTeams(); // Auto-sync AI selections
@@ -3769,16 +3897,213 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   toggleUseRegistered() {
     this.useRegistered = !this.useRegistered;
-    console.log(`🔄 toggleUseRegistered: now useRegistered=${this.useRegistered}`);
-    console.log(`📊 Available: allPlayers=${this.allPlayers.length}, registeredPlayers=${this.registeredPlayers.length}`);
-    this.updateFilteredPlayers();
-    this.cdr.detectChanges(); // Force change detection for OnPush strategy
+    
+    // Reset pagination when switching modes
+    this.currentPage = 0;
+    this._invalidatePaginationCache();
+    
+    // Debug localStorage contents
+    this.debugLocalStorage();
+    
+    // Use debounced update for better performance
+    this.debouncedUpdate(() => {
+      // Provide user feedback
+      if (this.useRegistered && this.registeredPlayers.length === 0) {
+        console.warn('⚠️ Switched to registered players mode but no players are registered!');
+        this.showTemporaryMessage('saveMessage', 'Chưa có cầu thủ nào đã đăng ký! Hãy đăng ký một số cầu thủ trước.');
+      } else if (this.useRegistered) {
+        this.showTemporaryMessage('saveMessage', `Đang sử dụng ${this.registeredPlayers.length} cầu thủ đã đăng ký`);
+      } else {
+        this.showTemporaryMessage('saveMessage', `Đang sử dụng tất cả ${this.allPlayers.length} cầu thủ`);
+      }
+      
+      this.updateFilteredPlayers();
+      this.cdr.detectChanges();
+    });
+  }
+
+  debugLocalStorage() {
+    try {
+      const saved = localStorage.getItem('registeredPlayers');
+      console.log('🔍 localStorage contents:');
+      console.log('  - Key exists:', !!saved);
+      console.log('  - Raw data:', saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('  - Parsed data:', parsed);
+        console.log('  - Count:', parsed.length);
+      }
+    } catch (error) {
+      console.error('❌ Error reading localStorage:', error);
+    }
+  }
+
+  clearRegisteredPlayers() {
+    if (confirm('Bạn có chắc muốn xóa tất cả cầu thủ đã đăng ký?')) {
+      this.registeredPlayers = [];
+      localStorage.removeItem('registeredPlayers');
+      console.log('✅ Cleared all registered players');
+      this.showTemporaryMessage('saveMessage', 'Đã xóa tất cả cầu thủ đã đăng ký');
+      this.updateFilteredPlayers();
+      this.cdr.detectChanges();
+    }
+  }
+
+  // Performance monitoring
+  logPerformanceMetrics() {
+    const startTime = performance.now();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const memoryInfo = 'memory' in performance ? (performance as any).memory : null;
+    
+    if (memoryInfo) {
+      const memoryUsage = memoryInfo.usedJSHeapSize / 1048576; // MB
+      const renderingTime = performance.now() - startTime;
+      const componentCount = document.querySelectorAll('.player-item').length;
+      
+      console.log('📊 Performance metrics:', {
+        memoryUsage: `${memoryUsage.toFixed(2)} MB`,
+        renderingTime: `${renderingTime.toFixed(2)} ms`,
+        componentCount,
+        currentPage: this.currentPage + 1,
+        totalPages: this.totalPages,
+        playersVisible: this.getPaginatedPlayers().length,
+        playersTotal: this.getDisplayPlayers().length
+      });
+      
+      // Alert if performance issues detected
+      if (memoryUsage > 50 || renderingTime > 1000 || componentCount > 50) {
+        console.warn('⚠️ Performance issues detected:', {
+          memoryUsage,
+          renderingTime,
+          componentCount
+        });
+      }
+    }
   }
 
   getDisplayPlayers(): Player[] {
     const players = this.useRegistered ? this.registeredPlayers : this.allPlayers;
-    console.log(`📋 getDisplayPlayers: useRegistered=${this.useRegistered}, returning ${players.length} players`);
     return players;
+  }
+
+  getPaginatedPlayers(): Player[] {
+    const allPlayers = this.getDisplayPlayers();
+    
+    // Check if we need to recalculate pagination
+    const currentState = {
+      useRegistered: this.useRegistered,
+      currentPage: this.currentPage,
+      dataLength: allPlayers.length
+    };
+    
+    const stateChanged = 
+      this._lastPaginationState.useRegistered !== currentState.useRegistered ||
+      this._lastPaginationState.currentPage !== currentState.currentPage ||
+      this._lastPaginationState.dataLength !== currentState.dataLength;
+    
+    if (stateChanged) {
+      this._updatePaginationCache(allPlayers);
+      this._lastPaginationState = currentState;
+    }
+    
+    return this._paginatedPlayers;
+  }
+  
+  private _updatePaginationCache(allPlayers: Player[]): void {
+    // Safety check for empty arrays
+    if (!allPlayers || allPlayers.length === 0) {
+      this.totalPages = 0;
+      this._paginatedPlayers = [];
+      return;
+    }
+    
+    this.totalPages = Math.ceil(allPlayers.length / this.pageSize);
+    
+    // Ensure currentPage is within bounds
+    if (this.currentPage >= this.totalPages) {
+      this.currentPage = Math.max(0, this.totalPages - 1);
+    }
+    
+    const startIndex = this.currentPage * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    this._paginatedPlayers = allPlayers.slice(startIndex, endIndex);
+  }
+  
+  private _invalidatePaginationCache(): void {
+    this._lastPaginationState = { useRegistered: !this.useRegistered, currentPage: -1, dataLength: -1 };
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+      this.debouncedRender(() => {
+        this.cdr.detectChanges();
+        this.logPerformanceMetrics();
+      });
+    }
+  }
+
+  previousPage() {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this.debouncedRender(() => {
+        this.cdr.detectChanges();
+        this.logPerformanceMetrics();
+      });
+    }
+  }
+
+  goToPage(page: number) {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+      this.cdr.detectChanges();
+    }
+  }
+
+  getPaginationDisplay(): { start: number; end: number; total: number } {
+    const total = this.getDisplayPlayers()?.length || 0;
+    
+    if (total === 0) {
+      return { start: 0, end: 0, total: 0 };
+    }
+    
+    const start = this.currentPage * this.pageSize + 1;
+    const end = Math.min((this.currentPage + 1) * this.pageSize, total);
+    return { start, end, total };
+  }
+
+  private debouncedUpdate(callback: () => void, delay = 300) {
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+    }
+    this.updateTimeout = setTimeout(() => {
+      callback();
+      this.updateTimeout = null;
+    }, delay);
+  }
+
+  private debouncedRender(callback: () => void, delay = 100) {
+    if (this.renderTimeout) {
+      clearTimeout(this.renderTimeout);
+    }
+    this.renderTimeout = setTimeout(() => {
+      callback();
+      this.renderTimeout = null;
+    }, delay);
+  }
+
+  canDivideTeams(): boolean {
+    const availablePlayers = this.useRegistered ? this.registeredPlayers : this.allPlayers;
+    return availablePlayers.length >= 2;
+  }
+
+  getPlayerModeStatus(): string {
+    if (this.useRegistered) {
+      return this.registeredPlayers.length === 0 
+        ? 'Chưa có cầu thủ đã đăng ký'
+        : `Đang dùng ${this.registeredPlayers.length} cầu thủ đã đăng ký`;
+    }
+    return `Đang dùng tất cả ${this.allPlayers.length} cầu thủ`;
   }
 
   toggleRegistration(player: Player) {
@@ -3801,6 +4126,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     if (this.useRegistered) {
       this.updateFilteredPlayers();
     }
+    
+    // Invalidate pagination cache since player count may have changed
+    this._invalidatePaginationCache();
   }
 
   ngOnInit() {
@@ -3875,6 +4203,15 @@ export class PlayersComponent implements OnInit, OnDestroy {
     if (this.aiAnalysisTimeout) {
       clearTimeout(this.aiAnalysisTimeout);
     }
+    
+    // Clean up debouncing timers
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+    }
+    if (this.renderTimeout) {
+      clearTimeout(this.renderTimeout);
+    }
+    
     this.analysisCache.clear();
     
     // Clear AI results to free memory
@@ -3887,9 +4224,14 @@ export class PlayersComponent implements OnInit, OnDestroy {
       const saved = localStorage.getItem('registeredPlayers');
       if (saved) {
         this.registeredPlayers = JSON.parse(saved);
+        console.log(`✅ Loaded ${this.registeredPlayers.length} registered players from localStorage`);
+      } else {
+        console.log('ℹ️ No registered players found in localStorage');
+        this.registeredPlayers = [];
       }
     } catch (error) {
-      console.error('Error loading registered players:', error);
+      console.error('❌ Error loading registered players:', error);
+      this.registeredPlayers = [];
     }
   }
 
@@ -4259,19 +4601,22 @@ export class PlayersComponent implements OnInit, OnDestroy {
   async syncWithFirebase(): Promise<void> {
     try {
       // Firebase service automatically syncs in real-time
-      // Show current sync status
+      // Show current sync status (temporarily disabled to avoid popup spam)
+      console.log('🔄 Firebase sync status check initiated');
       this.playerService.syncStatus$.pipe(takeUntil(this.destroy$)).subscribe(status => {
-        if (status === 'synced') {
-          alert('Firebase đã được đồng bộ!');
-        } else if (status === 'syncing') {
-          alert('Đang đồng bộ Firebase...');
-        } else {
-          alert('Firebase đang offline - sẽ đồng bộ khi có kết nối');
-        }
+        console.log(`🔥 Firebase sync status: ${status}`);
+        // Alerts temporarily disabled - check console for status
+        // if (status === 'synced') {
+        //   alert('Firebase đã được đồng bộ!');
+        // } else if (status === 'syncing') {
+        //   alert('Đang đồng bộ Firebase...');
+        // } else {
+        //   alert('Firebase đang offline - sẽ đồng bộ khi có kết nối');
+        // }
       });
     } catch (error) {
       console.error('Error checking Firebase sync:', error);
-      alert('Có lỗi khi kiểm tra đồng bộ Firebase!');
+      console.warn('🔥 Firebase sync check failed - this is not critical for app functionality');
     }
   }
 
