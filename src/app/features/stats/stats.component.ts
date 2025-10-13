@@ -90,10 +90,12 @@ interface MonthlyStats {
         <div class="col-12">
           <div class="stats-overview-table-card">
             <div class="stats-overview-header">
-              <h5 class="mb-0">
-                <i class="fas fa-chart-bar me-2"></i>
-                📊 Tổng quan thống kê
-              </h5>
+              <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                  <i class="fas fa-chart-bar me-2"></i>
+                  📊 Tổng quan thống kê
+                </h5>
+              </div>
             </div>
             <div class="stats-overview-body">
               <table class="stats-overview-table">
@@ -343,10 +345,12 @@ interface MonthlyStats {
         <div class="modern-table-card">
           <div class="table-header">
             <div class="d-flex justify-content-between align-items-center">
-              <h4 class="mb-0">
-                <i class="fas fa-users me-2"></i>
-                👥 Bảng xếp hạng cầu thủ
-              </h4>
+              <div class="d-flex align-items-center">
+                <h4 class="mb-0 me-2">
+                  <i class="fas fa-users me-2"></i>
+                  👥 Bảng xếp hạng cầu thủ
+                </h4>
+              </div>
               <div class="table-badge" *ngIf="enhancedStats">
               </div>
             </div>
@@ -390,15 +394,15 @@ interface MonthlyStats {
                 <tbody>
                   <tr *ngFor="let player of getCurrentPlayerStats(); let i = index" 
                       class="player-row"
-                      [class.rank-1]="i === 0" 
-                      [class.rank-2]="i === 1" 
-                      [class.rank-3]="i === 2">
+                      [class.rank-1]="getGlobalRank(i) === 1" 
+                      [class.rank-2]="getGlobalRank(i) === 2" 
+                      [class.rank-3]="getGlobalRank(i) === 3">
                     <td class="rank-cell">
-                      <div class="rank-badge" [class.gold]="i === 0" [class.silver]="i === 1" [class.bronze]="i === 2">
-                        <span *ngIf="i === 0">🥇</span>
-                        <span *ngIf="i === 1">🥈</span>
-                        <span *ngIf="i === 2">🥉</span>
-                        <span *ngIf="i > 2">{{i + 1}}</span>
+                      <div class="rank-badge" [class.gold]="getGlobalRank(i) === 1" [class.silver]="getGlobalRank(i) === 2" [class.bronze]="getGlobalRank(i) === 3">
+                        <span *ngIf="getGlobalRank(i) === 1">🥇</span>
+                        <span *ngIf="getGlobalRank(i) === 2">🥈</span>
+                        <span *ngIf="getGlobalRank(i) === 3">🥉</span>
+                        <span *ngIf="getGlobalRank(i) > 3">{{getGlobalRank(i)}}</span>
                       </div>
                     </td>
                     <td class="player-cell">
@@ -441,6 +445,40 @@ interface MonthlyStats {
                   </tr>
                 </tbody>
               </table>
+            </div>
+            
+            <!-- Pagination Controls -->
+            <div class="pagination-section" *ngIf="totalPages > 1">
+              <div class="pagination-info">
+                <ng-container *ngIf="getPaginationInfo() as pagination">
+                  <span class="text-muted">
+                    Hiển thị {{ pagination.start }}-{{ pagination.end }} 
+                    trong tổng số {{ pagination.total }} cầu thủ
+                  </span>
+                </ng-container>
+              </div>
+              
+              <div class="pagination-controls">
+                <button 
+                  class="btn btn-sm btn-outline-primary"
+                  [disabled]="currentPage === 0"
+                  (click)="previousPage()"
+                  title="Trang trước">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                
+                <span class="pagination-info mx-3">
+                  Trang {{ currentPage + 1 }} / {{ totalPages }}
+                </span>
+                
+                <button 
+                  class="btn btn-sm btn-outline-primary"
+                  [disabled]="currentPage >= totalPages - 1"
+                  (click)="nextPage()"
+                  title="Trang sau">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1263,6 +1301,235 @@ interface MonthlyStats {
       text-align: center;
     }
 
+    /* Players Section Styles */
+    .players-section-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .players-section-header {
+      background: #6c5ce7;
+      color: white;
+      padding: 1.5rem 2rem;
+    }
+
+    .players-section-body {
+      padding: 0;
+    }
+
+    .players-table-header {
+      display: grid;
+      grid-template-columns: 2fr 1.5fr 0.8fr 1fr 1fr 1.5fr;
+      gap: 1rem;
+      padding: 1rem 2rem;
+      background: #f8f9fa;
+      font-weight: 700;
+      color: #2c3e50;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
+    }
+
+    .players-list {
+      min-height: 400px;
+    }
+
+    .player-row-item {
+      display: grid;
+      grid-template-columns: 2fr 1.5fr 0.8fr 1fr 1fr 1.5fr;
+      gap: 1rem;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid #e9ecef;
+      align-items: center;
+      transition: background-color 0.2s ease;
+    }
+
+    .player-row-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .player-info-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .player-avatar-wrapper {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .player-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .player-name {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .position-badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-goalkeeper {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .badge-defender {
+      background: #3498db;
+      color: white;
+    }
+
+    .badge-midfielder {
+      background: #9b59b6;
+      color: white;
+    }
+
+    .badge-forward {
+      background: #e67e22;
+      color: white;
+    }
+
+    .badge-default {
+      background: #95a5a6;
+      color: white;
+    }
+
+    .player-age-cell,
+    .player-height-cell,
+    .player-weight-cell {
+      color: #6c757d;
+      font-weight: 500;
+    }
+
+    .player-actions-cell {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+
+    .view-btn {
+      background: #3498db;
+      color: white;
+    }
+
+    .view-btn:hover {
+      background: #2980b9;
+      transform: translateY(-1px);
+    }
+
+    .edit-btn {
+      background: #27ae60;
+      color: white;
+    }
+
+    .edit-btn:hover {
+      background: #229954;
+      transform: translateY(-1px);
+    }
+
+    .delete-btn {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .delete-btn:hover {
+      background: #c0392b;
+      transform: translateY(-1px);
+    }
+
+    .player-pagination-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .player-pagination-info {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+
+    .player-pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* Pagination Styles */
+    .pagination-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      border-radius: 0 0 12px 12px;
+    }
+
+    .pagination-info {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .pagination-controls .btn {
+      min-width: 40px;
+      height: 36px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .pagination-controls .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .pagination-controls .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination-info.mx-3 {
+      font-weight: 600;
+      color: #495057;
+      white-space: nowrap;
+    }
+
     /* Responsive - Simplified */
 
     @media (max-width: 768px) {
@@ -1278,6 +1545,84 @@ interface MonthlyStats {
       .player-avatar-wrapper {
         width: 35px;
         height: 35px;
+      }
+
+      .pagination-section {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+
+      .pagination-controls {
+        justify-content: center;
+      }
+
+      .pagination-info {
+        font-size: 0.8rem;
+      }
+
+      /* Player Section Mobile Styles */
+      .players-table-header {
+        display: none;
+      }
+
+      .player-row-item {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+
+      .player-info-cell {
+        justify-content: flex-start;
+      }
+
+      .player-position-cell,
+      .player-age-cell,
+      .player-height-cell,
+      .player-weight-cell {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .player-position-cell::before {
+        content: "Position: ";
+        font-weight: 600;
+      }
+
+      .player-age-cell::before {
+        content: "Age: ";
+        font-weight: 600;
+      }
+
+      .player-height-cell::before {
+        content: "Height: ";
+        font-weight: 600;
+      }
+
+      .player-weight-cell::before {
+        content: "Weight: ";
+        font-weight: 600;
+      }
+
+      .player-actions-cell {
+        justify-content: center;
+        margin-top: 8px;
+      }
+
+      .player-pagination-section {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+
+      .player-pagination-controls {
+        justify-content: center;
       }
     }
 
@@ -2139,6 +2484,55 @@ interface MonthlyStats {
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
 
+    /* Collapse/Expand Styles */
+    .stats-overview-header[role="button"]:hover,
+    .table-header[role="button"]:hover {
+      background-color: rgba(102, 126, 234, 0.05);
+      transform: translateY(-1px);
+    }
+
+    .stats-overview-header[role="button"]:focus,
+    .table-header[role="button"]:focus {
+      outline: 2px solid #667eea;
+      outline-offset: 2px;
+      background-color: rgba(102, 126, 234, 0.1);
+    }
+
+    .stats-overview-header[role="button"],
+    .table-header[role="button"] {
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: -1rem;
+    }
+
+    .fa-chevron-down, .fa-chevron-up {
+      transition: transform 0.3s ease;
+      color: #667eea;
+      font-size: 1.1em;
+    }
+
+    .collapse {
+      transition: all 0.35s ease-in-out;
+    }
+
+    .show {
+      transition: all 0.35s ease-in-out;
+    }
+
+    /* Accessibility improvements */
+    [role="button"] {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
+
+    [role="button"]:hover .fa-chevron-down,
+    [role="button"]:hover .fa-chevron-up {
+      transform: scale(1.1);
+      color: #5a67d8;
+    }
+
 
   `]
 })
@@ -2173,7 +2567,12 @@ export class StatsComponent implements OnInit, OnDestroy {
   viewMode: 'all' | 'monthly' = 'all';
   selectedMonth = '';
   sortBy: 'score' | 'goals' | 'assists' | 'yellowCards' | 'redCards' | 'matches' = 'score';
-
+  
+  // Pagination State
+  currentPage = 0;
+  pageSize = 10;
+  totalPages = 0;
+  
   ngOnInit(): void {
     this.loadCoreData();
     this.loadHistory();
@@ -2578,7 +2977,7 @@ export class StatsComponent implements OnInit, OnDestroy {
     this.calculateStats();
   }
 
-  getCurrentPlayerStats(): PlayerStats[] {
+  getAllPlayerStats(): PlayerStats[] {
     let playerStats: PlayerStats[];
     
     if (this.viewMode === 'monthly' && this.selectedMonth && this.monthlyStats[this.selectedMonth]) {
@@ -2611,7 +3010,7 @@ export class StatsComponent implements OnInit, OnDestroy {
       playerStats = Object.values(allPlayers);
     }
 
-    // Sort by selected criteria
+    // Sort by selected criteria (descending order)
     return playerStats.sort((a, b) => {
       if (this.sortBy === 'score') return this.calculatePlayerScore(b) - this.calculatePlayerScore(a);
       if (this.sortBy === 'goals') return b.goals - a.goals;
@@ -2623,9 +3022,53 @@ export class StatsComponent implements OnInit, OnDestroy {
     });
   }
 
+  getCurrentPlayerStats(): PlayerStats[] {
+    const allStats = this.getAllPlayerStats();
+    this.totalPages = Math.ceil(allStats.length / this.pageSize);
+    
+    // Reset to first page if current page is beyond available pages
+    if (this.currentPage >= this.totalPages && this.totalPages > 0) {
+      this.currentPage = 0;
+    }
+    
+    const startIndex = this.currentPage * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    return allStats.slice(startIndex, endIndex);
+  }
+
+  // Pagination methods
+  nextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+    }
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+    }
+  }
+
+  getPaginationInfo(): { start: number; end: number; total: number } {
+    const allStats = this.getAllPlayerStats();
+    const start = this.currentPage * this.pageSize + 1;
+    const end = Math.min((this.currentPage + 1) * this.pageSize, allStats.length);
+    return { start, end, total: allStats.length };
+  }
+
   calculatePlayerScore(player: PlayerStats): number {
     // Score calculation: goals*3 + assists*2 - yellowCards*0.5 - redCards*2
     return (player.goals * 3) + (player.assists * 2) - (player.yellowCards * 0.5) - (player.redCards * 2);
+  }
+
+  getGlobalRank(localIndex: number): number {
+    return (this.currentPage * this.pageSize) + localIndex + 1;
   }
 
   formatMonth(monthKey: string): string {
@@ -2637,6 +3080,40 @@ export class StatsComponent implements OnInit, OnDestroy {
   getMonthYear(monthKey: string): string {
     const [year] = monthKey.split('-');
     return year;
+  }
+
+  trackByPlayerId(index: number, player: PlayerInfo): string {
+    return player.id || index.toString();
+  }
+
+  getPositionBadgeClass(position: string): string {
+    switch (position) {
+      case 'Thủ môn':
+        return 'badge-goalkeeper';
+      case 'Hậu vệ':
+        return 'badge-defender';
+      case 'Tiền vệ':
+        return 'badge-midfielder';
+      case 'Tiền đạo':
+        return 'badge-forward';
+      default:
+        return 'badge-default';
+    }
+  }
+
+  getPositionDisplayName(position: string): string {
+    switch (position) {
+      case 'Thủ môn':
+        return 'THỦ MÔN';
+      case 'Hậu vệ':
+        return 'HẬU VỆ';
+      case 'Tiền vệ':
+        return 'TIỀN VỆ';
+      case 'Tiền đạo':
+        return 'TIỀN ĐẠO';
+      default:
+        return position?.toUpperCase() || '';
+    }
   }
 
   getPlayerAvatar(playerName: string): string {
@@ -2835,4 +3312,6 @@ export class StatsComponent implements OnInit, OnDestroy {
       `${player.firstName} ${player.lastName || ''}`.trim() === playerName
     );
   }
+
+
 }
