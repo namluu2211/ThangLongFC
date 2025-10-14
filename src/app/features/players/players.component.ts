@@ -1095,8 +1095,12 @@ interface HistoryEntry {
     </div>
   `,
   styles: [`
+    :host {
+      --gradient-primary: linear-gradient(135deg, #667eea, #764ba2);
+      --shadow-base: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
     .modern-container {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--gradient-primary);
       min-height: 100vh;
       padding: 20px;
     }
@@ -1109,9 +1113,8 @@ interface HistoryEntry {
     .header-content {
       background: rgba(255, 255, 255, 0.95);
       padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(10px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-base);
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
@@ -1249,7 +1252,7 @@ interface HistoryEntry {
       text-align: center;
     }
 
-    /* Pagination Controls */
+
     .pagination-controls {
       display: flex;
       justify-content: center;
@@ -1289,7 +1292,6 @@ interface HistoryEntry {
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      overflow: hidden;
     }
 
     .team-header {
@@ -1389,7 +1391,7 @@ interface HistoryEntry {
       border-color: #e74c3c !important;
       background: rgba(231, 76, 60, 0.3) !important;
       transform: scale(1.05) !important;
-      box-shadow: 0 12px 35px rgba(231, 76, 60, 0.4) !important;
+      box-shadow: 0 6px 15px rgba(231, 76, 60, 0.3) !important;
       z-index: 1000 !important;
     }
 
@@ -1401,11 +1403,11 @@ interface HistoryEntry {
       z-index: 1000 !important;
     }
 
-    /* Debug: Make drop zones very obvious during drag */
+
     .cdk-drag-dragging ~ .players-row {
       border: 4px solid #ff6b6b !important;
       background: rgba(255, 107, 107, 0.1) !important;
-      animation: pulse 1s infinite;
+      opacity: 0.9;
       position: relative;
     }
 
@@ -1423,13 +1425,10 @@ interface HistoryEntry {
       font-size: 1.1rem;
       z-index: 10;
       pointer-events: none;
-      animation: bounce 0.5s infinite alternate;
+      transform: scale(0.95);
     }
 
-    /* Basic animations - simplified */
-    @keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
 
-    /* Specific styling for each drop zone during drag */
 
 
     .cdk-drag-dragging ~ .team-players::before {
@@ -1573,7 +1572,7 @@ interface HistoryEntry {
       border-color: #e74c3c;
     }
 
-    /* Player List Section */
+
     .player-list-section {
       margin-bottom: 30px;
     }
@@ -1604,7 +1603,7 @@ interface HistoryEntry {
       font-size: 1.5rem;
     }
 
-    /* Table-based Player List */
+
     .players-table-container {
       width: 100%;
       border-radius: 12px;
@@ -1620,9 +1619,7 @@ interface HistoryEntry {
       color: white;
       padding: 16px 20px;
       font-weight: 600;
-      font-size: 0.9rem;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .header-cell {
@@ -1697,7 +1694,6 @@ interface HistoryEntry {
       font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .position-gk {
@@ -1784,7 +1780,7 @@ interface HistoryEntry {
       transform: translateY(-1px);
     }
 
-    /* Legacy grid styles - kept for compatibility */
+
     .players-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -1902,23 +1898,10 @@ interface HistoryEntry {
       width: 95% !important;
       max-height: 85vh !important;
       overflow-y: auto !important;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4) !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
       position: relative !important;
-      animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       margin: auto !important;
       flex-shrink: 0 !important;
-      transform-origin: center !important;
-    }
-
-    @keyframes modalSlideIn {
-      from {
-        opacity: 0;
-        transform: scale(0.9);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
-      }
     }
 
     .modal-header {
@@ -1984,7 +1967,7 @@ interface HistoryEntry {
       overflow-y: visible;
     }
 
-    /* Ensure all form fields are properly displayed */
+
     .form-group input,
     .form-group select,
     .form-group textarea {
@@ -2001,7 +1984,7 @@ interface HistoryEntry {
       padding-right: 40px;
     }
 
-    /* Fix for textarea */
+
     .form-group textarea {
       resize: vertical;
       min-height: 80px;
@@ -2009,7 +1992,7 @@ interface HistoryEntry {
       line-height: 1.5;
     }
 
-    /* Ensure form fields are visible and not cut off */
+
     .player-modal .form-group {
       margin-bottom: 20px;
       position: relative;
@@ -2024,7 +2007,7 @@ interface HistoryEntry {
       position: relative;
     }
 
-    /* Force modal centering - highest priority */
+
     .modal-overlay[style] {
       display: grid !important;
       place-items: center !important;
@@ -2100,7 +2083,7 @@ interface HistoryEntry {
       border: none;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
       border-top: 4px solid #667eea;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: transform 0.2s;
     }
 
     .detail-section:hover {
@@ -2109,11 +2092,10 @@ interface HistoryEntry {
     }
 
     .detail-section.full-width { grid-column: 1 / -1; border-top-color: #28a745; }
-    .detail-section h5 { color: #2c3e50; margin: 0 0 20px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid #f1f3f4; }
-    .detail-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
-    .detail-item:last-child { margin-bottom: 0; border-bottom: none; }
+    .detail-section h5 { color: #2c3e50; margin: 0 0 20px; font-weight: 700; }
+    .detail-item { display: flex; justify-content: space-between; margin-bottom: 15px; padding: 12px 0; }
     .detail-label { font-weight: 600; color: #5a6c7d; }
-    .detail-value { color: #2c3e50; font-weight: 500; text-align: right; }
+    .detail-value { color: #2c3e50; text-align: right; }
     .age-value { display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
     }
 
@@ -2134,7 +2116,6 @@ interface HistoryEntry {
       align-items: center;
       box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .note-content {
@@ -2173,97 +2154,19 @@ interface HistoryEntry {
       margin-top: 1rem !important;
     }
 
-    /* Responsive Design */
     @media (max-width: 768px) {
-      .teams-row {
-        grid-template-columns: 1fr;
-        gap: 15px;
-      }
-
-      .action-buttons {
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .modern-btn {
-        width: 100%;
-        max-width: 300px;
-      }
-
-      .stats-section {
-        grid-template-columns: 1fr;
-      }
-
-      .team-header {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
-      }
-
-      .player-details-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
-      }
-
-      .player-modal {
-        width: 95%;
-        margin: 0;
-        max-height: 95vh;
-      }
-
-      .modal-content {
-        padding: 20px;
-      }
-
-      .modal-header {
-        padding: 20px;
-      }
-
-      .modal-header h4 {
-        font-size: 1.3rem;
-      }
-
-      .modal-avatar {
-        width: 120px;
-        height: 120px;
-      }
-
-      .player-avatar-section {
-        padding: 20px;
-        margin-bottom: 20px;
-      }
-
-      .detail-section {
-        padding: 20px;
-      }
-
-      .detail-section h5 {
-        font-size: 1.1rem;
-        margin-bottom: 15px;
-      }
-
-      .detail-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        text-align: left;
-      }
-
-      .detail-value {
-        text-align: left;
-      }
-
-      .age-value {
-        align-items: flex-start;
-      }
-
-      .registration-badge {
-        padding: 10px 16px;
-        font-size: 0.9rem;
-      }
+      .teams-row { grid-template-columns: 1fr; }
+      .action-buttons { flex-direction: column; }
+      .modern-btn { width: 100%; max-width: 300px; }
+      .stats-section { grid-template-columns: 1fr; }
+      .player-modal { width: 95%; max-height: 95vh; }
+      .modal-content, .modal-header { padding: 20px; }
+      .detail-item { flex-direction: column; }
+      .age-value { align-items: flex-start; }
+      .registration-badge { padding: 10px 16px; font-size: 0.9rem; }
     }
 
-    /* Admin Controls */
+
     .admin-controls {
       display: flex;
       gap: 10px;
@@ -2276,11 +2179,11 @@ interface HistoryEntry {
       margin-top: 8px;
     }
 
-    .admin-player-actions button { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .admin-player-actions button { padding: 4px 8px; border: none; cursor: pointer; }
     .btn-edit { background: #007bff; color: white; }
-    .btn-edit:hover { background: #0056b3; }
+
     .btn-delete { background: #dc3545; color: white; }
-    .btn-delete:hover { background: #c82333; }
+
 
     /* Modal Styles */
     .confirm-modal {
@@ -2291,9 +2194,8 @@ interface HistoryEntry {
       max-width: 400px;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      transform: scale(0.9);
-      animation: modalEnter 0.2s ease forwards;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transform: scale(1);
     }
 
     .modal-header {
@@ -2391,7 +2293,7 @@ interface HistoryEntry {
       border-color: #dc3545;
     }
 
-    /* Completely disable validation styling for avatar input */
+
     .avatar-no-validation {
       border-color: #ced4da !important;
     }
@@ -2447,20 +2349,18 @@ interface HistoryEntry {
       transition: all 0.2s;
     }
 
-    .btn-save:hover:not(:disabled) { background: #218838; }
+
     .btn-save:disabled { background: #6c757d; cursor: not-allowed; }
     .warning-text { color: #dc3545; font-style: italic; margin: 10px 0; }
 
     @media (max-width: 768px) {
-      .modal-overlay { padding: 10px; }
-      .player-modal { width: 100%; max-height: 95vh; border-radius: 15px; }
-      .form-grid { grid-template-columns: 1fr; gap: 15px; }
-      .modal-content { padding: 20px; }
-      .modal-actions { flex-direction: column; gap: 10px; }
-      .modal-actions button { width: 100%; padding: 12px; }
+      .player-modal { width: 100%; }
+      .form-grid { grid-template-columns: 1fr; }
+      .modal-actions { flex-direction: column; }
+      .modal-actions button { width: 100%; }
     }
 
-    /* Simplified Avatar Styles */
+
     .avatar-management-section {
       margin-bottom: 20px;
     }
@@ -2556,7 +2456,7 @@ interface HistoryEntry {
       font-size: 12px;
     }
 
-    /* AI Analysis Styles */
+
     .ai-analysis-card {
       background: white;
       border-radius: 20px;
@@ -2585,7 +2485,7 @@ interface HistoryEntry {
       padding: 2rem;
     }
 
-    /* Simplified Formation Preview */
+
     .team-formation-preview { background: #f0f8ff; border-radius: 15px; padding: 1.5rem; border: 2px solid #3498db; }
     .preview-title { color: #2c3e50; font-weight: 700; margin-bottom: 1rem; text-align: center; }
     .formation-display { display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
@@ -2664,7 +2564,7 @@ interface HistoryEntry {
       font-size: 0.9rem;
     }
 
-    /* Enhanced Analysis Button */
+
     .enhanced-analysis-btn {
       position: relative;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -2681,7 +2581,6 @@ interface HistoryEntry {
       align-items: center;
       justify-content: center;
       text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
     .enhanced-analysis-btn:hover {
@@ -2696,7 +2595,7 @@ interface HistoryEntry {
       cursor: not-allowed;
     }
 
-    /* Simplified pulse animation */
+
     .enhanced-analysis-btn.pulsing { animation: pulse 2s infinite; }
 
     .btn-content {
@@ -2723,8 +2622,7 @@ interface HistoryEntry {
       font-size: 0.8rem;
       opacity: 0.9;
       font-weight: 500;
-      text-transform: none;
-      letter-spacing: 0.5px;
+
     }
 
     .analysis-progress {
@@ -2743,7 +2641,7 @@ interface HistoryEntry {
       background: rgba(255, 255, 255, 0.8);
     }
 
-    /* Simplified Dropdown */
+
     .custom-select-dropdown { position: relative; width: 100%; margin-bottom: 1rem; }
     .select-header { background: white; border: 2px solid #e9ecef; border-radius: 10px; padding: 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 80px; }
     .select-header:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -2810,7 +2708,7 @@ interface HistoryEntry {
       color: #2c3e50;
     }
 
-    /* VS Section */
+
     .vs-section {
       padding: 2rem;
       background: rgba(102, 126, 234, 0.05);
@@ -2823,7 +2721,7 @@ interface HistoryEntry {
       color: #667eea;
     }
 
-    /* Selection Status */
+
     .selection-status {
       background: rgba(255, 255, 255, 0.8);
       border-radius: 12px;
@@ -2868,7 +2766,7 @@ interface HistoryEntry {
       transform: translateY(-1px);
     }
 
-    /* Enhanced Analysis Results - Modern UI/UX */
+
     .analysis-results-enhanced {
       background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.98) 100%);
       border-radius: 24px;
@@ -2885,7 +2783,7 @@ interface HistoryEntry {
     .results-subtitle { color: #64748b; margin: 0; }
     .highlight { color: #667eea; font-weight: 700; }
 
-    /* Predictions Grid */
+
     .predictions-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -2893,7 +2791,7 @@ interface HistoryEntry {
       margin-bottom: 2rem;
     }
 
-    /* Simplified prediction cards */
+
     .prediction-card-enhanced {
       background: white;
       border-radius: 20px;
@@ -2947,10 +2845,7 @@ interface HistoryEntry {
       font-size: 0.85rem;
       font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
-
-    /* Enhanced Score Display */
     .score-display-enhanced {
       display: flex;
       justify-content: space-between;
@@ -3026,7 +2921,7 @@ interface HistoryEntry {
       font-size: 0.9rem;
     }
 
-    /* Enhanced Probability Display */
+
     .probability-display-enhanced {
       display: flex;
       flex-direction: column;
@@ -3084,9 +2979,9 @@ interface HistoryEntry {
       animation: shine 2s infinite;
     }
 
-    /* Removed complex shine animation to reduce CSS size */
 
-    /* Simplified Factors */
+
+
     .factors-list-enhanced { display: flex; flex-direction: column; gap: 1rem; }
     .factor-item-enhanced { background: #f8fafc; border-radius: 12px; padding: 1rem; border-left: 4px solid #e2e8f0; }
     .factor-item-enhanced.factor-positive { border-left-color: #10b981; }
@@ -3142,16 +3037,15 @@ interface HistoryEntry {
 
 
 
-    /* Enhanced Match History Section */
-    .match-history-enhanced { background: white; border-radius: 24px; padding: 2.5rem; margin-top: 2rem; box-shadow: 0 8px 25px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; }
-    .history-header-enhanced { text-align: center; margin-bottom: 2.5rem; }
-    .history-badge { background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 25px; font-weight: 600; margin-bottom: 1rem; }
+
+    .match-history-enhanced { background: white; border-radius: 15px; padding: 2rem; margin-top: 2rem; }
+    .history-header-enhanced { text-align: center; margin-bottom: 2rem; }
+    .history-badge { background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 15px; }
     .badge-icon { font-size: 1.2rem; }
 
     .badge-text {
       font-size: 0.9rem;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .history-title-enhanced {
@@ -3159,10 +3053,7 @@ interface HistoryEntry {
       font-weight: 800;
       margin-bottom: 0.5rem;
       font-size: 1.8rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #667eea;
     }
 
     .history-subtitle {
@@ -3172,7 +3063,7 @@ interface HistoryEntry {
       font-weight: 500;
     }
 
-    /* History Cards Grid */
+
     .history-cards-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -3283,10 +3174,7 @@ interface HistoryEntry {
       font-size: 1rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
-
-    /* Progress Indicators */
     .progress-indicator {
       margin-bottom: 1rem;
     }
@@ -3310,81 +3198,14 @@ interface HistoryEntry {
     .summary-text { color: #7c3aed; font-weight: 600;
     }
 
-    /* Responsive Design for AI Section */
     @media (max-width: 768px) {
-      .ai-header, .ai-body { padding: 1.5rem; }
-      .team-selector { padding: 1rem; }
-      .enhanced-analysis-btn { padding: 1rem 1.5rem; min-height: 70px;
-      }
-
-      .btn-text {
-        font-size: 1rem;
-      }
-
-      .btn-icon {
-        font-size: 1.5rem;
-      }
-
-      .score-display {
-        gap: 1rem;
-      }
-
-      .score-number {
-        font-size: 2rem;
-      }
-
-      .history-cards-grid {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-      }
-
-      .match-history-enhanced {
-        padding: 1.5rem;
-        margin-top: 1.5rem;
-      }
-
-      .history-header-enhanced {
-        margin-bottom: 1.5rem;
-      }
-
-      .history-title-enhanced {
-        font-size: 1.4rem;
-      }
-
-      .stat-number-large {
-        font-size: 2.5rem;
-      }
-
-      .card-header-history {
-        flex-direction: column;
-        text-align: center;
-        gap: 0.75rem;
-      }
-
-      .card-info {
-        text-align: center;
-      }
-
-      .stat-display {
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
-      }
-
-
-
-      .quick-actions {
-        flex-direction: column;
-      }
-
-      .vs-icon {
-        font-size: 2rem;
-      }
-
-      .select-header {
-        min-height: 60px;
-        padding: 0.75rem;
-      }
+      .history-cards-grid { grid-template-columns: 1fr; }
+      .match-history-enhanced { padding: 1.5rem; }
+      .card-header-history { flex-direction: column; }
+      .stat-display { flex-direction: column; }
+      .quick-actions { flex-direction: column; }
+      .vs-icon { font-size: 2rem; }
+      .select-header { min-height: 60px; padding: 0.75rem; }
     }
 
 
