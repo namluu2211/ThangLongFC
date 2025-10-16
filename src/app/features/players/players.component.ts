@@ -158,7 +158,8 @@ interface PlayerStats {
           <button 
             class="modern-btn btn-success"
             (click)="saveMatchInfo()"
-            title="Lưu thông tin trận đấu">
+            [disabled]="teamA.length === 0 && teamB.length === 0"
+            [title]="(teamA.length === 0 && teamB.length === 0) ? 'Vui lòng chia đội trước khi lưu' : 'Lưu thông tin trận đấu'">
             <i class="fas fa-save me-2"></i>
             Lưu trận đấu
           </button>          <div *ngIf="matchSaveMessage" class="status-message success">
@@ -4890,10 +4891,24 @@ export class PlayersComponent implements OnInit, OnDestroy {
   async saveMatchInfo() {
     try {
       console.log('💾 Saving match info...');
+      console.log('🔍 Team A array:', this.teamA);
+      console.log('🔍 Team B array:', this.teamB);
+      console.log('🔍 Team A length:', this.teamA.length);
+      console.log('🔍 Team B length:', this.teamB.length);
+
+      // Validate that teams are not empty
+      if (this.teamA.length === 0 && this.teamB.length === 0) {
+        console.error('❌ Cannot save match: Both teams are empty!');
+        this.showTemporaryMessage('matchSaveMessage', 'Vui lòng chia đội trước khi lưu trận đấu!');
+        return;
+      }
 
       // Arrays of player names for legacy/statistics compatibility
       const teamA_names = this.teamA.map(p => p.firstName + (p.lastName ? ' ' + p.lastName : ''));
       const teamB_names = this.teamB.map(p => p.firstName + (p.lastName ? ' ' + p.lastName : ''));
+      
+      console.log('👥 Team A player names:', teamA_names);
+      console.log('👥 Team B player names:', teamB_names);
 
       // Thu/Chi fields from UI inputs
       const thu = this.thu || (this.teamA.length + this.teamB.length) * 30000; // Use UI value or calculate default
@@ -4901,6 +4916,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
       const chi_nuoc = this.chi_nuoc;
       const chi_san = this.chi_san;
       const chi_trongtai = this.chi_trongtai;
+      
+      console.log('💰 Financial data - Thu:', thu, 'Chi Total:', chi_total, 'Chi Nuoc:', chi_nuoc, 'Chi San:', chi_san, 'Chi Trongtai:', chi_trongtai);
 
       // Create the original match object for matchService
       const matchData = await this.createMatchDataWithServices();
@@ -4933,6 +4950,15 @@ export class PlayersComponent implements OnInit, OnDestroy {
         updatedAt: new Date().toISOString(),
         thuMode: 'auto',
       });
+      
+      console.log('📦 Final match data being saved:', JSON.stringify({
+        teamA_players: matchData.teamA.players.map(p => `${p.firstName} ${p.lastName}`),
+        teamB_players: matchData.teamB.players.map(p => `${p.firstName} ${p.lastName}`),
+        teamA_names,
+        teamB_names,
+        thu,
+        chi_total
+      }, null, 2));
 
       await this.matchService.createMatch(matchData);
       await this.addMatchFundTransaction(matchData);
