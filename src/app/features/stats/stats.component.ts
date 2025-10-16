@@ -2625,13 +2625,25 @@ export class StatsComponent implements OnInit, OnDestroy {
   private loadHistory() {
     try {
       // Use Firebase data like History component does
-      console.log('🔄 Loading match history from Firebase (like History component)...');
+          console.log('🔄 Loading match history from Firebase (like History component)...');
       
       this.firebaseService.history$.pipe(take(1)).subscribe({
         next: (historyData) => {
           console.log('📊 Received Firebase history data:', historyData.length, 'matches');
           
-          this.history = [...historyData]; // Create a copy
+          // Quick test of the first match to see data format
+          if (historyData.length > 0) {
+            const firstMatch = historyData[0];
+            console.log('🧪 First match raw data test:', {
+              scorerA: firstMatch.scorerA,
+              scorerAType: typeof firstMatch.scorerA,
+              scorerAEmpty: !firstMatch.scorerA,
+              scorerB: firstMatch.scorerB,
+              scorerBType: typeof firstMatch.scorerB,
+              scorerBEmpty: !firstMatch.scorerB,
+              totalGoalsExpected: this.countStatOccurrences(firstMatch.scorerA) + this.countStatOccurrences(firstMatch.scorerB)
+            });
+          }          this.history = [...historyData]; // Create a copy
           this.history.sort((a, b) => {
             const dateA = new Date(a.date || '').getTime();
             const dateB = new Date(b.date || '').getTime();
@@ -2641,28 +2653,46 @@ export class StatsComponent implements OnInit, OnDestroy {
           console.log('📊 Stats component loaded Firebase history:', {
             parsedLength: this.history.length,
             firstMatch: this.history[0] || 'No matches',
-            isArray: Array.isArray(this.history)
+            lastMatch: this.history[this.history.length - 1] || 'No matches',
+            isArray: Array.isArray(this.history),
+            dateRange: this.history.length > 0 ? {
+              newest: this.history[0]?.date,
+              oldest: this.history[this.history.length - 1]?.date
+            } : 'No dates'
           });
           
           // Debug each match structure
-          this.history.forEach((match, index) => {
-            console.log(`🔍 Match ${index + 1} structure:`, {
-              hasTeamA: !!match.teamA,
-              teamAType: typeof match.teamA,
-              teamAIsArray: Array.isArray(match.teamA),
-              teamAValue: match.teamA,
-              hasTeamB: !!match.teamB,
-              teamBType: typeof match.teamB,
-              teamBIsArray: Array.isArray(match.teamB),
-              teamBValue: match.teamB,
-              date: match.date,
-              scorerA: match.scorerA,
-              scorerB: match.scorerB,
-              allKeys: Object.keys(match)
+          if (this.history.length > 0) {
+            console.log(`🔍 First match structure:`, {
+              hasTeamA: !!this.history[0].teamA,
+              teamAType: typeof this.history[0].teamA,
+              teamAIsArray: Array.isArray(this.history[0].teamA),
+              teamALength: Array.isArray(this.history[0].teamA) ? this.history[0].teamA?.length : 'N/A',
+              teamAValue: this.history[0].teamA,
+              hasTeamB: !!this.history[0].teamB,
+              teamBType: typeof this.history[0].teamB,
+              teamBIsArray: Array.isArray(this.history[0].teamB),
+              teamBLength: Array.isArray(this.history[0].teamB) ? this.history[0].teamB?.length : 'N/A',
+              teamBValue: this.history[0].teamB,
+              date: this.history[0].date,
+              scorerA: this.history[0].scorerA,
+              scorerB: this.history[0].scorerB,
+              assistA: this.history[0].assistA,
+              assistB: this.history[0].assistB,
+              yellowA: this.history[0].yellowA,
+              yellowB: this.history[0].yellowB,
+              redA: this.history[0].redA,
+              redB: this.history[0].redB,
+              allKeys: Object.keys(this.history[0])
             });
-          });
+          }
           
           this.updateStats(); // Calculate statistics
+          
+          // Force UI update
+          setTimeout(() => {
+            console.log('🔄 Statistics UI should now be updated with real data');
+          }, 100);
         },
         error: (error) => {
           console.error('❌ Error loading matches from Firebase:', error);
@@ -2700,6 +2730,16 @@ export class StatsComponent implements OnInit, OnDestroy {
     console.log('📊 calculateStats() called with history length:', this.history.length);
     if (!this.history.length) {
       console.warn('⚠️ No match history data available for stats calculation');
+      // Reset stats to zero when no data
+      this.overallStats = {
+        totalMatches: 0,
+        totalGoals: 0,
+        totalAssists: 0,
+        totalYellowCards: 0,
+        totalRedCards: 0
+      };
+      this.availableMonths = [];
+      this.monthlyStats = {};
       return;
     }
 
@@ -2709,10 +2749,34 @@ export class StatsComponent implements OnInit, OnDestroy {
 
     // Ensure history is an array before iterating
     const history = Array.isArray(this.history) ? this.history : [];
+    console.log('📊 Processing', history.length, 'matches for statistics...');
 
     for (const match of history) {
+      console.log(`🔍 Processing match:`, {
+        id: match.id,
+        date: match.date,
+        hasDate: !!match.date,
+        scoreA: match.scoreA,
+        scoreB: match.scoreB,
+        scorerA: match.scorerA,
+        scorerB: match.scorerB,
+        assistA: match.assistA,
+        assistB: match.assistB
+      });
+      
+      if (!match.date) {
+        console.warn('⚠️ Match has no date, skipping:', match);
+        continue;
+      }
+      
       const date = new Date(match.date);
+      if (isNaN(date.getTime())) {
+        console.warn('⚠️ Invalid date format, skipping match:', match.date);
+        continue;
+      }
+      
       const monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+      console.log(`   Month key: ${monthKey}`);
       
       if (!matchesByMonth[monthKey]) {
         matchesByMonth[monthKey] = [];
@@ -2846,11 +2910,32 @@ export class StatsComponent implements OnInit, OnDestroy {
           monthPlayerStats[playerName].redCards += reds;
         });
 
-        // Calculate total match stats
-        totalGoals += this.countStatOccurrences(match.scorerA) + this.countStatOccurrences(match.scorerB);
-        totalAssists += this.countStatOccurrences(match.assistA) + this.countStatOccurrences(match.assistB);
-        totalYellowCards += this.countStatOccurrences(match.yellowA) + this.countStatOccurrences(match.yellowB);
-        totalRedCards += this.countStatOccurrences(match.redA) + this.countStatOccurrences(match.redB);
+        // Calculate total match stats with debugging
+        const matchGoals = this.countStatOccurrences(match.scorerA) + this.countStatOccurrences(match.scorerB);
+        const matchAssists = this.countStatOccurrences(match.assistA) + this.countStatOccurrences(match.assistB);
+        const matchYellows = this.countStatOccurrences(match.yellowA) + this.countStatOccurrences(match.yellowB);
+        const matchReds = this.countStatOccurrences(match.redA) + this.countStatOccurrences(match.redB);
+        
+        console.log(`🔍 Match ${monthKey} stats:`, {
+          date: match.date,
+          scorerA: match.scorerA,
+          scorerB: match.scorerB,
+          assistA: match.assistA,
+          assistB: match.assistB,
+          yellowA: match.yellowA,
+          yellowB: match.yellowB,
+          redA: match.redA,
+          redB: match.redB,
+          calculatedGoals: matchGoals,
+          calculatedAssists: matchAssists,
+          calculatedYellows: matchYellows,
+          calculatedReds: matchReds
+        });
+        
+        totalGoals += matchGoals;
+        totalAssists += matchAssists;
+        totalYellowCards += matchYellows;
+        totalRedCards += matchReds;
       }
 
       // Find top performers for the month
@@ -2873,31 +2958,68 @@ export class StatsComponent implements OnInit, OnDestroy {
 
     // Calculate overall stats
     const allPlayersList = Object.values(playerStatsAll);
+    
+    // Also calculate totals from all matches directly
+    const directTotalGoals = this.history.reduce((sum, match) => 
+      sum + this.countStatOccurrences(match.scorerA) + this.countStatOccurrences(match.scorerB), 0);
+    const directTotalAssists = this.history.reduce((sum, match) => 
+      sum + this.countStatOccurrences(match.assistA) + this.countStatOccurrences(match.assistB), 0);
+    const directTotalYellows = this.history.reduce((sum, match) => 
+      sum + this.countStatOccurrences(match.yellowA) + this.countStatOccurrences(match.yellowB), 0);
+    const directTotalReds = this.history.reduce((sum, match) => 
+      sum + this.countStatOccurrences(match.redA) + this.countStatOccurrences(match.redB), 0);
+    
+    console.log('🔍 Stats comparison:', {
+      fromPlayers: {
+        goals: allPlayersList.reduce((sum, p) => sum + p.goals, 0),
+        assists: allPlayersList.reduce((sum, p) => sum + p.assists, 0),
+        yellows: allPlayersList.reduce((sum, p) => sum + p.yellowCards, 0),
+        reds: allPlayersList.reduce((sum, p) => sum + p.redCards, 0)
+      },
+      fromMatches: {
+        goals: directTotalGoals,
+        assists: directTotalAssists,
+        yellows: directTotalYellows,
+        reds: directTotalReds
+      }
+    });
+    
     this.overallStats = {
       totalMatches: this.history.length,
-      totalGoals: allPlayersList.reduce((sum, p) => sum + p.goals, 0),
-      totalAssists: allPlayersList.reduce((sum, p) => sum + p.assists, 0),
-      totalYellowCards: allPlayersList.reduce((sum, p) => sum + p.yellowCards, 0),
-      totalRedCards: allPlayersList.reduce((sum, p) => sum + p.redCards, 0)
+      totalGoals: directTotalGoals, // Use direct calculation instead of player aggregation
+      totalAssists: directTotalAssists,
+      totalYellowCards: directTotalYellows,
+      totalRedCards: directTotalReds
     };
 
     // Debug: Check calculated stats
-    console.log('📊 Calculated overallStats:', {
-      totalMatches: this.overallStats.totalMatches,
-      totalGoals: this.overallStats.totalGoals,
-      totalAssists: this.overallStats.totalAssists,
-      totalYellowCards: this.overallStats.totalYellowCards,
-      totalRedCards: this.overallStats.totalRedCards,
-      playersCount: allPlayersList.length,
-      samplePlayer: allPlayersList[0] || 'No players'
-    });
+    console.log('📊 Statistics calculation complete:');
+    console.log('   - Total matches:', this.overallStats.totalMatches);
+    console.log('   - Total goals:', this.overallStats.totalGoals);
+    console.log('   - Total assists:', this.overallStats.totalAssists);
+    console.log('   - Total yellow cards:', this.overallStats.totalYellowCards);
+    console.log('   - Total red cards:', this.overallStats.totalRedCards);
+    console.log('   - Players count:', allPlayersList.length);
+    console.log('   - Available months:', this.availableMonths.length);
+    console.log('   - Sample player:', allPlayersList[0] || 'No players');
+    
+    // Debug sample monthly stats
+    if (this.availableMonths.length > 0) {
+      const firstMonth = this.availableMonths[0];
+      console.log('📅 Sample monthly stats for', firstMonth, ':', this.monthlyStats[firstMonth]);
+    }
   }
 
-  private parsePlayerStatFromField(statField: string, playerName: string): number {
+  private parsePlayerStatFromField(statField: string | undefined, playerName: string): number {
     if (!statField || !playerName) return 0;
     
+    const fieldStr = String(statField).trim();
+    if (fieldStr === '') return 0;
+    
+    console.log(`🔍 Parsing field "${fieldStr}" for player "${playerName}"`);
+    
     // Handle comma-separated names with counts
-    const parts = statField.split(',');
+    const parts = fieldStr.split(',');
     let totalCount = 0;
     
     for (const part of parts) {
@@ -2907,15 +3029,19 @@ export class StatsComponent implements OnInit, OnDestroy {
       // Extract the name part (without count in parentheses)
       const nameWithoutCount = trimmed.replace(/\s*\(\d+\)$/, '').trim();
       
+      console.log(`   Checking part: "${nameWithoutCount}" against "${playerName}"`);
+      
       // Check for exact match
       if (this.isExactNameMatch(nameWithoutCount, playerName)) {
         // Extract number if any (e.g., "PlayerName (2)" -> 2)
         const countMatch = trimmed.match(/\((\d+)\)$/);
         const count = countMatch ? parseInt(countMatch[1]) : 1;
         totalCount += count;
+        console.log(`   ✅ Match found! Count: ${count}`);
       }
     }
     
+    console.log(`   Final count for "${playerName}": ${totalCount}`);
     return totalCount;
   }
 
@@ -2955,26 +3081,52 @@ export class StatsComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  private countStatOccurrences(statField: string): number {
-    if (!statField) return 0;
+  private countStatOccurrences(statField: string | undefined): number {
+    if (!statField || statField.trim() === '') {
+      return 0;
+    }
+    
+    // Convert to string if it's not already
+    const fieldStr = String(statField).trim();
+    
+    console.log('🔍 Counting occurrences in field:', `"${fieldStr}"`);
     
     // Count total occurrences in the field
-    const parts = statField.split(',');
+    const parts = fieldStr.split(',');
     let total = 0;
+    
     for (const part of parts) {
       const trimmed = part.trim();
-      if (trimmed) {
+      if (trimmed && trimmed !== '') {
         // Extract number if any (e.g., "PlayerName (2)" -> 2), otherwise count as 1
         const match = trimmed.match(/\((\d+)\)/);
-        total += match ? parseInt(match[1]) : 1;
+        const count = match ? parseInt(match[1]) : 1;
+        total += count;
+        console.log(`   Part: "${trimmed}" -> Count: ${count}`);
       }
     }
+    
+    console.log(`   Total count for "${fieldStr}": ${total}`);
     return total;
   }
 
   updateStats() {
+    console.log('🔄 updateStats() called - triggering recalculation...');
     // Trigger recalculation if needed
     this.calculateStats();
+    
+    // Update pagination after stats calculation
+    this.updatePagination();
+  }
+  
+  private updatePagination() {
+    const currentStats = this.getCurrentPlayerStats();
+    this.totalPages = Math.ceil(currentStats.length / this.pageSize);
+    
+    // Reset to first page if current page is out of bounds
+    if (this.currentPage >= this.totalPages) {
+      this.currentPage = 0;
+    }
   }
 
   getAllPlayerStats(): PlayerStats[] {
