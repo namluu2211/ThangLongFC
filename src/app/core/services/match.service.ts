@@ -755,43 +755,59 @@ export class MatchService {
       console.log('✅ Match saved to localStorage');
       
       // Also save to Firebase history for real-time database persistence
+      // Always use teamA_names and teamB_names if present, fallback to mapping from TeamComposition
+      const matchWithNames = match as MatchInfo & { teamA_names?: string[]; teamB_names?: string[] };
+      const teamA_names = matchWithNames.teamA_names || (match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || []);
+      const teamB_names = matchWithNames.teamB_names || (match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || []);
+
       const historyEntry = {
         date: match.date,
         description: `Trận đấu ngày ${match.date}`,
-        
-        // Map team data to simple arrays
-        teamA: match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
-        teamB: match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
-        
+        // Main team arrays for history display (always use the correct arrays)
+        teamA: teamA_names,
+        teamB: teamB_names,
+        // Also save as teamA_names and teamB_names for compatibility
+        teamA_names,
+        teamB_names,
         // Map scores
         scoreA: match.result?.scoreA || 0,
         scoreB: match.result?.scoreB || 0,
-        
         // Map goal scorers (include ALL scorers as comma-separated)
         scorerA: match.result?.goalsA?.map(g => g.playerName).join(', ') || '',
         scorerB: match.result?.goalsB?.map(g => g.playerName).join(', ') || '',
-        
         // Map assists (include ALL assists as comma-separated)
         assistA: match.result?.goalsA?.map(g => g.assistedBy).filter(a => a).join(', ') || '',
         assistB: match.result?.goalsB?.map(g => g.assistedBy).filter(a => a).join(', ') || '',
-        
         // Map cards (convert arrays to comma-separated strings)
         yellowA: match.result?.yellowCardsA?.map(c => c.playerName).join(', ') || '',
         yellowB: match.result?.yellowCardsB?.map(c => c.playerName).join(', ') || '',
         redA: match.result?.redCardsA?.map(c => c.playerName).join(', ') || '',
         redB: match.result?.redCardsB?.map(c => c.playerName).join(', ') || '',
-        
-        // Map financial data
+        // Map financial data with detailed Thu/Chi fields
         thu: (match.finances?.revenue?.teamARevenue || 0) + (match.finances?.revenue?.teamBRevenue || 0),
         thuMode: 'auto' as const,
         chi_total: (match.finances?.expenses?.referee || 0) + (match.finances?.expenses?.water || 0) + (match.finances?.expenses?.field || 0) + (match.finances?.expenses?.transportation || 0) + (match.finances?.expenses?.food || 0) + (match.finances?.expenses?.equipment || 0) + (match.finances?.expenses?.other || 0),
-        
+        chi_nuoc: match.finances?.expenses?.water || 0,
+        chi_san: match.finances?.expenses?.field || 0,
+        chi_trongtai: match.finances?.expenses?.referee || 0,
         // Metadata
         createdAt: match.createdAt,
         updatedAt: match.updatedAt,
         lastSaved: new Date().toISOString()
       };
-      
+
+      console.log('🔥 Firebase history entry being saved:', JSON.stringify({
+        teamA: historyEntry.teamA,
+        teamB: historyEntry.teamB,
+        teamA_names: historyEntry.teamA_names,
+        teamB_names: historyEntry.teamB_names,
+        thu: historyEntry.thu,
+        chi_total: historyEntry.chi_total,
+        chi_nuoc: historyEntry.chi_nuoc,
+        chi_san: historyEntry.chi_san,
+        chi_trongtai: historyEntry.chi_trongtai
+      }, null, 2));
+
       await this.firebaseService.addHistoryEntry(historyEntry);
       console.log('✅ Match saved to Firebase history');
       

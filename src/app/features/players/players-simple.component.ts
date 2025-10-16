@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 
 import { PlayerService } from '../../core/services/player.service';
-import { PlayerInfo } from '../../core/models/player.model';
+import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 import { PerformanceService } from '../../services/performance.service';
 import { AssetOptimizationService } from '../../services/asset-optimization.service';
 
@@ -22,47 +22,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
           <p>Quản lý và theo dõi thông tin chi tiết của tất cả cầu thủ</p>
         </div>
         
-        <div class="header-stats">
-          <div class="quick-stat">
-            <div class="stat-icon">
-              <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ filteredPlayers.length }}</div>
-              <div class="stat-label">Tổng cầu thủ</div>
-            </div>
-          </div>
-          
-          <div class="quick-stat">
-            <div class="stat-icon">
-              <i class="fas fa-trophy"></i>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ getTopPlayers().length }}</div>
-              <div class="stat-label">Cầu thủ xuất sắc</div>
-            </div>
-          </div>
-          
-          <div class="quick-stat">
-            <div class="stat-icon">
-              <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ getAverageAge() }}</div>
-              <div class="stat-label">Tuổi TB</div>
-            </div>
-          </div>
-          
-          <div class="quick-stat">
-            <div class="stat-icon">
-              <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ lastUpdate ? (lastUpdate | date:'HH:mm') : '--' }}</div>
-              <div class="stat-label">Cập nhật lần cuối</div>
-            </div>
-          </div>
-        </div>
+        <!-- Removed header stats (Tổng cầu thủ, Cầu thủ xuất sắc, Cập nhật lần cuối) as requested -->
 
         <!-- Action Section -->
         <div class="actions-section">
@@ -149,13 +109,6 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
                 {{ position }}
               </option>
             </select>
-            
-            <select (change)="onAgeFilterChange($event)" class="filter-select">
-              <option value="">Tất cả độ tuổi</option>
-              <option value="young">Trẻ (< 25)</option>
-              <option value="prime">Đỉnh cao (25-30)</option>
-              <option value="veteran">Kỳ cựu (> 30)</option>
-            </select>
           </div>
         </div>
       </div>
@@ -175,7 +128,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let player of filteredPlayers; trackBy: trackByPlayerId" class="player-row">
+            <tr *ngFor="let player of paginatedPlayers; trackBy: trackByPlayerId" class="player-row">
               <td class="avatar-cell">
                 <img 
                   [src]="getPlayerAvatar(player)" 
@@ -205,7 +158,109 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
             </tr>
           </tbody>
         </table>
+        <div class="pagination-bar" *ngIf="totalPages > 1">
+          <button class="page-btn" (click)="prevPage()" [disabled]="currentPage === 0">«</button>
+          <ng-container *ngFor="let p of pages; let i = index; trackBy: trackByPageIndex">
+            <button class="page-btn" [class.active]="i === currentPage" (click)="goToPage(i)">{{ i + 1 }}</button>
+          </ng-container>
+            <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages - 1">»</button>
+          <div class="page-info">Hiển thị {{ pageStart + 1 }} - {{ pageEnd }} / {{ filteredPlayers.length }}</div>
+        </div>
       </div>
+
+      <!-- Detail / Create / Edit Panels -->
+      <div 
+        class="overlay" 
+        *ngIf="panelOpen" 
+        (click)="closePanels()" 
+        tabindex="0" 
+        role="presentation" 
+        (keydown.escape)="closePanels()" 
+        (keydown.enter)="closePanels()" 
+        (keydown.space)="closePanels()"></div>
+
+      <!-- Detail Panel -->
+      <section *ngIf="isDetailOpen" class="side-panel animate-in" role="dialog" aria-modal="true" aria-label="Thông tin cầu thủ">
+        <header class="panel-header">
+          <h3>Thông tin cầu thủ</h3>
+          <button class="icon-btn" (click)="closePanels()" aria-label="Đóng">✕</button>
+        </header>
+        <ng-container *ngIf="selectedPlayer; else noPlayer">
+          <div class="panel-body">
+            <div class="player-hero">
+              <img class="hero-avatar" [src]="getPlayerAvatar(selectedPlayer)" [alt]="getPlayerDisplayName(selectedPlayer)" />
+              <div class="hero-meta">
+                <div class="hero-name">{{ getPlayerDisplayName(selectedPlayer) }}</div>
+                <div class="hero-position">{{ selectedPlayer.position || 'Chưa xác định' }}</div>
+              </div>
+            </div>
+            <div class="mini-stats">
+              <div class="mini-stat"><span>{{ selectedPlayer.stats?.totalMatches || 0 }}</span><span class="mini-label">Trận</span></div>
+              <div class="mini-stat"><span>{{ selectedPlayer.stats?.goals || 0 }}</span><span class="mini-label">Bàn</span></div>
+              <div class="mini-stat"><span>{{ selectedPlayer.stats?.assists || 0 }}</span><span class="mini-label">Kiến tạo</span></div>
+            </div>
+            <dl class="detail-list">
+              <div><dt>Tuổi</dt><dd>{{ calculateAge(selectedPlayer) }}</dd></div>
+              <div><dt>Chiều cao</dt><dd>{{ selectedPlayer.height || '—' }}cm</dd></div>
+              <div><dt>Cân nặng</dt><dd>{{ selectedPlayer.weight || '—' }}kg</dd></div>
+              <div><dt>Trạng thái</dt><dd>{{ selectedPlayer.status }}</dd></div>
+            </dl>
+          </div>
+          <footer class="panel-footer">
+            <button class="primary-btn" (click)="openEditPlayer(selectedPlayer)">Chỉnh sửa</button>
+            <button class="ghost-btn" (click)="closePanels()">Đóng</button>
+          </footer>
+        </ng-container>
+        <ng-template #noPlayer><p>Không có dữ liệu.</p></ng-template>
+      </section>
+
+      <!-- Create Panel -->
+      <section *ngIf="isCreateOpen" class="side-panel animate-in" role="dialog" aria-modal="true" aria-label="Thêm cầu thủ">
+        <header class="panel-header">
+          <h3>Thêm cầu thủ</h3>
+          <button class="icon-btn" (click)="closePanels()" aria-label="Đóng">✕</button>
+        </header>
+        <div class="panel-body">
+          <form (ngSubmit)="submitCreate()" #createForm="ngForm" class="player-form" id="createPlayerForm">
+            <div class="form-grid">
+              <label><span>Tên *</span><input name="firstName" [(ngModel)]="createModel.firstName" required /></label>
+              <label><span>Họ</span><input name="lastName" [(ngModel)]="createModel.lastName" /></label>
+              <label><span>Ngày sinh</span><input type="date" name="dateOfBirth" [(ngModel)]="createModel.dateOfBirth" /></label>
+              <label><span>Vị trí</span><input name="position" [(ngModel)]="createModel.position" /></label>
+              <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="createModel.height" /></label>
+              <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="createModel.weight" /></label>
+            </div>
+          </form>
+        </div>
+        <footer class="panel-footer">
+          <button class="primary-btn" [disabled]="createForm.invalid" type="submit" form="createPlayerForm">Lưu</button>
+          <button class="ghost-btn" type="button" (click)="closePanels()">Hủy</button>
+        </footer>
+      </section>
+
+      <!-- Edit Panel -->
+      <section *ngIf="isEditOpen" class="side-panel animate-in" role="dialog" aria-modal="true" aria-label="Chỉnh sửa cầu thủ">
+        <header class="panel-header">
+          <h3>Chỉnh sửa cầu thủ</h3>
+          <button class="icon-btn" (click)="closePanels()" aria-label="Đóng">✕</button>
+        </header>
+        <div class="panel-body" *ngIf="editModel">
+          <form (ngSubmit)="submitEdit()" #editForm="ngForm" class="player-form" id="editPlayerForm">
+            <div class="form-grid">
+              <label><span>Tên *</span><input name="firstName" [(ngModel)]="editModel.firstName" required /></label>
+              <label><span>Họ</span><input name="lastName" [(ngModel)]="editModel.lastName" /></label>
+              <label><span>Ngày sinh</span><input type="date" name="dateOfBirth" [(ngModel)]="editModel.dateOfBirth" /></label>
+              <label><span>Vị trí</span><input name="position" [(ngModel)]="editModel.position" /></label>
+              <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="editModel.height" /></label>
+              <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="editModel.weight" /></label>
+            </div>
+          </form>
+        </div>
+        <footer class="panel-footer">
+          <button class="primary-btn" [disabled]="editForm.invalid" type="submit" form="editPlayerForm">Cập nhật</button>
+          <button class="ghost-btn" type="button" (click)="closePanels()">Hủy</button>
+        </footer>
+      </section>
 
       <!-- No Results -->
       <div *ngIf="!isLoading && !errorMessage && filteredPlayers.length === 0 && allPlayers.length > 0" class="no-results">
@@ -523,6 +578,142 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       background: rgba(255, 255, 255, 0.3);
     }
 
+    .pagination-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 15px;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      background: #e0e7ff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: #c7d2fe;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .page-btn.active {
+      background: #667eea;
+      color: #fff;
+    }
+
+    .page-info {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    /* Panels / overlay */
+  .overlay { position: fixed; inset:0; background: rgba(0,0,0,0.45); backdrop-filter: blur(2px); z-index: 80; animation: fadeIn .25s ease; }
+    .side-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 380px;
+      max-width: 92%;
+      height: auto;
+      max-height: 88vh;
+      background: #fff;
+      z-index: 90;
+      padding: 0;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.24);
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+  .animate-in { animation: slideIn .3s ease; }
+  @keyframes slideIn { from { transform: translate(-50%, -50%) scale(0.94); opacity:0;} to { transform: translate(-50%, -50%) scale(1); opacity:1;} }
+  @keyframes fadeIn { from { opacity:0;} to { opacity:1;} }
+  .panel-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #eee; background:#fafbfd; border-radius:16px 16px 0 0; }
+  .panel-header h3 { margin:0; font-size:1.15rem; font-weight:600; }
+    .panel-body {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0;
+    }
+  .icon-btn { background:transparent; border:none; font-size:1.1rem; cursor:pointer; line-height:1; padding:4px 6px; border-radius:4px; }
+  .icon-btn:hover { background:#f2f2f2; }
+  .player-hero { display:flex; gap:14px; padding:20px 20px 12px; align-items:center; }
+  .hero-avatar { width:70px; height:70px; border-radius:50%; object-fit:cover; background:#f3f3f3; box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,0.1); }
+  .hero-meta { display:flex; flex-direction:column; justify-content:center; }
+  .hero-name { font-weight:600; font-size:1.05rem; }
+  .hero-position { font-size:0.75rem; text-transform:uppercase; letter-spacing:.5px; background:#eef2ff; color:#3845a7; padding:4px 8px; border-radius:12px; margin-top:6px; width:max-content; }
+  .mini-stats { display:flex; gap:10px; padding:0 20px 16px; }
+  .mini-stat { background:#f8f9fb; padding:10px 14px; border-radius:10px; display:flex; flex-direction:column; align-items:center; flex:1; }
+  .mini-stat span { font-weight:600; font-size:1rem; }
+  .mini-stat .mini-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:.5px; color:#555; }
+  .detail-list { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; padding:8px 20px 20px; }
+  .detail-list dt { font-size:0.65rem; text-transform:uppercase; letter-spacing:.5px; color:#666; margin:0 0 4px; }
+  .detail-list dd { margin:0; font-size:0.88rem; font-weight:500; }
+  .panel-footer { position:sticky; bottom:0; background:#fff; padding:16px 20px; display:flex; gap:12px; border-top:1px solid #eee; border-radius:0 0 16px 16px; }
+  .primary-btn, .ghost-btn, .icon-btn, .action-btn { font-family:inherit; }
+  .primary-btn { background:#667eea; border:none; padding:11px 20px; color:#fff; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(102,126,234,0.35); flex:1; }
+  .primary-btn:hover { background:#5a6fd6; }
+  .primary-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .ghost-btn { background:#f1f2f6; border:none; padding:11px 18px; border-radius:8px; font-size:0.8rem; cursor:pointer; flex:1; }
+  .ghost-btn:hover { background:#e3e6ee; }
+    .player-form {
+      padding: 20px 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 12px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .form-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: #555;
+    }
+    .form-grid input {
+      padding: 9px 11px;
+      border: 1px solid #d4d8e3;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .form-grid input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102,126,234,0.25);
+    }
+  @media (max-width:520px) { 
+    .side-panel { width:90%; max-height:92vh; }
+    .form-grid { grid-template-columns:1fr; }
+  }
+
     @media (max-width: 768px) {
       .search-container {
         flex-direction: column;
@@ -558,17 +749,38 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   errorMessage = '';
   lastUpdate?: Date;
   selectedPlayer: PlayerInfo | null = null;
+  isDetailOpen = false;
+  isCreateOpen = false;
+  isEditOpen = false;
+  createModel: Partial<PlayerInfo> = { firstName: '', lastName: '', position: '' };
+  editModel: Partial<PlayerInfo> | null = null;
+  
+  // Derived UI state
+  get panelOpen(): boolean {
+    return this.isDetailOpen || this.isCreateOpen || this.isEditOpen;
+  }
   
   // Cache for expensive computations
-  private cachedAverageAge?: number;
-  private cachedTopPlayers?: PlayerInfo[];
-  private cacheInvalidated = true;
+  // (Removed average age & top players cache fields)
   
   // Filter state
   searchTerm = '';
   selectedPosition = '';
-  selectedAgeGroup = '';
   availablePositions: string[] = [];
+
+  // Pagination state
+  readonly pageSize = 10;
+  currentPage = 0;
+
+  get totalPages(): number { return Math.max(1, Math.ceil(this.filteredPlayers.length / this.pageSize)); }
+  get paginatedPlayers(): PlayerInfo[] {
+    const start = this.currentPage * this.pageSize;
+    return this.filteredPlayers.slice(start, start + this.pageSize);
+  }
+  get pageStart(): number { return this.currentPage * this.pageSize; }
+  get pageEnd(): number { return Math.min(this.filteredPlayers.length, this.pageStart + this.pageSize); }
+  get pages(): number[] { return Array.from({ length: this.totalPages }, (_, i) => i); }
+  trackByPageIndex = (index: number) => index;
   
   trackByPlayerId = (index: number, player: PlayerInfo): string => {
     return player.id || `${player.firstName}-${index}`;
@@ -652,7 +864,6 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
 
   processPlayersData() {
     this.lastUpdate = new Date();
-    this.invalidateCache();
     this.extractAvailablePositions();
     this.applyFilters();
     this.cdr.markForCheck();
@@ -682,20 +893,8 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(player => player.position === this.selectedPosition);
     }
 
-    // Age group filter
-    if (this.selectedAgeGroup) {
-      filtered = filtered.filter(player => {
-        const age = this.calculateAge(player);
-        switch (this.selectedAgeGroup) {
-          case 'young': return age < 25;
-          case 'prime': return age >= 25 && age <= 30;
-          case 'veteran': return age > 30;
-          default: return true;
-        }
-      });
-    }
-
     this.filteredPlayers = filtered;
+    this.currentPage = 0; // reset to first page when filters change
   }
 
   onSearchInput(event: Event) {
@@ -710,17 +909,9 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onAgeFilterChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.selectedAgeGroup = target.value;
-    this.applyFilters();
-    this.cdr.markForCheck();
-  }
-
   clearFilters() {
     this.searchTerm = '';
     this.selectedPosition = '';
-    this.selectedAgeGroup = '';
     this.applyFilters();
     this.cdr.markForCheck();
   }
@@ -750,35 +941,24 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   // Cached computation methods
-  getAverageAge(): number {
-    if (this.cacheInvalidated || this.cachedAverageAge === undefined) {
-      if (this.allPlayers.length === 0) {
-        this.cachedAverageAge = 0;
-      } else {
-        const totalAge = this.allPlayers.reduce((sum, player) => sum + this.calculateAge(player), 0);
-        this.cachedAverageAge = Math.round(totalAge / this.allPlayers.length);
-      }
+  // Pagination controls
+  goToPage(page: number) {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+      this.cdr.markForCheck();
     }
-    return this.cachedAverageAge;
   }
-
-  getTopPlayers(): PlayerInfo[] {
-    if (this.cacheInvalidated || !this.cachedTopPlayers) {
-      // Simple heuristic for "top" players - could be expanded with more criteria
-      this.cachedTopPlayers = this.allPlayers
-        .filter(player => {
-          const age = this.calculateAge(player);
-          return age >= 23 && age <= 32;
-        })
-        .slice(0, 10);
+  nextPage() {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+      this.cdr.markForCheck();
     }
-    return this.cachedTopPlayers;
   }
-
-  invalidateCache() {
-    this.cacheInvalidated = true;
-    this.cachedAverageAge = undefined;
-    this.cachedTopPlayers = undefined;
+  prevPage() {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this.cdr.markForCheck();
+    }
   }
 
   getPlayerAvatar(player: PlayerInfo): string {
@@ -811,18 +991,87 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
 
   viewPlayerDetails(player: PlayerInfo) {
     this.selectedPlayer = player;
-    console.log('Viewing details for player:', this.getPlayerDisplayName(player));
-    // Here you would typically open a modal or navigate to a detail page
+    this.isDetailOpen = true;
+    this.isCreateOpen = false;
+    this.isEditOpen = false;
+    this.cdr.markForCheck();
   }
 
   openCreatePlayerModal() {
-    console.log('Opening create player modal');
-    // Implementation for creating new player
+    this.resetCreateModel();
+    this.isCreateOpen = true;
+    this.isDetailOpen = false;
+    this.isEditOpen = false;
+    this.cdr.markForCheck();
   }
 
   exportPlayerStats() {
     console.log('Exporting player statistics');
     // Implementation for exporting data
+  }
+
+  openEditPlayer(player: PlayerInfo) {
+    this.selectedPlayer = player;
+    this.editModel = { ...player };
+    this.isEditOpen = true;
+    this.isDetailOpen = false;
+    this.isCreateOpen = false;
+    this.cdr.markForCheck();
+  }
+
+  closePanels() {
+    this.isDetailOpen = false;
+    this.isCreateOpen = false;
+    this.isEditOpen = false;
+    this.cdr.markForCheck();
+  }
+
+  resetCreateModel() {
+    this.createModel = { firstName: '', lastName: '', position: '', dateOfBirth: '' };
+  }
+
+  async submitCreate() {
+    if (!this.createModel.firstName) return;
+    try {
+      const base: Omit<PlayerInfo, 'id' | 'stats' | 'createdAt' | 'updatedAt'> = {
+        firstName: this.createModel.firstName || '',
+        lastName: this.createModel.lastName || '',
+        fullName: `${this.createModel.firstName || ''} ${this.createModel.lastName || ''}`.trim(),
+        position: this.createModel.position || 'Chưa xác định',
+        dateOfBirth: this.createModel.dateOfBirth || '',
+        height: this.createModel.height || 0,
+        weight: this.createModel.weight || 0,
+        isRegistered: true,
+  status: PlayerStatus.ACTIVE,
+        avatar: '',
+        notes: ''
+      };
+      await this.playerService.createPlayer(base);
+      this.loadPlayersFromService();
+      this.closePanels();
+    } catch (e) {
+      console.error('Error creating player', e);
+    }
+  }
+
+  async submitEdit() {
+    if (!this.editModel || !this.editModel.id) return;
+    try {
+      const updates: Partial<PlayerInfo> = {
+        firstName: this.editModel.firstName,
+        lastName: this.editModel.lastName,
+        fullName: `${this.editModel.firstName || ''} ${this.editModel.lastName || ''}`.trim(),
+        position: this.editModel.position,
+        dateOfBirth: this.editModel.dateOfBirth,
+        height: this.editModel.height,
+        weight: this.editModel.weight
+      };
+      await this.playerService.updatePlayer(this.editModel.id, updates);
+      this.loadPlayersFromService();
+      this.closePanels();
+    } catch (e) {
+      console.error('Error updating player', e);
+    }
   }
 
   ngOnDestroy() {
