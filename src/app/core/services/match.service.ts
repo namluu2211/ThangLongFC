@@ -767,13 +767,13 @@ export class MatchService {
         scoreA: match.result?.scoreA || 0,
         scoreB: match.result?.scoreB || 0,
         
-        // Map goal scorers (take first scorer if multiple)
-        scorerA: match.result?.goalsA?.[0]?.playerName || '',
-        scorerB: match.result?.goalsB?.[0]?.playerName || '',
+        // Map goal scorers (include ALL scorers as comma-separated)
+        scorerA: match.result?.goalsA?.map(g => g.playerName).join(', ') || '',
+        scorerB: match.result?.goalsB?.map(g => g.playerName).join(', ') || '',
         
-        // Map assists (take first assist if multiple)
-        assistA: match.result?.goalsA?.[0]?.assistedBy || '',
-        assistB: match.result?.goalsB?.[0]?.assistedBy || '',
+        // Map assists (include ALL assists as comma-separated)
+        assistA: match.result?.goalsA?.map(g => g.assistedBy).filter(a => a).join(', ') || '',
+        assistB: match.result?.goalsB?.map(g => g.assistedBy).filter(a => a).join(', ') || '',
         
         // Map cards (convert arrays to comma-separated strings)
         yellowA: match.result?.yellowCardsA?.map(c => c.playerName).join(', ') || '',

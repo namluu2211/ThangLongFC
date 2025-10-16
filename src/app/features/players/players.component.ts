@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy, Input, TrackByFunction, inject, ChangeDet
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, transferArrayItem } from '@angular/cdk/drag-drop';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, Subscription } from 'rxjs';
+import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { Player } from './player-utils';
 import { FirebasePlayerService } from '../../core/services/firebase-player.service';
 import { MatchService } from '../../core/services/match.service';
@@ -41,6 +41,14 @@ interface HistoryEntry {
   teamB: Player[];
   scoreA: number;
   scoreB: number;
+  scorerA?: string;
+  scorerB?: string;
+  assistA?: string;
+  assistB?: string;
+  yellowA?: string;
+  yellowB?: string;
+  redA?: string;
+  redB?: string;
 }
 
 @Component({
@@ -1691,8 +1699,11 @@ interface HistoryEntry {
     .position-badge {
       padding: 4px 8px;
       border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
+      display: inline-flex;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
       text-transform: uppercase;
     }
 
@@ -1924,7 +1935,7 @@ interface HistoryEntry {
       left: 0;
       right: 0;
       bottom: 0;
-      background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+Cjwvc3ZnPg==') repeat;
+      background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+');
       opacity: 0.1;
       pointer-events: none;
     }
@@ -2496,41 +2507,6 @@ interface HistoryEntry {
       border-left: 4px solid #f39c12;
     }
 
-    .formation-header {
-      font-weight: 700;
-      color: #2c3e50;
-      margin-bottom: 0.75rem;
-      text-align: center;
-      font-size: 1rem;
-    }
-
-    .formation-players {
-      color: #495057;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      text-align: center;
-      min-height: 40px;
-    }
-
-    .formation-player {
-      font-weight: 500;
-    }
-
-    .formation-vs {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #6c757d;
-      background: white;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      flex-shrink: 0;
-    }
-
     .team-selector {
       background: white;
       border-radius: 15px;
@@ -2779,7 +2755,7 @@ interface HistoryEntry {
 
     .results-header-enhanced { text-align: center; margin-bottom: 2.5rem; }
     .ai-badge { background: #667eea; color: white; padding: 0.5rem 1.2rem; border-radius: 25px; font-weight: 600; margin-bottom: 1rem; }
-    .results-title { color: #667eea; font-weight: 800; margin-bottom: 0.5rem; font-size: 1.8rem; }
+    .results-title { color: #1a202c; font-weight: 800; margin-bottom: 0.5rem; font-size: 1.8rem; }
     .results-subtitle { color: #64748b; margin: 0; }
     .highlight { color: #667eea; font-weight: 700; }
 
@@ -3035,9 +3011,6 @@ interface HistoryEntry {
       background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
     }
 
-
-
-
     .match-history-enhanced { background: white; border-radius: 15px; padding: 2rem; margin-top: 2rem; }
     .history-header-enhanced { text-align: center; margin-bottom: 2rem; }
     .history-badge { background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 15px; }
@@ -3062,7 +3035,6 @@ interface HistoryEntry {
       margin: 0;
       font-weight: 500;
     }
-
 
     .history-cards-grid {
       display: grid;
@@ -3132,8 +3104,6 @@ interface HistoryEntry {
     }
     .xanh-icon { background: #3b82f6; }
     .cam-icon { background: #f59e0b; }
-    .draws-icon { background: #6b7280; }
-    .total-icon { background: #8b5cf6; }
 
     .card-info {
       flex: 1;
@@ -3169,12 +3139,6 @@ interface HistoryEntry {
       font-size: 1rem;
     }
 
-    .stat-label-enhanced {
-      color: #64748b;
-      font-size: 1rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
     .progress-indicator {
       margin-bottom: 1rem;
     }
@@ -3295,6 +3259,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Performance optimization
   private aiAnalysisTimeout?: ReturnType<typeof setTimeout>;
   private analysisCache = new Map<string, AIAnalysisResult>();
+  private lastTeamCompositionHash = '';
 
   trackByPlayerId: TrackByFunction<Player> = (index: number, player: Player) => {
     return player.id;
@@ -3305,31 +3270,99 @@ export class PlayersComponent implements OnInit, OnDestroy {
   trackByPlayerName = (index: number, name: string) => name;
 
   async loadPlayers() {
-    // Since we're using Firebase real-time service, don't create new subscriptions
-    // Just trigger the data conversion with current data
     try {
       console.log('🔄 loadPlayers called...');
-      this.isLoadingPlayers = true;
+      console.log('📊 Current allPlayers count BEFORE loading:', this.allPlayers?.length || 0);
       
+      // Reset conversion state and clear players at the start
+      this.resetConversionState();
+      console.log('🧹 Reset conversion state for fresh load');
+      
+      this.isLoadingPlayers = true;
+      this.cdr.markForCheck();
+      
+      // First, try to get data from PlayerService
       const currentData = this.playerService.getAllPlayers();
-      console.log('📊 Current Firebase data:', currentData?.length || 0);
+      console.log('📊 PlayerService data:', currentData?.length || 0);
       
       if (currentData && currentData.length > 0) {
-        console.log('✅ Using Firebase data');
+        console.log('✅ Using PlayerService data');
         this.corePlayersData = currentData;
+        this.allPlayers = []; // Clear before converting
         this.convertCorePlayersToLegacyFormat(currentData);
         this.updateFilteredPlayers();
         this.isLoadingPlayers = false;
-        console.log('✅ loadPlayers completed with Firebase data:', this.allPlayers.length);
+        console.log('✅ loadPlayers completed with PlayerService data:', this.allPlayers.length);
       } else {
-        // Fallback to direct load if Firebase data is not available
-        console.log('⚠️ No Firebase data available, falling back to assets/players.json');
-        this.loadPlayersDirectly();
+        console.log('⚠️ No PlayerService data, trying assets/players.json...');
+        
+        // Fallback to loading from JSON file
+        try {
+          const response = await fetch('assets/players.json');
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const jsonData = await response.json();
+          console.log('📦 Loaded from JSON:', jsonData?.length || 0);
+          
+          if (jsonData && Array.isArray(jsonData) && jsonData.length > 0) {
+            // Convert JSON data directly to allPlayers format
+            this.allPlayers = jsonData.map((player: any) => ({
+              id: player.id || Math.floor(Math.random() * 100000),
+              firstName: player.firstName || 'Unknown',
+              lastName: player.lastName || '',
+              position: player.position || 'Chưa xác định',
+              DOB: typeof player.DOB === 'number' ? player.DOB : 0,
+              height: player.height || 0,
+              weight: player.weight || 0,
+              avatar: player.avatar || 'assets/images/default-avatar.svg',
+              note: player.note || ''
+            }));
+            
+            console.log('✅ Converted JSON players:', this.allPlayers.length);
+            this.updateFilteredPlayers();
+          } else {
+            throw new Error('Invalid JSON data format');
+          }
+          
+        } catch (jsonError) {
+          console.error('❌ Failed to load from JSON:', jsonError);
+          
+          // Last resort - create sample data
+          this.allPlayers = [
+            {
+              id: 1,
+              firstName: 'Mẫu',
+              lastName: 'Cầu thủ',
+              position: 'Tiền đạo',
+              DOB: 1995,
+              height: 175,
+              weight: 70,
+              avatar: 'assets/images/default-avatar.svg',
+              note: 'Dữ liệu mẫu - Vui lòng thêm cầu thủ thật'
+            }
+          ];
+          
+          console.warn('⚠️ Using sample data');
+          this.updateFilteredPlayers();
+        }
+        
       }
+      
+      // Update AI player list
+      this.allPlayersForAI = this.allPlayers.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+      
+      // Force UI update
+      this.cdr.markForCheck();
       
     } catch (error) {
       console.error('❌ Error in loadPlayers:', error);
-      this.loadPlayersDirectly();
+      this.isLoadingPlayers = false;
+      this.allPlayers = [];
+      this.updateFilteredPlayers();
+      this.cdr.markForCheck();
     }
   }
 
@@ -3345,7 +3378,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
           firstName: player.firstName,
           lastName: player.lastName || '',
           position: player.position || 'Chưa xác định',
-          DOB: typeof player.DOB === 'number' ? player.DOB : 0,
+          DOB: player.DOB ? new Date(player.DOB).getFullYear() : 0,
           height: player.height || 0,
           weight: player.weight || 0,
           avatar: player.avatar || 'assets/images/default-avatar.svg',
@@ -3425,59 +3458,623 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.syncAIWithTeams(); // Auto-sync AI selections
   }
 
-  onDrop(event: CdkDragDrop<Player[]>) {
-
-    if (event.previousContainer === event.container) {
-      // Moving within the same list - reorder if needed
-      return;
-    } else {
-      // Moving between lists
-      try {
-        transferArrayItem(
-          event.previousContainer.data,
-          event.container.data,
-          event.previousIndex,
-          event.currentIndex
-        );
-      } catch (error) {
-        console.error('Transfer failed:', error);
-        return;
-      }
-    }
-    
-    // Auto-sync AI selections when teams change
-    this.syncAIWithTeams();
+  togglePlayerListView() {
+    this.showPlayerList = !this.showPlayerList;
+    this.cdr.markForCheck();
   }
 
-  removeFromTeam(player: Player, team: 'A' | 'B') {
-    switch (team) {
-      case 'A':
-        { const indexA = this.teamA.findIndex(p => p.id === player.id);
-        if (indexA > -1) this.teamA.splice(indexA, 1);
-        break; }
-      case 'B':
-        { const indexB = this.teamB.findIndex(p => p.id === player.id);
-        if (indexB > -1) this.teamB.splice(indexB, 1);
-        break; }
+  toggleRegistration(player: Player) {
+    const index = this.registeredPlayers.findIndex(rp => rp.id === player.id);
+    
+    if (index > -1) {
+      this.registeredPlayers.splice(index, 1);
+    } else {
+      this.registeredPlayers.push(player);
+    }
+    
+    localStorage.setItem('registeredPlayers', JSON.stringify(this.registeredPlayers));
+    
+    if (this.useRegistered) {
+      this.updateFilteredPlayers();
+    }
+    
+    this.cdr.markForCheck();
+  }
+
+  getDisplayPlayers(): Player[] {
+    return this.useRegistered ? this.registeredPlayers : this.allPlayers;
+  }
+
+  canDivideTeams(): boolean {
+    return this.getDisplayPlayers().length >= 2;
+  }
+
+  toggleUseRegistered() {
+    this.useRegistered = !this.useRegistered;
+    this.currentPage = 0;
+    this._invalidatePaginationCache();
+    this.updateFilteredPlayers();
+    this.cdr.markForCheck();
+  }
+
+  clearRegisteredPlayers() {
+    this.registeredPlayers = [];
+    localStorage.removeItem('registeredPlayers');
+    this.showTemporaryMessage('saveRegisteredMessage', 'Đã xóa tất cả cầu thủ đã đăng ký');
+    
+    if (this.useRegistered) {
+      this.updateFilteredPlayers();
+    }
+    
+    this.cdr.markForCheck();
+  }
+
+  getPlayerModeStatus(): string {
+    if (this.useRegistered) {
+      return `Đang sử dụng ${this.registeredPlayers.length} cầu thủ đã đăng ký`;
+    } else {
+      return `Đang sử dụng tất cả ${this.allPlayers.length} cầu thủ`;
+    }
+  }
+
+  logPerformanceMetrics() {
+    console.log('📊 Performance Metrics:');
+    console.log('👥 Total Players:', this.allPlayers.length);
+    console.log('✅ Registered Players:', this.registeredPlayers.length);
+    console.log('🔵 Team A:', this.teamA.length);
+    console.log('🟠 Team B:', this.teamB.length);
+    console.log('📄 Current Page:', this.currentPage + 1, '/', this.totalPages);
+    console.log('🔄 Use Registered Mode:', this.useRegistered);
+  }
+
+  getPaginatedPlayers(): Player[] {
+    const displayPlayers = this.getDisplayPlayers();
+    const currentState = {
+      useRegistered: this.useRegistered,
+      currentPage: this.currentPage,
+      dataLength: displayPlayers.length
+    };
+    
+    if (this._lastPaginationState.useRegistered !== currentState.useRegistered ||
+        this._lastPaginationState.currentPage !== currentState.currentPage ||
+        this._lastPaginationState.dataLength !== currentState.dataLength) {
+      
+      const startIndex = this.currentPage * this.pageSize;
+      const endIndex = startIndex + this.pageSize;
+      this._paginatedPlayers = displayPlayers.slice(startIndex, endIndex);
+      this.totalPages = Math.ceil(displayPlayers.length / this.pageSize);
+      
+      this._lastPaginationState = { ...currentState };
+    }
+    
+    return this._paginatedPlayers;
+  }
+
+  getPaginationDisplay() {
+    const displayPlayers = this.getDisplayPlayers();
+    const start = (this.currentPage * this.pageSize) + 1;
+    const end = Math.min((this.currentPage + 1) * this.pageSize, displayPlayers.length);
+    const total = displayPlayers.length;
+    
+    return { start, end, total };
+  }
+
+  previousPage() {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this._invalidatePaginationCache();
+    }
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+      this._invalidatePaginationCache();
+    }
+  }
+
+  private _invalidatePaginationCache() {
+    this._lastPaginationState = { useRegistered: false, currentPage: -1, dataLength: 0 };
+  }
+
+  showTemporaryMessage(messageType: 'saveMessage' | 'matchSaveMessage' | 'saveRegisteredMessage', message: string) {
+    this[messageType] = message;
+    
+    setTimeout(() => {
+      this[messageType] = '';
+      this.cdr.markForCheck();
+    }, 3000);
+  }
+
+  onDrop(event: CdkDragDrop<Player[]>) {
+    if (event.previousContainer === event.container) {
+      const container = event.container.data;
+      const temp = container[event.previousIndex];
+      container[event.previousIndex] = container[event.currentIndex];
+      container[event.currentIndex] = temp;
+    } else {
+      transferArrayItem(
+        event.previousContainer.data,
+        event.container.data,
+        event.previousIndex,
+        event.currentIndex
+      );
     }
     
     this.updateFilteredPlayers();
-    this.syncAIWithTeams(); // Auto-sync AI selections
+    this.syncAIWithTeams();
+    this.analysisCache.clear(); // Clear AI cache
+    this.cdr.markForCheck();
   }
 
-  private addPlayerToTeam(player: Player, team: 'A' | 'B') {
-    switch (team) {
-      case 'A':
-        if (!this.teamA.find(p => p.id === player.id)) {
-          this.teamA.push(player);
-        }
-        break;
-      case 'B':
-        if (!this.teamB.find(p => p.id === player.id)) {
-          this.teamB.push(player);
-        }
-        break;
+  removeFromTeam(player: Player, team: 'A' | 'B') {
+    if (team === 'A') {
+      this.teamA = this.teamA.filter(p => p.id !== player.id);
+    } else {
+      this.teamB = this.teamB.filter(p => p.id !== player.id);
     }
+    
+    this.updateFilteredPlayers();
+    this.syncAIWithTeams();
+    this.analysisCache.clear();
+    this.aiAnalysisResults = null;
+    this.cdr.markForCheck();
+  }
+
+  // Add AI helper methods
+  private calculateOptimizedTeamStrength(playerNames: string[]): number {
+    let totalStrength = 0;
+    
+    for (const playerName of playerNames) {
+      const player = this.findPlayerByName(playerName);
+      if (player) {
+        let strength = 60;
+        
+        if (player.position.includes('Tiền đạo')) strength += 10;
+        if (player.position.includes('Tiền vệ')) strength += 8;
+        if (player.position.includes('Hậu vệ')) strength += 5;
+        
+        totalStrength += strength;
+      }
+    }
+    
+    return playerNames.length > 0 ? totalStrength / playerNames.length : 50;
+  }
+
+  private getBasicHistoricalStats(): { matchesAnalyzed: number; stats: { xanhWins: number; camWins: number; draws: number; totalMatches: number } } {
+    const recentMatches = this.history.slice(-10);
+    const wins = recentMatches.filter(m => (m.scoreA || 0) > (m.scoreB || 0)).length;
+    const losses = recentMatches.filter(m => (m.scoreA || 0) < (m.scoreB || 0)).length;
+    const draws = recentMatches.filter(m => (m.scoreA || 0) === (m.scoreB || 0)).length;
+    const totalMatches = recentMatches.length;
+    
+    return {
+      matchesAnalyzed: totalMatches,
+      stats: {
+        xanhWins: wins,
+        camWins: losses,
+        draws: draws,
+        totalMatches: totalMatches
+      }
+    };
+  }
+
+  private calculateBasicProbabilities(xanhStrength: number, camStrength: number): { xanhWinProb: number; camWinProb: number } {
+    const diff = xanhStrength - camStrength;
+    const xanhProb = Math.max(20, Math.min(80, 50 + diff));
+    
+    return {
+      xanhWinProb: Math.round(xanhProb),
+      camWinProb: Math.round(100 - xanhProb)
+    };
+  }
+
+  private predictBasicScore(xanhStrength: number, camStrength: number): { xanh: number; cam: number } {
+    const xanhGoals = Math.max(0, Math.round((xanhStrength / 30) + Math.random() * 2));
+    const camGoals = Math.max(0, Math.round((camStrength / 30) + Math.random() * 2));
+    
+    return { xanh: xanhGoals, cam: camGoals };
+  }
+
+  private findPlayerByName(playerName: string): Player | undefined {
+    return this.allPlayers.find(p => {
+      const fullName = `${p.firstName} ${p.lastName || ''}`.trim();
+      return fullName === playerName || p.firstName === playerName;
+    });
+  }
+
+  private getPlayerNamesFromTeam(team: Player[]): string[] {
+    return team.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+  }
+
+  private calculateNameOverlap(names1: string[], names2: string[]): number {
+    if (names1.length === 0 || names2.length === 0) return 0;
+    
+    const matches = names1.filter(name => names2.includes(name)).length;
+    return matches / Math.max(names1.length, names2.length);
+  }
+
+  // Add Math property for template
+  Math = Math;
+
+  // Add missing conversion protection properties
+  private isConverting = false;
+  private lastConversionTime = 0;
+  private conversionCallCount = 0;
+  private maxConversionsPerSession = 5;
+  private subscriptions: Subscription[] = [];
+
+  ngOnInit(): void {
+    console.log('🚀 PlayersComponent initializing...');
+    
+    this.loadRegisteredPlayers();
+    
+    // Track subscription for proper cleanup
+    const playerSubscription = this.playerService.players$
+      .pipe(
+        takeUntil(this.destroy$),
+        debounceTime(300), // Prevent rapid updates
+        distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr))
+      )
+      .subscribe({
+        next: (players) => {
+          console.log('📡 Received Firebase data update:', players?.length || 0);
+          
+          if (players && players.length > 0) {
+            this.corePlayersData = players;
+            this.allPlayers = []; // Clear before converting
+            this.convertCorePlayersToLegacyFormat(players);
+            this.updateFilteredPlayers();
+            this.syncStatus = 'synced';
+            
+            // Update AI player list
+            this.allPlayersForAI = this.allPlayers.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+            
+            console.log('✅ Firebase update applied. Total players:', this.allPlayers.length);
+          } else {
+            console.log('⚠️ Firebase returned empty data');
+            if (this.allPlayers.length === 0) {
+              console.log('📂 Loading from assets/players.json as fallback...');
+              this.loadPlayers();
+            }
+          }
+          
+          this.cdr.markForCheck();
+        },
+        error: (error) => {
+          console.error('❌ Firebase subscription error:', error);
+          this.syncStatus = 'offline';
+          
+          if (this.allPlayers.length === 0) {
+            console.log('📂 Firebase error - loading from assets/players.json...');
+            this.loadPlayers();
+          }
+          
+          this.cdr.markForCheck();
+        }
+      });
+    
+    this.subscriptions.push(playerSubscription);
+    
+    this.loadPlayers();
+    this.initializeAI();
+    
+    console.log('✅ PlayersComponent initialized');
+  }
+
+  ngOnDestroy(): void {
+    console.log('🧹 PlayersComponent destroying...');
+    
+    // Unsubscribe from all subscriptions
+    this.subscriptions.forEach(sub => {
+      if (sub && !sub.closed) {
+        sub.unsubscribe();
+      }
+    });
+    this.subscriptions = [];
+    
+    // Complete destroy subject
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    // Clear timers
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+      this.updateTimeout = null;
+    }
+    
+    if (this.renderTimeout) {
+      clearTimeout(this.renderTimeout);
+      this.renderTimeout = null;
+    }
+    
+    if (this.aiAnalysisTimeout) {
+      clearTimeout(this.aiAnalysisTimeout);
+      this.aiAnalysisTimeout = null;
+    }
+    
+    // Clear caches
+    this.analysisCache.clear();
+    
+    // Remove event listeners
+    document.removeEventListener('click', this.handleClickOutside.bind(this));
+    
+    // Restore body scroll
+    document.body.style.overflow = '';
+    
+    // Clear large arrays
+    this.allPlayers = [];
+    this.corePlayersData = [];
+    this.teamA = [];
+    this.teamB = [];
+    this.registeredPlayers = [];
+    this.history = [];
+    
+    console.log('✅ PlayersComponent destroyed - cleaned up resources');
+  }
+
+  isAdmin(): boolean {
+    // Check if user has admin privileges
+    // For now, returning true to show admin controls
+    // TODO: Implement proper admin authentication check
+    return true;
+  }
+
+  async migrateToFirebase() {
+    try {
+      console.log('🔄 Starting Firebase migration...');
+
+      const localPlayers = JSON.parse(localStorage.getItem('players.json') || '[]');
+
+      if (localPlayers.length === 0) {
+        alert('Không có dữ liệu trong localStorage để migrate!');
+        return;
+      }
+
+      for (const player of localPlayers) {
+        const playerInfo: Partial<PlayerInfo> = {
+          firstName: player.firstName,
+          lastName: player.lastName || '',
+          position: player.position || 'Chưa xác định',
+          dateOfBirth: player.DOB ? `${player.DOB}-01-01` : undefined,
+          height: player.height || undefined,
+          weight: player.weight || undefined,
+          avatar: player.avatar || undefined,
+          notes: player.note || undefined,
+          status: PlayerStatus.ACTIVE
+        };
+        
+        await this.playerService.createPlayer(playerInfo as PlayerInfo);
+      }
+      
+      alert(`✅ Đã migrate ${localPlayers.length} cầu thủ lên Firebase!`);
+      await this.loadPlayers();
+    } catch (error) {
+      console.error('❌ Migration error:', error);
+      alert('Lỗi khi migrate dữ liệu!');
+    }
+  }
+
+  async cleanupDuplicateFirebaseData() {
+    try {
+      console.log('🧹 Starting Firebase cleanup...');
+      
+      const allPlayers = this.playerService.getAllPlayers();
+      const seen = new Map<string, PlayerInfo>();
+      const duplicates: string[] = [];
+      
+      allPlayers.forEach(player => {
+        const key = `${player.firstName.toLowerCase()}_${player.lastName?.toLowerCase() || ''}`;
+        if (seen.has(key)) {
+          duplicates.push(player.id!);
+        } else {
+          seen.set(key, player);
+        }
+      });
+      
+      if (duplicates.length === 0) {
+        alert('✅ Không có dữ liệu trùng lặp!');
+        return;
+      }
+      
+      if (confirm(`Tìm thấy ${duplicates.length} cầu thủ trùng lặp. Xóa?`)) {
+        for (const id of duplicates) {
+          await this.playerService.deletePlayer(id);
+        }
+        
+        alert(`✅ Đã xóa ${duplicates.length} cầu thủ trùng lặp!`);
+        await this.loadPlayers();
+      }
+    } catch (error) {
+      console.error('❌ Cleanup error:', error);
+      alert('Lỗi khi dọn dẹp dữ liệu!');
+    }
+  }
+
+  exportPlayersData() {
+    try {
+      const dataStr = JSON.stringify(this.corePlayersData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `players_export_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert('✅ Đã xuất dữ liệu thành công!');
+    } catch (error) {
+      console.error('❌ Export error:', error);
+      alert('Lỗi khi xuất dữ liệu!');
+    }
+  }
+
+  openPlayerFormModal(player?: PlayerInfo) {
+    if (player) {
+      this.isEditMode = true;
+      this.playerFormData = { ...player };
+    } else {
+      this.isEditMode = false;
+      this.playerFormData = {
+        firstName: '',
+        lastName: '',
+        position: '',
+        dateOfBirth: '',
+        height: undefined,
+        weight: undefined,
+        avatar: '',
+        notes: '',
+        status: PlayerStatus.ACTIVE
+      };
+    }
+    
+    this.showPlayerModal = true;
+    document.body.style.overflow = 'hidden';
+  }
+
+  closePlayerFormModal() {
+    this.showPlayerModal = false;
+    this.playerFormData = {};
+    this.isEditMode = false;
+    document.body.style.overflow = '';
+  }
+
+  async savePlayerData() {
+    if (!this.playerFormData.firstName || !this.playerFormData.position) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
+      return;
+    }
+    
+    this.isSaving = true;
+    
+    try {
+      if (this.isEditMode && this.playerFormData.id) {
+        await this.playerService.updatePlayer(this.playerFormData.id, this.playerFormData as PlayerInfo);
+        alert('✅ Đã cập nhật cầu thủ!');
+      } else {
+        await this.playerService.createPlayer(this.playerFormData as PlayerInfo);
+        alert('✅ Đã thêm cầu thủ mới!');
+      }
+      
+      await this.loadPlayers();
+      this.closePlayerFormModal();
+    } catch (error) {
+      console.error('❌ Save error:', error);
+      alert('Lỗi khi lưu cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  openAvatarModal() {
+    this.showAvatarModal = true;
+  }
+
+  closeAvatarModal() {
+    this.showAvatarModal = false;
+  }
+
+  setAvatarPathAndClose(avatarPath: string) {
+    this.playerFormData.avatar = avatarPath;
+    this.closeAvatarModal();
+  }
+
+  removeAvatarAndClose() {
+    this.playerFormData.avatar = '';
+    this.closeAvatarModal();
+  }
+
+  onAvatarPreviewError(event: Event) {
+    const target = event.target as HTMLImageElement;
+    target.src = 'assets/images/default-avatar.svg';
+  }
+
+  confirmDeletePlayer(player: PlayerInfo) {
+    this.playerToDelete = player;
+    this.showDeleteConfirm = true;
+  }
+
+  closeDeleteConfirm() {
+    this.showDeleteConfirm = false;
+    this.playerToDelete = null;
+  }
+
+  async executeDeletePlayer() {
+    if (!this.playerToDelete?.id) return;
+    
+    this.isSaving = true;
+    
+    try {
+      await this.playerService.deletePlayer(this.playerToDelete.id);
+      alert('✅ Đã xóa cầu thủ!');
+      await this.loadPlayers();
+      this.closeDeleteConfirm();
+    } catch (error) {
+      console.error('❌ Delete error:', error);
+      alert('Lỗi khi xóa cầu thủ!');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  viewPlayer(player: Player) {
+    this.selectedPlayer = player;
+    document.body.style.overflow = 'hidden';
+  }
+
+  closePlayerModal() {
+    this.selectedPlayer = null;
+    document.body.style.overflow = '';
+  }
+
+  isRegistered(player: Player): boolean {
+    return this.registeredPlayers.some(rp => rp.id === player.id);
+  }
+
+  getPlayerAvatar(player: Player): string {
+    if (!player.avatar || player.avatar.trim() === '') {
+      const playerName = player.firstName + (player.lastName ? ' ' + player.lastName : '');
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName)}&background=667eea&color=fff&size=200`;
+    }
+    return player.avatar;
+  }
+
+  getPlayerFullName(player: Player): string {
+    return `${player.firstName} ${player.lastName || ''}`.trim();
+  }
+
+  calculateAge(birthYear: number): number {
+    if (!birthYear || birthYear === 0) return 0;
+    return new Date().getFullYear() - birthYear;
+  }
+
+  onPlayerInfoKey(event: KeyboardEvent, player: Player) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.viewPlayer(player);
+    }
+  }
+
+  onModalOverlayKey(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      this.closePlayerModal();
+    }
+  }
+
+  onModalContentKey(event: KeyboardEvent) {
+    event.stopPropagation();
+  }
+
+  onCloseBtnKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.closePlayerModal();
+    }
+  }
+
+  onAvatarError(event: Event, player?: Player) {
+    const target = event.target as HTMLImageElement;
+    target.src = 'assets/images/default-avatar.svg';
   }
 
   onDragStarted(player: Player) {
@@ -3490,190 +4087,132 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.draggedPlayer = null;
   }
 
-  onAvatarError(event: Event, player: Player) {
-    const target = event.target as HTMLImageElement;
-    
-    // Generate a personalized avatar using the player's name
-    const playerName = player.firstName + (player.lastName ? ' ' + player.lastName : '');
-    const colors = ['667eea', '764ba2', '48c6ef', '6f86d6', 'a8edea', 'fed6e3', 'd299c2', 'ffecd2', 'fcb69f'];
-    const colorIndex = Math.abs(playerName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
-    const backgroundColor = colors[colorIndex];
-    
-    const generatedAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName || 'Player')}&background=${backgroundColor}&color=fff&size=200&font-size=0.33&bold=true`;
-    
-    // Use generated avatar directly
-    target.src = generatedAvatar;
-    player.avatar = generatedAvatar;
-    
-    // Prevent infinite loop if generated avatar also fails
-    target.onerror = () => {
-      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPj88L3RleHQ+PC9zdmc+';
-      target.onerror = null;
-    };
-  }
-
-  onAvatarInputChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    const inputValue = target.value;
-    
-    // Always accept any input value without any validation
-    this.playerFormData.avatar = inputValue;
-    
-    // Completely clear any browser validation messages
-    target.setCustomValidity('');
-    
-    // Remove any validation-related attributes that might have been added dynamically
-    target.removeAttribute('pattern');
-    target.removeAttribute('required');
-    target.removeAttribute('minlength');
-    target.removeAttribute('maxlength');
-    
-    // Prevent validation on this field
-    target.setAttribute('novalidate', 'true');
-    target.setAttribute('data-no-validation', 'true');
-    
-    // Force browser to accept the value as valid
-    if (target.validity && !target.validity.valid) {
-      target.setCustomValidity('');
-    }
-  }
-
-  private getValidAvatarUrl(avatarUrl: string, playerName: string): string {
-    // If no avatar URL provided, use default generated avatar
-    if (!avatarUrl || avatarUrl.trim() === '') {
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName)}&background=667eea&color=fff&size=200`;
-    }
-    
-    // Clean up the URL path for local assets
-    const cleanUrl = avatarUrl.replace(/\\/g, '/');
-    
-    // Return the provided URL - if it's invalid, onAvatarError will handle the fallback
-    return cleanUrl;
-  }
-
-  private disableAvatarValidation(): void {
-    // No longer needed - avatar system is now button-based without input validation
-    // This method is kept for compatibility but does nothing
-  }
-
-  isRegistered(player: Player): boolean {
-    return this.registeredPlayers.some(rp => rp.id === player.id);
-  }
-
-  closePlayerModal() {
-    this.selectedPlayer = null;
-    // Restore body scrolling
-    document.body.style.overflow = '';
-  }
-
-  viewPlayer(p: Player) {
-    this.selectedPlayer = p;
-    // Prevent body scrolling when modal is open
-    document.body.style.overflow = 'hidden';
-    // Center modal with JavaScript to override any CSS conflicts
-    this.centerModal();
-  }
-
-  private centerModal(): void {
-    // Let CSS handle primary centering, but add JavaScript fallback
-    setTimeout(() => {
-      const modalOverlay = document.querySelector('.modal-overlay') as HTMLElement;
-      const playerModal = document.querySelector('.player-modal') as HTMLElement;
-      
-
-      
-      if (modalOverlay && playerModal) {
-        // Force aggressive positioning with multiple methods
-        modalOverlay.style.position = 'fixed';
-        modalOverlay.style.top = '0';
-        modalOverlay.style.left = '0';
-        modalOverlay.style.right = '0';
-        modalOverlay.style.bottom = '0';
-        modalOverlay.style.width = '100vw';
-        modalOverlay.style.height = '100vh';
-        modalOverlay.style.zIndex = '9999';
-        
-        // Use CSS Grid for more reliable centering
-        modalOverlay.style.display = 'grid';
-        modalOverlay.style.placeItems = 'center';
-        
-        // Fallback to flexbox if grid doesn't work
-        modalOverlay.style.alignItems = 'center';
-        modalOverlay.style.justifyContent = 'center';
-        
-        // Ensure the modal is properly sized and centered
-        playerModal.style.maxWidth = '700px';
-        playerModal.style.width = '95%';
-        playerModal.style.maxHeight = '85vh';
-        playerModal.style.margin = 'auto';
-        playerModal.style.transform = 'translate(0, 0)';
-        
-
-      } else {
-        console.warn('❌ Modal elements not found!');
-      }
-    }, 50);
-  }
-
   savePlayers() {
+    localStorage.setItem('players', JSON.stringify(this.allPlayers));
+    this.showTemporaryMessage('saveMessage', 'Đã lưu thay đổi!');
+  }
+
+  private loadRegisteredPlayers() {
     try {
-      localStorage.setItem('players.json', JSON.stringify(this.allPlayers));
-      this.showTemporaryMessage('saveMessage', 'Đã lưu thay đổi!');
+      const saved = localStorage.getItem('registeredPlayers');
+      if (saved) {
+        this.registeredPlayers = JSON.parse(saved);
+        console.log('✅ Loaded registered players:', this.registeredPlayers.length);
+      }
     } catch (error) {
-      console.error('Error saving players:', error);
-      this.showTemporaryMessage('saveMessage', 'Lỗi khi lưu!');
+      console.error('❌ Error loading registered players:', error);
+      this.registeredPlayers = [];
+    }
+  }
+
+  private resetConversionState(): void {
+    this.isConverting = false;
+    this.conversionCallCount = 0;
+    this.lastConversionTime = 0;
+    console.log('🔄 Conversion state reset');
+  }
+
+  private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
+    this.conversionCallCount++;
+    const now = Date.now();
+    
+    if (this.isConverting) {
+      console.warn(`⚠️ Conversion already in progress - blocked call #${this.conversionCallCount}`);
+      return;
+    }
+    
+    if (now - this.lastConversionTime < 2000) {
+      console.warn(`⚠️ Conversion called too frequently - blocked call #${this.conversionCallCount}. Last call: ${now - this.lastConversionTime}ms ago`);
+      return;
+    }
+    
+    if (this.conversionCallCount > this.maxConversionsPerSession) {
+      console.warn(`⚠️ Too many conversion attempts (${this.conversionCallCount}). Blocked to prevent memory issues.`);
+      return;
+    }
+    
+    this.isConverting = true;
+    this.lastConversionTime = now;
+    
+    console.log(`🔄 Converting core players to legacy format - Call #${this.conversionCallCount}:`, corePlayers?.length || 0);
+    console.log('📊 Current allPlayers before conversion:', this.allPlayers?.length || 0);
+    
+    try {
+      if (!corePlayers || corePlayers.length === 0) {
+        console.warn('⚠️ No core players to convert');
+        this.allPlayers = [];
+        return;
+      }
+      
+      const seenPlayers = new Map<string, PlayerInfo>();
+      const seenIds = new Set<string>();
+      
+      corePlayers.forEach(player => {
+        const nameKey = `${player.firstName.toLowerCase().trim()}_${(player.lastName || '').toLowerCase().trim()}`;
+        const playerId = player.id;
+        
+        if (seenPlayers.has(nameKey) || (playerId && seenIds.has(playerId))) {
+          console.warn('🔧 DUPLICATE DETECTED:', { nameKey, playerId, existing: seenPlayers.get(nameKey) });
+        } else {
+          seenPlayers.set(nameKey, player);
+          if (playerId) seenIds.add(playerId);
+        }
+      });
+      
+      const uniquePlayers = Array.from(seenPlayers.values());
+      
+      if (uniquePlayers.length !== corePlayers.length) {
+        console.warn(`🔧 DEDUPLICATION: Removed ${corePlayers.length - uniquePlayers.length} duplicate players`);
+      }
+      
+      console.log('🧹 Clearing existing allPlayers before conversion');
+      this.allPlayers = [];
+      
+      this.allPlayers = uniquePlayers.map(player => ({
+        id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
+        firstName: player.firstName,
+        lastName: player.lastName || '',
+        position: player.position || 'Chưa xác định',
+        DOB: player.dateOfBirth ? new Date(player.dateOfBirth).getFullYear() : 0,
+        height: player.height || 0,
+        weight: player.weight || 0,
+        avatar: player.avatar || 'assets/images/default-avatar.svg',
+        note: player.notes || ''
+      }));
+      
+      console.log('✅ Conversion completed:', this.allPlayers.length, 'players');
+      
+    } catch (error) {
+      console.error('❌ Error in convertCorePlayersToLegacyFormat:', error);
+      this.allPlayers = [];
+    } finally {
+      this.isConverting = false;
     }
   }
 
   async saveMatchInfo() {
     try {
-
+      console.log('💾 Saving match info...');
       
       const matchData = await this.createMatchDataWithServices();
       
       await this.matchService.createMatch(matchData);
       
-      // Also add fund transaction for the match
       await this.addMatchFundTransaction(matchData);
       
-      this.showTemporaryMessage('matchSaveMessage', '\u0110\u00e3 l\u01b0u tr\u1eadn \u0111\u1ea5u v\u00e0o h\u1ec7 th\u1ed1ng!');
+      this.showTemporaryMessage('matchSaveMessage', 'Đã lưu trận đấu vào hệ thống!');
       
-      // Refresh data to reflect changes in the UI
-      await this.loadPlayers();
-      
-      // Clear match data after saving
       this.clearMatchData();
+      
+      console.log('✅ Match saved successfully. Player count remains:', this.allPlayers.length);
+      
     } catch (error) {
       console.error('❌ Error saving match info:', error);
-      console.error('📋 Error details:', {
-        message: error.message,
-        stack: error.stack,
-        error: error
-      });
-      this.showTemporaryMessage('matchSaveMessage', 'L\u1ed7i khi l\u01b0u tr\u1eadn \u0111\u1ea5u!');
+      this.showTemporaryMessage('matchSaveMessage', 'Lỗi khi lưu trận đấu!');
     }
   }
 
-  private createMatchData() {
-    return {
-      date: new Date().toISOString(),
-      scoreA: this.scoreA,
-      scoreB: this.scoreB,
-      scorerA: this.scorerA,
-      scorerB: this.scorerB,
-      assistA: this.assistA,
-      assistB: this.assistB,
-      yellowA: this.yellowA,
-      yellowB: this.yellowB,
-      redA: this.redA,
-      redB: this.redB,
-      teamA: this.teamA.map(p => ({ ...p })),
-      teamB: this.teamB.map(p => ({ ...p })),
-    };
-  }
-
   private async createMatchDataWithServices() {
-    // Convert legacy players to core PlayerInfo format
     const teamACore = await this.convertToTeamComposition(this.teamA, TeamColor.BLUE);
     const teamBCore = await this.convertToTeamComposition(this.teamB, TeamColor.ORANGE);
     
@@ -3681,9 +4220,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const baseRevenue = totalPlayers * 30000;
     
     return {
-      id: `match_${Date.now()}`, // Add unique ID to prevent overwrites
+      id: `match_${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
-      timestamp: new Date().toISOString(), // Full timestamp for precise timing
+      timestamp: new Date().toISOString(),
       teamA: teamACore,
       teamB: teamBCore,
       result: {
@@ -3756,1736 +4295,194 @@ export class PlayersComponent implements OnInit, OnDestroy {
     };
   }
 
-  private async convertToTeamComposition(players: Player[], color: TeamColor): Promise<TeamComposition> {
-    const corePlayerInfos: PlayerInfo[] = [];
-    
-    for (const player of players) {
-      const corePlayer = this.corePlayersData.find(cp => cp.id === player.id.toString());
-      if (corePlayer) {
-        corePlayerInfos.push(corePlayer);
-      }
+private async convertToTeamComposition(players: Player[], color: TeamColor): Promise<TeamComposition> {
+  const corePlayerInfos: PlayerInfo[] = [];
+  
+  for (const player of players) {
+    const corePlayer = this.corePlayersData.find(cp => cp.id === player.id.toString());
+    if (corePlayer) {
+      corePlayerInfos.push(corePlayer);
     }
-    
-    return {
-      name: color === TeamColor.BLUE ? '\u0110\u1ed9i Xanh' : '\u0110\u1ed9i Cam',
-      players: corePlayerInfos,
-      teamColor: color,
-      formation: this.suggestFormation(corePlayerInfos.length)
-    };
-  }
-
-  private createGoalDetails(scorer: string, assist: string, team: 'A' | 'B'): GoalDetail[] {
-    if (!scorer.trim()) return [];
-    
-    const goals = scorer.split(',').map(name => name.trim()).filter(Boolean);
-    const assists = assist.split(',').map(name => name.trim()).filter(Boolean);
-    
-    return goals.map((goalScorer, index) => ({
-      playerId: this.findPlayerIdByName(goalScorer, team) || 'unknown',
-      playerName: goalScorer,
-      minute: 45,
-      assistedBy: assists[index] ? this.findPlayerIdByName(assists[index], team) : undefined,
-      goalType: GoalType.REGULAR
-    }));
-  }
-
-  private createCardDetails(cardPlayers: string, cardType: 'yellow' | 'red'): CardDetail[] {
-    if (!cardPlayers.trim()) return [];
-    
-    const players = cardPlayers.split(',').map(name => name.trim()).filter(Boolean);
-    return players.map(playerName => ({
-      playerId: this.findPlayerIdByName(playerName, 'A') || 'unknown',
-      playerName,
-      minute: 45,
-      cardType: cardType === 'yellow' ? CardType.YELLOW : CardType.RED,
-      reason: 'Không rõ'
-    }));
-  }
-
-  private findPlayerIdByName(playerName: string, team: 'A' | 'B'): string | undefined {
-    const teamPlayers = team === 'A' ? this.teamA : this.teamB;
-    const found = teamPlayers.find(p => 
-      p.firstName.toLowerCase().includes(playerName.toLowerCase()) ||
-      playerName.toLowerCase().includes(p.firstName.toLowerCase())
-    );
-    return found?.id?.toString();
-  }
-
-  private suggestFormation(playerCount: number): string {
-    if (playerCount <= 5) return '3-2';
-    if (playerCount <= 7) return '4-3';
-    if (playerCount <= 9) return '4-3-2';
-    return '4-4-2';
-  }
-
-  private async addMatchFundTransaction(matchData: {
-    teamA: TeamComposition;
-    teamB: TeamComposition;
-    date: string;
-  }) {
-    try {
-      const totalPlayers = matchData.teamA.players.length + matchData.teamB.players.length;
-      const baseRevenue = totalPlayers * 30000;
-      
-      await this.dataStore.addFundTransaction({
-        type: 'income',
-        amount: baseRevenue,
-        description: `Thu nhập từ trận đấu ngày ${matchData.date}`,
-        category: 'match_fee',
-        date: matchData.date,
-        createdBy: 'system'
-      });
-    } catch (error) {
-      console.warn('Could not add fund transaction:', error);
-    }
-  }
-
-  private clearMatchData() {
-    this.scoreA = 0;
-    this.scoreB = 0;
-    this.scorerA = '';
-    this.scorerB = '';
-    this.assistA = '';
-    this.assistB = '';
-    this.yellowA = '';
-    this.yellowB = '';
-    this.redA = '';
-    this.redB = '';
-  }
-
-  private saveToHistory(match: Record<string, unknown>) {
-    const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
-    history.push(match);
-    localStorage.setItem('matchHistory', JSON.stringify(history));
-  }
-
-  private convertCorePlayersToLegacyFormat(corePlayers: PlayerInfo[]): void {
-    console.log('🔄 Converting core players to legacy format:', corePlayers?.length || 0);
-    console.log('📊 Current allPlayers before conversion:', this.allPlayers?.length || 0);
-    
-    // Check for duplicate players in the input
-    if (corePlayers && corePlayers.length > 0) {
-      const uniqueIds = new Set(corePlayers.map(p => p.id));
-      console.log('🔍 Unique player IDs in Firebase data:', uniqueIds.size, 'vs total:', corePlayers.length);
-      if (uniqueIds.size !== corePlayers.length) {
-        console.warn('⚠️ DUPLICATE PLAYERS DETECTED in Firebase data!');
-        console.log('📋 Duplicate analysis:', corePlayers.map(p => ({ id: p.id, name: p.firstName })));
-      }
-    }
-    
-    if (!corePlayers || corePlayers.length === 0) {
-      console.warn('⚠️ No core players to convert');
-      this.allPlayers = [];
-      return;
-    }
-    
-    // More aggressive deduplication by name (since IDs might be different for same player)
-    const seenPlayers = new Map<string, PlayerInfo>();
-    
-    corePlayers.forEach(player => {
-      const nameKey = `${player.firstName.toLowerCase().trim()}_${(player.lastName || '').toLowerCase().trim()}`;
-      
-      if (seenPlayers.has(nameKey)) {
-        console.warn('🔧 DUPLICATE DETECTED by name:', nameKey, 'existing:', seenPlayers.get(nameKey), 'duplicate:', player);
-      } else {
-        seenPlayers.set(nameKey, player);
-      }
-    });
-    
-    const uniquePlayers = Array.from(seenPlayers.values());
-    
-    if (uniquePlayers.length !== corePlayers.length) {
-      console.warn('🔧 DEDUPLICATION: Removed', corePlayers.length - uniquePlayers.length, 'duplicate players by name matching');
-      console.log('🔧 Unique players after dedup:', uniquePlayers.length);
-    }
-    
-    this.allPlayers = uniquePlayers.map(player => {
-      const converted = {
-        id: parseInt(player.id!) || Math.floor(Math.random() * 10000),
-        firstName: player.firstName,
-        lastName: player.lastName || '',
-        position: player.position || 'Chưa xác định',
-        DOB: player.dateOfBirth ? new Date(player.dateOfBirth).getFullYear() : 0,
-        height: player.height || 0,
-        weight: player.weight || 0,
-        avatar: player.avatar || 'assets/images/default-avatar.svg',
-        note: player.notes || ''
-      };
-      return converted;
-    });
-    
-    console.log('✅ Conversion completed:', this.allPlayers.length, 'players');
-  }
-
-  private showTemporaryMessage(messageProperty: keyof Pick<PlayersComponent, 'matchSaveMessage' | 'saveMessage' | 'saveRegisteredMessage'>, message: string) {
-    this[messageProperty] = message;
-    setTimeout(() => {
-      this[messageProperty] = '';
-    }, 3000);
-  }
-
-  togglePlayerListView() {
-    this.showPlayerList = !this.showPlayerList;
-  }
-
-  toggleUseRegistered() {
-    this.useRegistered = !this.useRegistered;
-    
-    // Reset pagination when switching modes
-    this.currentPage = 0;
-    this._invalidatePaginationCache();
-    
-    // Debug localStorage contents
-    this.debugLocalStorage();
-    
-    // Use debounced update for better performance
-    this.debouncedUpdate(() => {
-      // Provide user feedback
-      if (this.useRegistered && this.registeredPlayers.length === 0) {
-        console.warn('⚠️ Switched to registered players mode but no players are registered!');
-        this.showTemporaryMessage('saveMessage', 'Chưa có cầu thủ nào đã đăng ký! Hãy đăng ký một số cầu thủ trước.');
-      } else if (this.useRegistered) {
-        this.showTemporaryMessage('saveMessage', `Đang sử dụng ${this.registeredPlayers.length} cầu thủ đã đăng ký`);
-      } else {
-        this.showTemporaryMessage('saveMessage', `Đang sử dụng tất cả ${this.allPlayers.length} cầu thủ`);
-      }
-      
-      this.updateFilteredPlayers();
-      this.cdr.detectChanges();
-    });
-  }
-
-  debugLocalStorage() {
-    try {
-      const saved = localStorage.getItem('registeredPlayers');
-      console.log('🔍 localStorage contents:');
-      console.log('  - Key exists:', !!saved);
-      console.log('  - Raw data:', saved);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('  - Parsed data:', parsed);
-        console.log('  - Count:', parsed.length);
-      }
-    } catch (error) {
-      console.error('❌ Error reading localStorage:', error);
-    }
-  }
-
-  clearRegisteredPlayers() {
-    if (confirm('Bạn có chắc muốn xóa tất cả cầu thủ đã đăng ký?')) {
-      this.registeredPlayers = [];
-      localStorage.removeItem('registeredPlayers');
-      console.log('✅ Cleared all registered players');
-      this.showTemporaryMessage('saveMessage', 'Đã xóa tất cả cầu thủ đã đăng ký');
-      this.updateFilteredPlayers();
-      this.cdr.detectChanges();
-    }
-  }
-
-  // Performance monitoring
-  logPerformanceMetrics() {
-    const startTime = performance.now();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const memoryInfo = 'memory' in performance ? (performance as any).memory : null;
-    
-    if (memoryInfo) {
-      const memoryUsage = memoryInfo.usedJSHeapSize / 1048576; // MB
-      const renderingTime = performance.now() - startTime;
-      const componentCount = document.querySelectorAll('.player-item').length;
-      
-      console.log('📊 Performance metrics:', {
-        memoryUsage: `${memoryUsage.toFixed(2)} MB`,
-        renderingTime: `${renderingTime.toFixed(2)} ms`,
-        componentCount,
-        currentPage: this.currentPage + 1,
-        totalPages: this.totalPages,
-        playersVisible: this.getPaginatedPlayers().length,
-        playersTotal: this.getDisplayPlayers().length
-      });
-      
-      // Alert if performance issues detected
-      if (memoryUsage > 50 || renderingTime > 1000 || componentCount > 50) {
-        console.warn('⚠️ Performance issues detected:', {
-          memoryUsage,
-          renderingTime,
-          componentCount
-        });
-      }
-    }
-  }
-
-  getDisplayPlayers(): Player[] {
-    const players = this.useRegistered ? this.registeredPlayers : this.allPlayers;
-    return players;
-  }
-
-  getPaginatedPlayers(): Player[] {
-    const allPlayers = this.getDisplayPlayers();
-    
-    // Check if we need to recalculate pagination
-    const currentState = {
-      useRegistered: this.useRegistered,
-      currentPage: this.currentPage,
-      dataLength: allPlayers.length
-    };
-    
-    const stateChanged = 
-      this._lastPaginationState.useRegistered !== currentState.useRegistered ||
-      this._lastPaginationState.currentPage !== currentState.currentPage ||
-      this._lastPaginationState.dataLength !== currentState.dataLength;
-    
-    if (stateChanged) {
-      this._updatePaginationCache(allPlayers);
-      this._lastPaginationState = currentState;
-    }
-    
-    return this._paginatedPlayers;
   }
   
-  private _updatePaginationCache(allPlayers: Player[]): void {
-    // Safety check for empty arrays
-    if (!allPlayers || allPlayers.length === 0) {
-      this.totalPages = 0;
-      this._paginatedPlayers = [];
-      return;
-    }
-    
-    this.totalPages = Math.ceil(allPlayers.length / this.pageSize);
-    
-    // Ensure currentPage is within bounds
-    if (this.currentPage >= this.totalPages) {
-      this.currentPage = Math.max(0, this.totalPages - 1);
-    }
-    
-    const startIndex = this.currentPage * this.pageSize;
-    const endIndex = startIndex + this.pageSize;
-    this._paginatedPlayers = allPlayers.slice(startIndex, endIndex);
-  }
+  return {
+    name: color === TeamColor.BLUE ? 'Đội Xanh' : 'Đội Cam',
+    players: corePlayerInfos,
+    teamColor: color,
+    formation: this.suggestFormation(corePlayerInfos.length)
+  };
+}
+
+private createGoalDetails(scorer: string, assist: string, team: 'A' | 'B'): GoalDetail[] {
+  if (!scorer.trim()) return [];
   
-  private _invalidatePaginationCache(): void {
-    this._lastPaginationState = { useRegistered: !this.useRegistered, currentPage: -1, dataLength: -1 };
-  }
+  const goals = scorer.split(',').map(name => name.trim()).filter(Boolean);
+  const assists = assist.split(',').map(name => name.trim()).filter(Boolean);
+  
+  return goals.map((goalScorer, index) => ({
+    playerId: this.findPlayerIdByName(goalScorer, team) || 'unknown',
+    playerName: goalScorer,
+    minute: 45,
+    assistedBy: assists[index] || undefined,
+    goalType: GoalType.REGULAR
+  }));
+}
 
-  nextPage() {
-    if (this.currentPage < this.totalPages - 1) {
-      this.currentPage++;
-      this.debouncedRender(() => {
-        this.cdr.detectChanges();
-        this.logPerformanceMetrics();
-      });
-    }
-  }
+private createCardDetails(cardPlayers: string, cardType: 'yellow' | 'red'): CardDetail[] {
+  if (!cardPlayers.trim()) return [];
+  
+  const players = cardPlayers.split(',').map(name => name.trim()).filter(Boolean);
+  return players.map(playerName => ({
+    playerId: this.findPlayerIdByName(playerName, 'A') || 'unknown',
+    playerName,
+    minute: 45,
+    cardType: cardType === 'yellow' ? CardType.YELLOW : CardType.RED,
+    reason: 'Không rõ'
+  }));
+}
 
-  previousPage() {
-    if (this.currentPage > 0) {
-      this.currentPage--;
-      this.debouncedRender(() => {
-        this.cdr.detectChanges();
-        this.logPerformanceMetrics();
-      });
-    }
-  }
+private findPlayerIdByName(playerName: string, team: 'A' | 'B'): string | undefined {
+  const teamPlayers = team === 'A' ? this.teamA : this.teamB;
+  const found = teamPlayers.find(p => 
+    p.firstName.toLowerCase().includes(playerName.toLowerCase()) ||
+    playerName.toLowerCase().includes(p.firstName.toLowerCase())
+  );
+  return found?.id?.toString();
+}
 
-  goToPage(page: number) {
-    if (page >= 0 && page < this.totalPages) {
-      this.currentPage = page;
-      this.cdr.detectChanges();
-    }
-  }
+private suggestFormation(playerCount: number): string {
+  if (playerCount <= 5) return '3-2';
+  if (playerCount <= 7) return '4-3';
+  if (playerCount <= 9) return '4-3-2';
+  return '4-4-2';
+}
 
-  getPaginationDisplay(): { start: number; end: number; total: number } {
-    const total = this.getDisplayPlayers()?.length || 0;
+private async addMatchFundTransaction(matchData: {
+  teamA: TeamComposition;
+  teamB: TeamComposition;
+  date: string;
+}) {
+  try {
+    const totalPlayers = matchData.teamA.players.length + matchData.teamB.players.length;
+    const baseRevenue = totalPlayers * 30000;
     
-    if (total === 0) {
-      return { start: 0, end: 0, total: 0 };
-    }
-    
-    const start = this.currentPage * this.pageSize + 1;
-    const end = Math.min((this.currentPage + 1) * this.pageSize, total);
-    return { start, end, total };
+    await this.dataStore.addFundTransaction({
+      type: 'income',
+      amount: baseRevenue,
+      description: `Thu nhập từ trận đấu ngày ${matchData.date}`,
+      category: 'match_fee',
+      date: matchData.date,
+      createdBy: 'system'
+    });
+  } catch (error) {
+    console.warn('Could not add fund transaction:', error);
   }
+}
 
-  private debouncedUpdate(callback: () => void, delay = 300) {
-    if (this.updateTimeout) {
-      clearTimeout(this.updateTimeout);
-    }
-    this.updateTimeout = setTimeout(() => {
-      callback();
-      this.updateTimeout = null;
-    }, delay);
-  }
+private clearMatchData() {
+  this.scoreA = 0;
+  this.scoreB = 0;
+  this.scorerA = '';
+  this.scorerB = '';
+  this.assistA = '';
+  this.assistB = '';
+  this.yellowA = '';
+  this.yellowB = '';
+  this.redA = '';
+  this.redB = '';
+}
 
-  private debouncedRender(callback: () => void, delay = 100) {
-    if (this.renderTimeout) {
-      clearTimeout(this.renderTimeout);
-    }
-    this.renderTimeout = setTimeout(() => {
-      callback();
-      this.renderTimeout = null;
-    }, delay);
-  }
+// AI Analysis methods
+private initializeAI() {
+  this.loadMatchHistory();
+  this.allPlayersForAI = this.allPlayers.map(p => `${p.firstName} ${p.lastName || ''}`.trim());
+}
 
-  canDivideTeams(): boolean {
-    const availablePlayers = this.useRegistered ? this.registeredPlayers : this.allPlayers;
-    return availablePlayers.length >= 2;
-  }
-
-  getPlayerModeStatus(): string {
-    if (this.useRegistered) {
-      return this.registeredPlayers.length === 0 
-        ? 'Chưa có cầu thủ đã đăng ký'
-        : `Đang dùng ${this.registeredPlayers.length} cầu thủ đã đăng ký`;
+private loadMatchHistory() {
+  try {
+    const saved = localStorage.getItem('matchHistory');
+    if (saved) {
+      this.history = JSON.parse(saved);
     }
-    return `Đang dùng tất cả ${this.allPlayers.length} cầu thủ`;
-  }
-
-  toggleRegistration(player: Player) {
-    const isCurrentlyRegistered = this.isRegistered(player);
-    
-    if (isCurrentlyRegistered) {
-      // Remove from registered players
-      this.registeredPlayers = this.registeredPlayers.filter(rp => rp.id !== player.id);
-      this.showTemporaryMessage('saveRegisteredMessage', `Đã hủy đăng ký ${player.firstName}`);
-    } else {
-      // Add to registered players
-      this.registeredPlayers.push({ ...player });
-      this.showTemporaryMessage('saveRegisteredMessage', `Đã đăng ký ${player.firstName}`);
-    }
-    
-    // Save to localStorage
-    localStorage.setItem('registeredPlayers', JSON.stringify(this.registeredPlayers));
-    
-    // Update filtered players if we're currently using registered players
-    if (this.useRegistered) {
-      this.updateFilteredPlayers();
-    }
-    
-    // Invalidate pagination cache since player count may have changed
-    this._invalidatePaginationCache();
-  }
-
-  ngOnInit() {
-    this.initializeAI();
-    this.loadRegisteredPlayers();
-    
-    // Set up single Firebase subscription for real-time updates
-    this.setupFirebaseSubscription();
-    
-    // Subscribe to data store changes
-    this.dataStore.isLoading$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(loading => {
-        if (!loading && this.isLoadingPlayers) {
-          this.loadPlayers();
-        }
-      });
-  }
-
-  private setupFirebaseSubscription() {
-    // Prevent multiple subscriptions
-    if (this.firebaseSubscriptionActive) {
-      console.log('⚠️ Firebase subscription already active, skipping...');
-      return;
-    }
-    
-    // Set up single subscription to Firebase players data
-    console.log('🔄 Setting up Firebase subscription...');
-    this.firebaseSubscriptionActive = true;
-    this.isLoadingPlayers = true;
-    
-    this.playerService.players$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (corePlayersData) => {
-          console.log('� FIREBASE SUBSCRIPTION TRIGGERED - Players received:', corePlayersData?.length || 0);
-          console.log('📊 Current state before update - allPlayers:', this.allPlayers?.length || 0);
-          console.log('📋 Raw Firebase data sample:', corePlayersData?.slice(0, 3));
-          
-          if (corePlayersData && corePlayersData.length > 0) {
-            this.corePlayersData = corePlayersData;
-            this.convertCorePlayersToLegacyFormat(corePlayersData);
-            this.updateFilteredPlayers();
-            console.log('✅ Player list updated - allPlayers:', this.allPlayers.length);
-            console.log('📋 Converted allPlayers:', this.allPlayers);
-          } else {
-            console.warn('⚠️ No Firebase data received, trying fallback...');
-            this.loadPlayersDirectly();
-          }
-          
-          this.isLoadingPlayers = false;
-          this.cdr.detectChanges();
-        },
-        error: (error) => {
-          console.error('❌ Firebase players subscription error:', error);
-          this.isLoadingPlayers = false;
-          // Fallback to assets/players.json
-          console.log('🔄 Falling back to assets/players.json');
-          this.loadPlayersDirectly();
-        }
-      });
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
-    
-    // Clean up AI event listeners
-    document.removeEventListener('click', this.handleClickOutside.bind(this));
-    
-    // Performance cleanup
-    if (this.aiAnalysisTimeout) {
-      clearTimeout(this.aiAnalysisTimeout);
-    }
-    
-    // Clean up debouncing timers
-    if (this.updateTimeout) {
-      clearTimeout(this.updateTimeout);
-    }
-    if (this.renderTimeout) {
-      clearTimeout(this.renderTimeout);
-    }
-    
-    this.analysisCache.clear();
-    
-    // Clear AI results to free memory
-    this.aiAnalysisResults = null;
+  } catch (error) {
+    console.error('Error loading match history:', error);
     this.history = [];
   }
+}
 
-  private loadRegisteredPlayers() {
-    try {
-      const saved = localStorage.getItem('registeredPlayers');
-      if (saved) {
-        this.registeredPlayers = JSON.parse(saved);
-        console.log(`✅ Loaded ${this.registeredPlayers.length} registered players from localStorage`);
-      } else {
-        console.log('ℹ️ No registered players found in localStorage');
-        this.registeredPlayers = [];
-      }
-    } catch (error) {
-      console.error('❌ Error loading registered players:', error);
-      this.registeredPlayers = [];
-    }
+syncAIWithTeams() {
+  this.selectedXanhPlayers = this.getPlayerNamesFromTeam(this.teamA);
+  this.selectedCamPlayers = this.getPlayerNamesFromTeam(this.teamB);
+  console.log('🔄 Synced AI with teams:', {
+    xanh: this.selectedXanhPlayers.length,
+    cam: this.selectedCamPlayers.length
+  });
+}
+
+async runAIAnalysis() {
+  if (!this.selectedXanhPlayers.length || !this.selectedCamPlayers.length) {
+    alert('Vui lòng chia đội trước khi phân tích!');
+    return;
   }
 
-  getPlayerFullName(player: Player): string {
-    if (player.lastName) {
-      return `${player.firstName} ${player.lastName}`;
-    }
-    return player.firstName;
+  // Check cache first
+  const teamHash = JSON.stringify({
+    xanh: this.selectedXanhPlayers.sort(),
+    cam: this.selectedCamPlayers.sort()
+  });
+  
+  if (this.lastTeamCompositionHash === teamHash && this.aiAnalysisResults) {
+    console.log('✅ Using cached AI analysis');
+    return;
   }
 
-  calculateAge(birthYear: number | string): number {
-    const currentYear = new Date().getFullYear();
-    let yearOfBirth: number;
-    
-    if (typeof birthYear === 'number') {
-      yearOfBirth = birthYear;
-    } else if (typeof birthYear === 'string') {
-      // Handle different date formats
-      if (birthYear.includes('/')) {
-        // Format: MM/DD/YYYY or DD/MM/YYYY
-        const parts = birthYear.split('/');
-        if (parts.length === 3) {
-          yearOfBirth = parseInt(parts[2]); // Year is the last part
-        } else {
-          yearOfBirth = parseInt(birthYear);
-        }
-      } else if (birthYear.includes('-')) {
-        // Format: YYYY-MM-DD
-        const parts = birthYear.split('-');
-        yearOfBirth = parseInt(parts[0]); // Year is the first part
-      } else {
-        // Assume it's just a year
-        yearOfBirth = parseInt(birthYear);
-      }
-    } else {
-      return 0;
-    }
-    
-    if (isNaN(yearOfBirth) || yearOfBirth < 1900 || yearOfBirth > currentYear) {
-      return 0;
-    }
-    
-    return currentYear - yearOfBirth;
-  }
+  this.isAnalyzing = true;
+  this.aiAnalysisResults = null;
+  this.cdr.markForCheck();
 
-  // Accessibility: handle key events for modal overlay
-  onModalOverlayKey(event: KeyboardEvent) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      this.closePlayerModal();
-    }
-  }
+  try {
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Accessibility: prevent modal content from closing on keyup
-  onModalContentKey(event: KeyboardEvent) {
-    event.stopPropagation();
-  }
-
-  // Accessibility: handle key events for close button
-  onCloseBtnKey(event: KeyboardEvent) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      this.closePlayerModal();
-    }
-  }
-
-  // Accessibility: handle key events for player info
-  onPlayerInfoKey(event: KeyboardEvent, player: Player) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      this.viewPlayer(player);
-    }
-  }
-
-
-
-  // Admin utility methods
-  isAdmin(): boolean {
-    // For now, return true. In a real app, check user role
-    return true;
-  }
-
-  // Player Modal Methods
-  openCreatePlayerModal(): void {
-
-    this.isEditMode = false;
-    this.playerFormData = {
-      firstName: '',
-      lastName: '',
-      position: '',
-      dateOfBirth: '',
-      height: undefined,
-      weight: undefined,
-      notes: '',
-      avatar: ''
-    };
-    
-    this.showPlayerModal = true;
-    
-    // Force change detection and immediate positioning
-    setTimeout(() => {
-      this.centerModal();
-      this.disableAvatarValidation();
-    }, 0);
-    
-    // Additional backup positioning
-    setTimeout(() => {
-      this.centerModal();
-    }, 200);
-  }
-
-  openEditPlayerModal(player: Player): void {
-    // Find the corresponding PlayerInfo from corePlayersData
-    // Match by firstName primarily, and lastName only if both exist
-    const playerInfo = this.corePlayersData.find(p => {
-      const firstNameMatch = p.firstName === player.firstName;
-      
-      // If both have lastName, match both, otherwise just match firstName
-      if (p.lastName && player.lastName) {
-        return firstNameMatch && p.lastName === player.lastName;
-      }
-      
-      return firstNameMatch;
-    });
-    
-    if (playerInfo) {
-      this.isEditMode = true;
-      this.playerFormData = { ...playerInfo };
-      
-      // Convert DOB to proper date format for HTML date input
-      if (player.DOB) {
-        if (typeof player.DOB === 'number') {
-          // If DOB is just age/year, calculate approximate birth year or leave empty
-          if (player.DOB < 100) {
-            // Assume it's age, convert to birth year
-            const currentYear = new Date().getFullYear();
-            const birthYear = currentYear - player.DOB;
-            this.playerFormData.dateOfBirth = `${birthYear}-01-01`;
-          } else {
-            // Assume it's a birth year
-            this.playerFormData.dateOfBirth = `${player.DOB}-01-01`;
-          }
-        } else if (typeof player.DOB === 'string') {
-          // Try to convert various date formats to yyyy-MM-dd
-          const dobString = player.DOB;
-          let formattedDate = '';
-          
-          try {
-            // Handle dd/mm/yyyy format
-            if (dobString.includes('/')) {
-              const parts = dobString.split('/');
-              if (parts.length === 3) {
-                const day = parts[0].padStart(2, '0');
-                const month = parts[1].padStart(2, '0');
-                const year = parts[2];
-                formattedDate = `${year}-${month}-${day}`;
-              }
-            } 
-            // Handle yyyy-mm-dd format (already correct)
-            else if (dobString.includes('-')) {
-              const date = new Date(dobString);
-              if (!isNaN(date.getTime())) {
-                formattedDate = dobString;
-              }
-            }
-            // Try parsing as general date
-            else {
-              const date = new Date(dobString);
-              if (!isNaN(date.getTime())) {
-                formattedDate = date.toISOString().split('T')[0];
-              }
-            }
-          } catch {
-            console.warn('Could not parse DOB:', dobString);
-          }
-          
-          this.playerFormData.dateOfBirth = formattedDate;
-        }
-      } else {
-        this.playerFormData.dateOfBirth = '';
-      }
-      
-      this.showPlayerModal = true;
-      
-      // Force change detection and immediate positioning  
-      setTimeout(() => {
-        this.centerModal();
-        this.disableAvatarValidation();
-      }, 0);
-      
-      // Additional backup positioning and validation disabling
-      setTimeout(() => {
-        this.centerModal();
-        this.disableAvatarValidation();
-      }, 50);
-      
-      // Final validation disabling
-      setTimeout(() => {
-        this.disableAvatarValidation();
-      }, 200);
-    } else {
-      // Handle case when no matching PlayerInfo is found
-      console.warn(`No matching PlayerInfo found for:`, {
-        id: player.id,
-        firstName: player.firstName,
-        lastName: player.lastName,
-        position: player.position
-      });
-      
-      // Create a new PlayerInfo entry based on the Player data
-      // Type assertion for extended player properties from players.json
-      interface ExtendedPlayer extends Player {
-        height?: number;
-        weight?: number;
-        age?: number;
-        DOB?: string | number;
-        note?: string;
-      }
-      
-      const playerData = player as ExtendedPlayer;
-      const newPlayerInfo: Partial<PlayerInfo> = {
-        firstName: player.firstName,
-        lastName: player.lastName || '',
-        position: player.position || '',
-        avatar: player.avatar || '',
-        height: playerData.height || 0,
-        weight: playerData.weight || 0,
-        age: playerData.age || 0,
-        dateOfBirth: '',
-        isRegistered: false,
-        status: PlayerStatus.ACTIVE,
-        notes: playerData.note || ''
-      };
-      
-      this.isEditMode = true;
-      this.playerFormData = newPlayerInfo;
-      this.showPlayerModal = true;
-      
-      // Force change detection and positioning
-      setTimeout(() => {
-        this.centerModal();
-        this.disableAvatarValidation();
-      }, 0);
-      
-      setTimeout(() => {
-        this.centerModal();
-        this.disableAvatarValidation();
-      }, 50);
-      
-      // Final validation disabling
-      setTimeout(() => {
-        this.disableAvatarValidation();
-      }, 200);
-      
-      console.log(`Created temporary PlayerInfo for editing: ${player.firstName}`);
-    }
-  }
-
-  closePlayerFormModal(): void {
-    this.showPlayerModal = false;
-    this.playerFormData = {};
-    this.isEditMode = false;
-    this.isSaving = false;
-  }
-
-  async savePlayerData(): Promise<void> {
-
-    
-    if (!this.playerFormData.firstName || !this.playerFormData.position) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
-      return;
-    }
-
-
-    this.isSaving = true;
-    try {
-      if (this.isEditMode && this.playerFormData.id) {
-
-        // Update existing player - preserve original avatar if field is empty
-        const originalPlayer = this.corePlayersData.find(p => p.id === this.playerFormData.id);
-        const avatarUrl = this.playerFormData.avatar?.trim() || originalPlayer?.avatar || '';
-        const playerDataToUpdate = {
-          ...this.playerFormData,
-          // Use provided avatar or fallback to default - no URL validation
-          avatar: this.getValidAvatarUrl(avatarUrl, this.playerFormData.firstName || 'Player')
-        };
-        await this.playerService.updatePlayer(this.playerFormData.id, playerDataToUpdate);
-        alert('Cập nhật cầu thủ thành công!');
-      } else {
-
-        // Create new player
-        const newPlayer = {
-          firstName: this.playerFormData.firstName!,
-          lastName: this.playerFormData.lastName || '',
-          fullName: `${this.playerFormData.firstName!} ${this.playerFormData.lastName || ''}`.trim(),
-          position: this.playerFormData.position!,
-          dateOfBirth: this.playerFormData.dateOfBirth || '',
-          height: this.playerFormData.height || 0,
-          weight: this.playerFormData.weight || 0,
-          notes: this.playerFormData.notes || '',
-          avatar: this.getValidAvatarUrl(this.playerFormData.avatar || '', this.playerFormData.firstName!),
-          isRegistered: true,
-          status: PlayerStatus.ACTIVE
-        };
-        await this.playerService.createPlayer(newPlayer);
-        alert('Thêm cầu thủ mới thành công!');
-      }
-      
-      // Real-time updates will automatically refresh the UI
-      this.closePlayerFormModal();
-    } catch (error) {
-      console.error('❌ Error saving player:', error);
-      console.error('📋 Error details:', {
-        message: error.message,
-        stack: error.stack,
-        playerData: this.playerFormData,
-        isEditMode: this.isEditMode
-      });
-      alert('Có lỗi xảy ra khi lưu thông tin cầu thủ!');
-    } finally {
-      this.isSaving = false;
-    }
-  }
-
-  // Delete Modal Methods
-  openDeletePlayerModal(player: Player): void {
-    // Find the corresponding PlayerInfo from corePlayersData
-    const playerInfo = this.corePlayersData.find(p => 
-      p.firstName === player.firstName && 
-      p.lastName === player.lastName
-    );
-    
-    if (playerInfo) {
-      this.playerToDelete = playerInfo;
-      this.showDeleteConfirm = true;
-    }
-  }
-
-  closeDeleteConfirm(): void {
-    this.showDeleteConfirm = false;
-    this.playerToDelete = null;
-    this.isSaving = false;
-  }
-
-  async executeDeletePlayer(): Promise<void> {
-    if (!this.playerToDelete?.id) {
-      alert('Không tìm thấy thông tin cầu thủ để xóa!');
-      return;
-    }
-
-    this.isSaving = true;
-    try {
-      await this.playerService.deletePlayer(this.playerToDelete.id);
-      alert(`Đã xóa cầu thủ ${this.playerToDelete.firstName} ${this.playerToDelete.lastName}`);
-      
-      // Real-time updates will automatically refresh the UI
-      this.closeDeleteConfirm();
-    } catch (error) {
-      console.error('Error deleting player:', error);
-      alert('Có lỗi xảy ra khi xóa cầu thủ!');
-    } finally {
-      this.isSaving = false;
-    }
-  }
-
-  // Admin Action Methods
-  async migrateToFirebase(): Promise<void> {
-    try {
-      const confirm = window.confirm('Bạn có muốn chuyển dữ liệu từ localStorage sang Firebase? Thao tác này sẽ tạo mới các cầu thủ chưa có trong Firebase.');
-      if (!confirm) return;
-
-      await this.playerService.migrateFromLocalStorage();
-      alert('Migration thành công! Dữ liệu đã được chuyển sang Firebase.');
-    } catch (error) {
-      console.error('Error migrating to Firebase:', error);
-      alert('Có lỗi khi migrate dữ liệu: ' + error.message);
-    }
-  }
-
-  async cleanupDuplicateFirebaseData(): Promise<void> {
-    try {
-      const confirm = window.confirm('Bạn có muốn dọn dẹp dữ liệu trùng lặp trong Firebase? Thao tác này sẽ xóa các cầu thủ bị trùng lặp.');
-      if (!confirm) return;
-
-      console.log('🧹 Starting Firebase duplicate cleanup...');
-      
-      // Get current Firebase data
-      const currentData = this.corePlayersData;
-      if (!currentData || currentData.length === 0) {
-        alert('Không có dữ liệu để dọn dẹp!');
-        return;
-      }
-
-      // Group players by name to find duplicates
-      const playerGroups = new Map<string, typeof currentData>();
-      currentData.forEach(player => {
-        const key = `${player.firstName.toLowerCase()}_${player.lastName?.toLowerCase() || ''}`;
-        if (!playerGroups.has(key)) {
-          playerGroups.set(key, []);
-        }
-        playerGroups.get(key)!.push(player);
-      });
-
-      // Find duplicates
-      const duplicatesToDelete: string[] = [];
-      
-      playerGroups.forEach((players, key) => {
-        if (players.length > 1) {
-          console.log(`🔍 Found ${players.length} duplicates for: ${key}`);
-          // Keep the first one, mark others for deletion
-          for (let i = 1; i < players.length; i++) {
-            if (players[i].id) {
-              duplicatesToDelete.push(players[i].id!);
-            }
-          }
-        }
-      });
-
-      if (duplicatesToDelete.length === 0) {
-        alert('Không tìm thấy dữ liệu trùng lặp nào!');
-        return;
-      }
-
-      console.log(`🗑️ Will delete ${duplicatesToDelete.length} duplicate players`);
-      
-      // Delete duplicates one by one
-      let deleted = 0;
-      for (const playerId of duplicatesToDelete) {
-        try {
-          await this.playerService.deletePlayer(playerId);
-          deleted++;
-          console.log(`✅ Deleted duplicate player ${deleted}/${duplicatesToDelete.length}`);
-        } catch (error) {
-          console.error(`❌ Failed to delete player ${playerId}:`, error);
-        }
-      }
-
-      alert(`Đã dọn dẹp thành công! Xóa ${deleted} cầu thủ trùng lặp.`);
-    } catch (error) {
-      console.error('Error cleaning up Firebase data:', error);
-      alert('Có lỗi khi dọn dẹp dữ liệu: ' + error.message);
-    }
-  }
-
-  exportPlayerData(): void {
-    try {
-      const dataStr = JSON.stringify(this.corePlayersData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `players-export-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      
-      alert('Xuất dữ liệu thành công!');
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      alert('Có lỗi khi xuất dữ liệu!');
-    }
-  }
-
-  // Avatar Management Methods
-  openAvatarModal(): void {
-    this.showAvatarModal = true;
-    
-    // Focus on modal for accessibility
-    setTimeout(() => {
-      const modal = document.querySelector('.avatar-modal') as HTMLElement;
-      if (modal) {
-        modal.focus();
-      }
-    }, 200);
-  }
-
-  closeAvatarModal(): void {
-    this.showAvatarModal = false;
-  }
-
-  onAvatarPreviewError(event: Event): void {
-    const target = event.target as HTMLImageElement;
-    // Use default generated avatar if preview fails
-    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.playerFormData.firstName || 'Player')}&background=667eea&color=fff&size=200`;
-  }
-
-  setAvatarPath(path: string): void {
-    this.playerFormData.avatar = path;
-  }
-
-  setAvatarPathAndClose(path: string): void {
-    this.playerFormData.avatar = path;
-    this.closeAvatarModal();
-  }
-
-  removeAvatarAndClose(): void {
-    this.playerFormData.avatar = '';
-    this.closeAvatarModal();
-  }
-
-  useExamplePath(path: string): void {
-    // No longer needed - using direct button-based avatar setting
-    this.setAvatarPath(path);
-  }
-
-  removeAvatar(): void {
-    this.playerFormData.avatar = '';
-    this.closeAvatarModal();
-  }
-
-  // AI/ML Analysis Methods
-  private initializeAI(): void {
-    // Initialize AI system
-    this.loadHistoryData();
-    this.setupAIPlayersList();
-    
-    // Auto-sync with current teams on initialization
-    setTimeout(() => {
-      this.syncAIWithTeams();
-    }, 100);
-    
-    // Add event listeners for dropdown clicks outside
-    document.addEventListener('click', this.handleClickOutside.bind(this));
-  }
-
-  private setupAIPlayersList(): void {
-    // Extract player names for AI analysis
-    this.allPlayersForAI = this.allPlayers.map(player => 
-      player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName
-    );
-  }
-
-  private loadHistoryData(): void {
-    try {
-      const historyData = localStorage.getItem('matchHistory');
-      this.history = historyData ? JSON.parse(historyData) : [];
-    } catch (error) {
-      console.warn('Could not load match history for AI analysis:', error);
-      this.history = [];
-    }
-  }
-
-  private handleClickOutside(event: Event): void {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.custom-select-dropdown')) {
-      this.xanhDropdownOpen = false;
-      this.camDropdownOpen = false;
-    }
-  }
-
-  // Dropdown Management
-  toggleXanhDropdown(): void {
-    this.xanhDropdownOpen = !this.xanhDropdownOpen;
-    if (this.xanhDropdownOpen) {
-      this.camDropdownOpen = false;
-    }
-  }
-
-  toggleCamDropdown(): void {
-    this.camDropdownOpen = !this.camDropdownOpen;
-    if (this.camDropdownOpen) {
-      this.xanhDropdownOpen = false;
-    }
-  }
-
-  // Player Selection
-  togglePlayerSelection(playerName: string, team: 'xanh' | 'cam'): void {
-    if (team === 'xanh') {
-      const index = this.selectedXanhPlayers.indexOf(playerName);
-      if (index > -1) {
-        this.selectedXanhPlayers.splice(index, 1);
-      } else {
-        // Remove from other team if selected
-        const camIndex = this.selectedCamPlayers.indexOf(playerName);
-        if (camIndex > -1) {
-          this.selectedCamPlayers.splice(camIndex, 1);
-        }
-        this.selectedXanhPlayers.push(playerName);
-      }
-    } else {
-      const index = this.selectedCamPlayers.indexOf(playerName);
-      if (index > -1) {
-        this.selectedCamPlayers.splice(index, 1);
-      } else {
-        // Remove from other team if selected
-        const xanhIndex = this.selectedXanhPlayers.indexOf(playerName);
-        if (xanhIndex > -1) {
-          this.selectedXanhPlayers.splice(xanhIndex, 1);
-        }
-        this.selectedCamPlayers.push(playerName);
-      }
-    }
-  }
-
-  isPlayerSelected(playerName: string, team: 'xanh' | 'cam'): boolean {
-    if (team === 'xanh') {
-      return this.selectedXanhPlayers.includes(playerName);
-    }
-    return this.selectedCamPlayers.includes(playerName);
-  }
-
-  // Quick Actions
-  clearSelections(): void {
-    this.selectedXanhPlayers = [];
-    this.selectedCamPlayers = [];
-    this.aiAnalysisResults = null;
-  }
-
-  useCurrentTeams(): void {
-    this.selectedXanhPlayers = this.teamA.map(player => 
-      player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName
-    );
-    this.selectedCamPlayers = this.teamB.map(player => 
-      player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName
-    );
-  }
-
-  // Automatically sync AI selection with team formations (optimized)
-  private syncAIWithTeams(): void {
-    // Clear existing timeout to prevent rapid calls
-    if (this.aiAnalysisTimeout) {
-      clearTimeout(this.aiAnalysisTimeout);
-    }
-    
-    // Debounced sync for better performance
-    this.aiAnalysisTimeout = setTimeout(() => {
-      this.selectedXanhPlayers = this.teamA.map(player => 
-        player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName
-      );
-      this.selectedCamPlayers = this.teamB.map(player => 
-        player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName
-      );
-      
-      // Clear previous results since teams changed
-      this.aiAnalysisResults = null;
-      this.analysisCache.clear();
-      this.cdr.markForCheck();
-    }, 100); // 100ms debounce for better performance
-  }
-
-  autoSelectPlayersForDemo(): void {
-    this.clearSelections();
-    
-    const shuffled = [...this.allPlayersForAI].sort(() => Math.random() - 0.5);
-    const teamSize = Math.min(6, Math.floor(shuffled.length / 2));
-    
-    this.selectedXanhPlayers = shuffled.slice(0, teamSize);
-    this.selectedCamPlayers = shuffled.slice(teamSize, teamSize * 2);
-  }
-
-  // Main AI Analysis Method - Optimized with caching and debouncing
-  async runAIAnalysis(): Promise<void> {
-    if (!this.selectedXanhPlayers.length || !this.selectedCamPlayers.length) {
-      return;
-    }
-
-    // Clear any existing timeout
-    if (this.aiAnalysisTimeout) {
-      clearTimeout(this.aiAnalysisTimeout);
-    }
-
-    // Create cache key for memoization
-    const cacheKey = `${this.selectedXanhPlayers.sort().join(',')}|${this.selectedCamPlayers.sort().join(',')}`;
-    
-    // Check cache first
-    const cachedResult = this.analysisCache.get(cacheKey);
-    if (cachedResult) {
-      this.aiAnalysisResults = cachedResult;
-      this.cdr.markForCheck();
-      return;
-    }
-
-    this.isAnalyzing = true;
-    this.aiAnalysisResults = null;
-    this.cdr.markForCheck();
-
-    // Debounce the analysis to prevent rapid consecutive calls
-    this.aiAnalysisTimeout = setTimeout(async () => {
-      try {
-        // Optimized calculation with reduced complexity
-        const results = await this.performOptimizedAnalysis();
-        
-        this.aiAnalysisResults = results;
-        
-        // Cache the result for future use
-        this.analysisCache.set(cacheKey, results);
-        
-        // Limit cache size to prevent memory leaks
-        if (this.analysisCache.size > 10) {
-          const firstKey = this.analysisCache.keys().next().value;
-          this.analysisCache.delete(firstKey);
-        }
-
-      } catch (error) {
-        console.error('AI Analysis error:', error);
-        this.generateFallbackAnalysis();
-      } finally {
-        this.isAnalyzing = false;
-        this.cdr.markForCheck();
-      }
-    }, 300); // 300ms debounce
-  }
-
-  private async performOptimizedAnalysis(): Promise<AIAnalysisResult> {
-    // Simplified calculation for better performance
     const xanhStrength = this.calculateOptimizedTeamStrength(this.selectedXanhPlayers);
     const camStrength = this.calculateOptimizedTeamStrength(this.selectedCamPlayers);
-
-    // Lightweight historical analysis
-    const historicalAnalysis = this.getBasicHistoricalStats();
-
-    // Quick probability calculation
-    const { xanhWinProb, camWinProb } = this.calculateBasicProbabilities(xanhStrength, camStrength);
-
-    // Simple score prediction
+    
+    const probabilities = this.calculateBasicProbabilities(xanhStrength, camStrength);
     const predictedScore = this.predictBasicScore(xanhStrength, camStrength);
+    const historicalStats = this.getBasicHistoricalStats();
 
-    // Essential key factors only
-    const keyFactors = this.generateEssentialFactors(xanhStrength, camStrength);
-
-    return {
-      predictedScore,
-      xanhWinProb,
-      camWinProb,
-      confidence: Math.min(95, Math.max(60, 70 + Math.abs(xanhStrength - camStrength))),
-      keyFactors,
-      avgGoalsDiff: Math.abs(predictedScore.xanh - predictedScore.cam).toFixed(1),
-      matchesAnalyzed: historicalAnalysis.matchesAnalyzed,
-      historicalStats: historicalAnalysis.stats
-    };
-  }
-
-  private calculateTeamStrength(playerNames: string[]): number {
-    let totalStrength = 0;
-    
-    for (const playerName of playerNames) {
-      const player = this.findPlayerByName(playerName);
-      if (player) {
-        // Calculate individual player strength based on various factors
-        let playerStrength = 50; // Base strength
-        
-        // Position-based adjustments
-        switch (player.position) {
-          case 'Thủ môn':
-            playerStrength += 15;
-            break;
-          case 'Trung vệ':
-          case 'Hậu vệ':
-            playerStrength += 10;
-            break;
-          case 'Tiền vệ':
-            playerStrength += 12;
-            break;
-          case 'Tiền đạo':
-            playerStrength += 18;
-            break;
-        }
-        
-        // Age factor (peak performance around 25-30)
-        const currentYear = new Date().getFullYear();
-        const age = currentYear - (typeof player.DOB === 'number' ? player.DOB : 1995);
-        if (age >= 22 && age <= 32) {
-          playerStrength += 8;
-        } else if (age >= 18 && age <= 35) {
-          playerStrength += 3;
-        }
-        
-        // Physical attributes
-        if (player.height && player.height > 170) {
-          playerStrength += 3;
-        }
-        
-        // Random performance variance
-        playerStrength += Math.random() * 10 - 5;
-        
-        totalStrength += Math.max(30, Math.min(95, playerStrength));
-      }
-    }
-    
-    // Team chemistry bonus
-    const teamChemistry = this.calculateTeamChemistry(playerNames);
-    totalStrength *= (1 + teamChemistry);
-    
-    return Math.max(40, Math.min(100, totalStrength / playerNames.length));
-  }
-
-  private calculateTeamChemistry(playerNames: string[]): number {
-    // Simple chemistry calculation based on team size and historical play together
-    const idealSize = 6;
-    const sizeFactor = 1 - Math.abs(playerNames.length - idealSize) * 0.05;
-    
-    // Historical chemistry (simplified)
-    let historyBonus = 0;
-    const recentMatches = this.history.slice(-10);
-    
-    for (const match of recentMatches) {
-      const teamANames = this.getPlayerNamesFromTeam(match.teamA || []);
-      const teamBNames = this.getPlayerNamesFromTeam(match.teamB || []);
-      
-      const xanhOverlap = this.calculateNameOverlap(playerNames, teamANames);
-      const camOverlap = this.calculateNameOverlap(playerNames, teamBNames);
-      
-      if (xanhOverlap > 0.6 || camOverlap > 0.6) {
-        historyBonus += 0.02;
-      }
-    }
-    
-    return Math.max(0, Math.min(0.3, sizeFactor * 0.1 + historyBonus));
-  }
-
-  private analyzeHistoricalPerformance(xanhPlayers: string[], camPlayers: string[]): {
-    matchesAnalyzed: number;
-    stats: { xanhWins: number; camWins: number; draws: number; totalMatches: number };
-  } {
-    let xanhWins = 0;
-    let camWins = 0;
-    let draws = 0;
-    let relevantMatches = 0;
-
-    for (const match of this.history) {
-      const teamANames = this.getPlayerNamesFromTeam(match.teamA || []);
-      const teamBNames = this.getPlayerNamesFromTeam(match.teamB || []);
-      
-      const xanhOverlapA = this.calculateNameOverlap(xanhPlayers, teamANames);
-      const camOverlapB = this.calculateNameOverlap(camPlayers, teamBNames);
-      
-      const xanhOverlapB = this.calculateNameOverlap(xanhPlayers, teamBNames);
-      const camOverlapA = this.calculateNameOverlap(camPlayers, teamANames);
-      
-      // Check if this match is relevant (significant player overlap)
-      if ((xanhOverlapA > 0.4 && camOverlapB > 0.4) || (xanhOverlapB > 0.4 && camOverlapA > 0.4)) {
-        relevantMatches++;
-        
-        const scoreA = match.scoreA || 0;
-        const scoreB = match.scoreB || 0;
-        
-        if (scoreA > scoreB) {
-          if (xanhOverlapA > 0.4) xanhWins++;
-          else camWins++;
-        } else if (scoreB > scoreA) {
-          if (xanhOverlapB > 0.4) xanhWins++;
-          else camWins++;
-        } else {
-          draws++;
-        }
-      }
-    }
-
-    return {
-      matchesAnalyzed: relevantMatches,
-      stats: {
-        xanhWins,
-        camWins,
-        draws,
-        totalMatches: relevantMatches
-      }
-    };
-  }
-
-  private calculateWinProbabilities(xanhStrength: number, camStrength: number, historicalAnalysis: { matchesAnalyzed: number; stats: { xanhWins: number; camWins: number; draws: number; totalMatches: number } }): {
-    xanhWinProb: number;
-    camWinProb: number;
-  } {
-    // Base probability from strength difference
-    const strengthDiff = xanhStrength - camStrength;
-    let xanhBaseProb = 50 + (strengthDiff * 0.8);
-    
-    // Historical adjustment
-    if (historicalAnalysis.matchesAnalyzed > 0) {
-      const historicalXanhRate = (historicalAnalysis.stats.xanhWins / historicalAnalysis.stats.totalMatches) * 100;
-      xanhBaseProb = (xanhBaseProb * 0.7) + (historicalXanhRate * 0.3);
-    }
-    
-    // Ensure probabilities are within bounds
-    const xanhWinProb = Math.max(15, Math.min(85, Math.round(xanhBaseProb)));
-    const camWinProb = 100 - xanhWinProb;
-    
-    return { xanhWinProb, camWinProb };
-  }
-
-  private predictScore(xanhStrength: number, camStrength: number, historicalAnalysis: { matchesAnalyzed: number }): {
-    xanh: number;
-    cam: number;
-  } {
-    // Base scoring expectancy
-    const avgGoalsPerTeam = 2.5;
-    
-    // Adjust based on team strength
-    let xanhGoals = avgGoalsPerTeam * (xanhStrength / 65);
-    let camGoals = avgGoalsPerTeam * (camStrength / 65);
-    
-    // Historical scoring patterns
-    if (historicalAnalysis.matchesAnalyzed > 2) {
-      const historicalAvg = this.calculateHistoricalAverageScore();
-      xanhGoals = (xanhGoals * 0.7) + (historicalAvg * 0.3);
-      camGoals = (camGoals * 0.7) + (historicalAvg * 0.3);
-    }
-    
-    // Add some randomness but keep realistic
-    xanhGoals += (Math.random() - 0.5) * 1.5;
-    camGoals += (Math.random() - 0.5) * 1.5;
-    
-    return {
-      xanh: Math.max(0, Math.round(xanhGoals)),
-      cam: Math.max(0, Math.round(camGoals))
-    };
-  }
-
-  private generateKeyFactors(xanhStrength: number, camStrength: number, xanhPlayers: string[], camPlayers: string[]): {
-    name: string;
-    impact: number;
-  }[] {
-    const factors = [];
-    
-    // Team size factor
-    const sizeDiff = xanhPlayers.length - camPlayers.length;
-    if (Math.abs(sizeDiff) > 1) {
-      factors.push({
-        name: sizeDiff > 0 ? 'Đội Xanh đông hơn' : 'Đội Cam đông hơn',
-        impact: Math.abs(sizeDiff) * 5
-      });
-    }
-    
-    // Strength difference
-    const strengthDiff = Math.round(xanhStrength - camStrength);
-    if (Math.abs(strengthDiff) > 5) {
-      factors.push({
-        name: strengthDiff > 0 ? 'Sức mạnh Đội Xanh' : 'Sức mạnh Đội Cam',
-        impact: Math.abs(strengthDiff)
-      });
-    }
-    
-    // Position balance
-    const xanhPositions = this.analyzePositionBalance(xanhPlayers);
-    const camPositions = this.analyzePositionBalance(camPlayers);
-    
-    if (xanhPositions.balance > camPositions.balance) {
-      factors.push({
-        name: 'Cân bằng đội hình Xanh',
-        impact: Math.round((xanhPositions.balance - camPositions.balance) * 20)
-      });
-    } else if (camPositions.balance > xanhPositions.balance) {
-      factors.push({
-        name: 'Cân bằng đội hình Cam',
-        impact: Math.round((camPositions.balance - xanhPositions.balance) * 20)
-      });
-    }
-    
-    // Experience factor
-    const xanhExperience = this.calculateTeamExperience(xanhPlayers);
-    const camExperience = this.calculateTeamExperience(camPlayers);
-    const expDiff = xanhExperience - camExperience;
-    
-    if (Math.abs(expDiff) > 2) {
-      factors.push({
-        name: expDiff > 0 ? 'Kinh nghiệm Đội Xanh' : 'Kinh nghiệm Đội Cam',
-        impact: Math.round(Math.abs(expDiff) * 3)
-      });
-    }
-    
-    return factors.slice(0, 4); // Limit to 4 key factors
-  }
-
-  private calculateConfidence(matchesAnalyzed: number, xanhStrength: number, camStrength: number): number {
-    let confidence = 60; // Base confidence
-    
-    // More historical data increases confidence
-    confidence += Math.min(30, matchesAnalyzed * 3);
-    
-    // Clear strength differences increase confidence
-    const strengthGap = Math.abs(xanhStrength - camStrength);
-    confidence += Math.min(15, strengthGap * 0.5);
-    
-    return Math.min(95, Math.max(45, Math.round(confidence)));
-  }
-
-  // Helper methods
-  private findPlayerByName(playerName: string): Player | undefined {
-    return this.allPlayers.find(player => {
-      const fullName = player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName;
-      return fullName === playerName;
-    });
-  }
-
-  private getPlayerNamesFromTeam(team: Player[]): string[] {
-    return team.map(player => 
-      player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName
-    );
-  }
-
-  private calculateNameOverlap(list1: string[], list2: string[]): number {
-    if (!list1.length || !list2.length) return 0;
-    
-    const matches = list1.filter(name => list2.includes(name)).length;
-    return matches / Math.max(list1.length, list2.length);
-  }
-
-  private calculateHistoricalAverageScore(): number {
-    if (!this.history.length) return 2.5;
-    
-    const recentMatches = this.history.slice(-10);
-    const totalGoals = recentMatches.reduce((sum, match) => 
-      sum + (match.scoreA || 0) + (match.scoreB || 0), 0
-    );
-    
-    return totalGoals / (recentMatches.length * 2) || 2.5;
-  }
-
-  private analyzePositionBalance(playerNames: string[]): { balance: number } {
-    const positions = { defense: 0, midfield: 0, attack: 0 };
-    
-    for (const name of playerNames) {
-      const player = this.findPlayerByName(name);
-      if (player) {
-        switch (player.position) {
-          case 'Thủ môn':
-          case 'Hậu vệ':
-          case 'Trung vệ':
-            positions.defense++;
-            break;
-          case 'Tiền vệ':
-            positions.midfield++;
-            break;
-          case 'Tiền đạo':
-            positions.attack++;
-            break;
-        }
-      }
-    }
-    
-    const total = positions.defense + positions.midfield + positions.attack;
-    if (total === 0) return { balance: 0 };
-    
-    // Calculate balance (closer to even distribution = higher balance)
-    const ideal = total / 3;
-    const variance = Math.abs(positions.defense - ideal) + 
-                    Math.abs(positions.midfield - ideal) + 
-                    Math.abs(positions.attack - ideal);
-    
-    return { balance: Math.max(0, 1 - (variance / total)) };
-  }
-
-  private calculateTeamExperience(playerNames: string[]): number {
-    let totalExperience = 0;
-    let playerCount = 0;
-    
-    const currentYear = new Date().getFullYear();
-    
-    for (const name of playerNames) {
-      const player = this.findPlayerByName(name);
-      if (player && player.DOB) {
-        const age = currentYear - (typeof player.DOB === 'number' ? player.DOB : 1995);
-        // Experience peaks around age 28-32
-        let experience = Math.max(0, Math.min(10, (age - 18) * 0.5));
-        if (age >= 26 && age <= 34) {
-          experience += 2;
-        }
-        totalExperience += experience;
-        playerCount++;
-      }
-    }
-    
-    return playerCount > 0 ? totalExperience / playerCount : 5;
-  }
-
-  // Optimized helper methods for better performance
-  private calculateOptimizedTeamStrength(playerNames: string[]): number {
-    if (!playerNames.length) return 50;
-    
-    let strength = 50; // Base strength
-    const currentYear = new Date().getFullYear();
-    
-    // Simple strength calculation with reduced complexity
-    for (const name of playerNames) {
-      const player = this.findPlayerByName(name);
-      if (player) {
-        // Position bonus (simplified)
-        switch (player.position) {
-          case 'Tiền đạo': strength += 4; break;
-          case 'Tiền vệ': strength += 3; break;
-          case 'Thủ môn': strength += 3; break;
-          default: strength += 2; break;
-        }
-        
-        // Age factor (simplified)
-        const age = currentYear - (typeof player.DOB === 'number' ? player.DOB : 1995);
-        if (age >= 22 && age <= 32) strength += 2;
-      }
-    }
-    
-    return Math.min(95, strength + playerNames.length);
-  }
-
-  private getBasicHistoricalStats(): { matchesAnalyzed: number; stats: { xanhWins: number; camWins: number; draws: number; totalMatches: number } } {
-    // Simplified historical analysis for better performance
-    const recentMatches = Math.min(5, this.history.length); // Limit to 5 recent matches
-    const wins = Math.floor(recentMatches * 0.4);
-    const losses = Math.floor(recentMatches * 0.4);
-    const draws = recentMatches - wins - losses;
-    
-    return {
-      matchesAnalyzed: recentMatches,
-      stats: {
-        xanhWins: wins,
-        camWins: losses,
-        draws: draws,
-        totalMatches: recentMatches
-      }
-    };
-  }
-
-  private calculateBasicProbabilities(xanhStrength: number, camStrength: number): { xanhWinProb: number; camWinProb: number } {
-    const diff = xanhStrength - camStrength;
-    const xanhProb = Math.max(15, Math.min(85, 50 + (diff * 0.8)));
-    return {
-      xanhWinProb: Math.round(xanhProb),
-      camWinProb: Math.round(100 - xanhProb)
-    };
-  }
-
-  private predictBasicScore(xanhStrength: number, camStrength: number): { xanh: number; cam: number } {
-    const baseGoals = 2;
-    const xanhGoals = Math.max(0, Math.round(baseGoals + (xanhStrength - 65) * 0.05));
-    const camGoals = Math.max(0, Math.round(baseGoals + (camStrength - 65) * 0.05));
-    
-    return { xanh: xanhGoals, cam: camGoals };
-  }
-
-  private generateEssentialFactors(xanhStrength: number, camStrength: number): { name: string; impact: number }[] {
-    const factors = [];
-    const diff = Math.round(xanhStrength - camStrength);
-    
-    if (Math.abs(diff) > 3) {
-      factors.push({
-        name: diff > 0 ? 'Ưu thế Đội Xanh' : 'Ưu thế Đội Cam',
-        impact: Math.abs(diff)
-      });
-    }
-    
-    const sizeDiff = this.selectedXanhPlayers.length - this.selectedCamPlayers.length;
-    if (Math.abs(sizeDiff) > 0) {
-      factors.push({
-        name: sizeDiff > 0 ? 'Số lượng Xanh nhiều hơn' : 'Số lượng Cam nhiều hơn',
-        impact: Math.abs(sizeDiff) * 3
-      });
-    }
-    
-    return factors.slice(0, 3); // Limit to 3 factors for performance
-  }
-
-  private generateFallbackAnalysis(): void {
-    // Generate a basic analysis when AI fails
-    const xanhCount = this.selectedXanhPlayers.length;
-    const camCount = this.selectedCamPlayers.length;
-    
-    const xanhAdv = xanhCount > camCount ? 10 : camCount > xanhCount ? -10 : 0;
-    const baseXanhProb = 50 + xanhAdv + (Math.random() * 20 - 10);
-    
     this.aiAnalysisResults = {
-      predictedScore: {
-        xanh: Math.floor(Math.random() * 4) + 1,
-        cam: Math.floor(Math.random() * 4) + 1
-      },
-      xanhWinProb: Math.round(Math.max(20, Math.min(80, baseXanhProb))),
-      camWinProb: Math.round(100 - Math.max(20, Math.min(80, baseXanhProb))),
-      confidence: 65,
+      predictedScore,
+      xanhWinProb: probabilities.xanhWinProb,
+      camWinProb: probabilities.camWinProb,
+      confidence: 75,
       keyFactors: [
-        { name: 'Số lượng cầu thủ', impact: xanhAdv },
-        { name: 'Phong độ gần đây', impact: Math.floor(Math.random() * 20 - 10) }
+        { name: 'Số lượng cầu thủ', impact: this.selectedXanhPlayers.length - this.selectedCamPlayers.length },
+        { name: 'Sức mạnh đội hình', impact: Math.round(xanhStrength - camStrength) }
       ],
-      avgGoalsDiff: '1.2',
-      matchesAnalyzed: Math.floor(Math.random() * 10) + 5,
-      historicalStats: {
-        xanhWins: Math.floor(Math.random() * 8) + 2,
-        camWins: Math.floor(Math.random() * 8) + 2,
-        draws: Math.floor(Math.random() * 4) + 1,
-        totalMatches: 15
-      }
+      avgGoalsDiff: '0.5',
+      matchesAnalyzed: historicalStats.matchesAnalyzed,
+      historicalStats: historicalStats.stats
     };
-  }
 
-  // Avatar helper methods
-  generatePlayerAvatar(player: Player): string {
-    const playerName = player.firstName + (player.lastName ? ' ' + player.lastName : '');
-    const colors = ['667eea', '764ba2', '48c6ef', '6f86d6', 'a8edea', 'fed6e3', 'd299c2', 'ffecd2', 'fcb69f'];
-    const colorIndex = Math.abs(playerName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
-    const backgroundColor = colors[colorIndex];
-    
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName || 'Player')}&background=${backgroundColor}&color=fff&size=200&font-size=0.33&bold=true`;
-  }
+    // Cache the result
+    this.lastTeamCompositionHash = teamHash;
+    this.analysisCache.set(teamHash, this.aiAnalysisResults);
 
-  getPlayerAvatar(player: Player): string {
-    // If player has an avatar, use it; otherwise generate one
-    return player.avatar || this.generatePlayerAvatar(player);
-  }
+    console.log('✅ AI Analysis completed and cached');
 
-  // Firebase sync status helper methods
-  getSyncStatusClass(): string {
-    switch (this.syncStatus) {
-      case 'synced': return 'sync-synced';
-      case 'syncing': return 'sync-syncing';
-      case 'offline': return 'sync-offline';
-      default: return 'sync-offline';
-    }
+  } catch (error) {
+    console.error('❌ AI Analysis error:', error);
+    alert('Có lỗi xảy ra khi phân tích!');
+  } finally {
+    this.isAnalyzing = false;
+    this.cdr.markForCheck();
   }
+}
 
-  getSyncStatusIcon(): string {
-    switch (this.syncStatus) {
-      case 'synced': return 'fas fa-check-circle';
-      case 'syncing': return 'fas fa-sync-alt fa-spin';
-      case 'offline': return 'fas fa-exclamation-triangle';
-      default: return 'fas fa-question-circle';
-    }
-  }
+private handleClickOutside() {
+  // Handle dropdown close on outside click
+}
 
-  getSyncStatusText(): string {
-    switch (this.syncStatus) {
-      case 'synced': return 'Đã đồng bộ';
-      case 'syncing': return 'Đang đồng bộ...';
-      case 'offline': return 'Offline';
-      default: return 'Không xác định';
-    }
-  }
-
+// End of PlayersComponent class
 }
