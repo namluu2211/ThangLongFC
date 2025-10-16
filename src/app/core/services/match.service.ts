@@ -756,8 +756,9 @@ export class MatchService {
       
       // Also save to Firebase history for real-time database persistence
       // Always use teamA_names and teamB_names if present, fallback to mapping from TeamComposition
-      const teamA_names = (match as any).teamA_names || (match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || []);
-      const teamB_names = (match as any).teamB_names || (match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || []);
+      const matchWithNames = match as MatchInfo & { teamA_names?: string[]; teamB_names?: string[] };
+      const teamA_names = matchWithNames.teamA_names || (match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || []);
+      const teamB_names = matchWithNames.teamB_names || (match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || []);
 
       const historyEntry = {
         date: match.date,

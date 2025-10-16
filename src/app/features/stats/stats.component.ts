@@ -349,7 +349,11 @@ interface MonthlyStats {
                 <h4 class="mb-0 me-2">
                   <i class="fas fa-users me-2"></i>
                   👥 Bảng xếp hạng cầu thủ
-                </h4>
+                  <small class="text-muted">
+                    <i class="fas fa-calculator me-1"></i>
+                    Điểm số = (Bàn thắng × 2) + (Kiến tạo × 1) + (Số trận × 1) - (Thẻ vàng × 1) - (Thẻ đỏ × 2)
+                  </small>
+                  </h4>
               </div>
               <div class="table-badge" *ngIf="enhancedStats">
               </div>
@@ -3236,8 +3240,12 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   calculatePlayerScore(player: PlayerStats): number {
-    // Score calculation: goals*3 + assists*2 - yellowCards*0.5 - redCards*2
-    return (player.goals * 3) + (player.assists * 2) - (player.yellowCards * 0.5) - (player.redCards * 2);
+    // Score calculation: (goals × 2) + (assists × 1) + (matches × 1) - (yellowCards × 1) - (redCards × 2)
+    return (player.goals * 2)
+      + (player.assists * 1)
+      + (player.matches * 1)
+      - (player.yellowCards * 1)
+      - (player.redCards * 2);
   }
 
   getGlobalRank(localIndex: number): number {
