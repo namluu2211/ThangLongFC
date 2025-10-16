@@ -2793,26 +2793,18 @@ export class StatsComponent implements OnInit, OnDestroy {
       
       const allPlayers = [...teamA, ...teamB];
       
-      // Track unique player participation
+      // Track unique player participation from team rosters
       const matchPlayerNames = new Set<string>();
-      
       for (const player of allPlayers) {
         let playerName = '';
-        
         if (typeof player === 'string') {
-          // New format: player names are stored as strings
           playerName = (player as string).trim();
-        } else if (player && typeof player === 'object' && 
-                   'firstName' in player && typeof (player as { firstName?: string }).firstName === 'string') {
-          // Old format: player objects with firstName/lastName
+        } else if (player && typeof player === 'object' && 'firstName' in player && typeof (player as { firstName?: string }).firstName === 'string') {
           const playerObj = player as { firstName: string; lastName?: string };
           playerName = `${playerObj.firstName} ${playerObj.lastName || ''}`.trim();
         }
-        
         if (!playerName) continue;
-        
         matchPlayerNames.add(playerName);
-        
         if (!playerStatsAll[playerName]) {
           playerStatsAll[playerName] = {
             name: playerName,
@@ -2825,16 +2817,45 @@ export class StatsComponent implements OnInit, OnDestroy {
         }
       }
 
-      // Count match participation for each unique player
+      // Also track players mentioned in stat fields (scorers, assists, cards)
+      const extractPlayerNames = (statField: string | undefined): string[] => {
+        if (!statField) return [];
+        const parts = String(statField).split(',');
+        return parts.map(p => p.trim().replace(/\s*\(\d+\)$/, '').trim()).filter(Boolean);
+      };
+      const allStatPlayerNames = [
+        ...extractPlayerNames(match.scorerA),
+        ...extractPlayerNames(match.scorerB),
+        ...extractPlayerNames(match.assistA),
+        ...extractPlayerNames(match.assistB),
+        ...extractPlayerNames(match.yellowA),
+        ...extractPlayerNames(match.yellowB),
+        ...extractPlayerNames(match.redA),
+        ...extractPlayerNames(match.redB)
+      ];
+      allStatPlayerNames.forEach(playerName => {
+        if (playerName && !matchPlayerNames.has(playerName)) {
+          matchPlayerNames.add(playerName);
+          if (!playerStatsAll[playerName]) {
+            playerStatsAll[playerName] = {
+              name: playerName,
+              goals: 0,
+              assists: 0,
+              yellowCards: 0,
+              redCards: 0,
+              matches: 0
+            };
+          }
+        }
+      });
+
+      // Count match participation and individual stats for each unique player
       matchPlayerNames.forEach(playerName => {
         playerStatsAll[playerName].matches++;
-        
-        // Add individual player stats from match fields
         const goals = this.parsePlayerStatFromField(match.scorerA, playerName) + this.parsePlayerStatFromField(match.scorerB, playerName);
         const assists = this.parsePlayerStatFromField(match.assistA, playerName) + this.parsePlayerStatFromField(match.assistB, playerName);
         const yellows = this.parsePlayerStatFromField(match.yellowA, playerName) + this.parsePlayerStatFromField(match.yellowB, playerName);
         const reds = this.parsePlayerStatFromField(match.redA, playerName) + this.parsePlayerStatFromField(match.redB, playerName);
-        
         playerStatsAll[playerName].goals += goals;
         playerStatsAll[playerName].assists += assists;
         playerStatsAll[playerName].yellowCards += yellows;

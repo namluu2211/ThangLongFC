@@ -6,6 +6,7 @@ import { Subject, Subscription } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { Player } from './player-utils';
 import { FirebasePlayerService } from '../../core/services/firebase-player.service';
+import { FirebaseService } from '../../services/firebase.service';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
@@ -49,6 +50,16 @@ interface HistoryEntry {
   yellowB?: string;
   redA?: string;
   redB?: string;
+}
+
+// Player Statistics Interface
+interface PlayerStats {
+  name: string;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  matches: number;
 }
 
 @Component({
@@ -254,6 +265,143 @@ interface HistoryEntry {
             {{ saveRegisteredMessage }}
           </div>
         </div>
+      </div>
+
+      <!-- Player Rankings Table (Bảng xếp hạng cầu thủ) -->
+      <div *ngIf="showPlayerRankings && topPlayers.length > 0" class="player-rankings-section">
+        <div class="rankings-card">
+          <div class="rankings-header">
+            <h3>
+              <i class="fas fa-trophy me-2"></i>
+              👑 Bảng xếp hạng cầu thủ
+            </h3>
+            <button 
+              class="modern-btn btn-sm btn-outline-secondary"
+              (click)="togglePlayerRankings()"
+              title="Ẩn bảng xếp hạng">
+              <i class="fas fa-eye-slash me-1"></i>
+              Ẩn
+            </button>
+          </div>
+
+          <div class="rankings-subtitle">
+            <i class="fas fa-info-circle me-2"></i>
+            Dựa trên {{ history.length }} trận đấu trong lịch sử
+          </div>
+
+          <div class="rankings-table-wrapper">
+            <table class="rankings-table">
+              <thead>
+                <tr>
+                  <th class="rank-col">#</th>
+                  <th class="player-col">
+                    <i class="fas fa-user me-1"></i>
+                    Cầu thủ
+                  </th>
+                  <th class="stat-col">
+                    <i class="fas fa-futbol me-1"></i>
+                    Bàn thắng
+                  </th>
+                  <th class="stat-col">
+                    <i class="fas fa-crosshairs me-1"></i>
+                    Kiến tạo
+                  </th>
+                  <th class="stat-col">
+                    <i class="fas fa-square text-warning me-1"></i>
+                    Thẻ vàng
+                  </th>
+                  <th class="stat-col">
+                    <i class="fas fa-square text-danger me-1"></i>
+                    Thẻ đỏ
+                  </th>
+                  <th class="stat-col">
+                    <i class="fas fa-calendar-check me-1"></i>
+                    Số trận
+                  </th>
+                  <th class="score-col">
+                    <i class="fas fa-star me-1"></i>
+                    Điểm số
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let player of topPlayers; let i = index" 
+                    class="ranking-row"
+                    [class.rank-1]="i === 0" 
+                    [class.rank-2]="i === 1" 
+                    [class.rank-3]="i === 2">
+                  <td class="rank-cell">
+                    <div class="rank-badge" 
+                         [class.gold]="i === 0" 
+                         [class.silver]="i === 1" 
+                         [class.bronze]="i === 2">
+                      <span *ngIf="i === 0">🥇</span>
+                      <span *ngIf="i === 1">🥈</span>
+                      <span *ngIf="i === 2">🥉</span>
+                      <span *ngIf="i > 2">{{i + 1}}</span>
+                    </div>
+                  </td>
+                  <td class="player-cell">
+                    <div class="player-info-row">
+                      <div class="player-avatar-small">
+                        <img [src]="getPlayerAvatarByName(player.name)" 
+                             [alt]="player.name"
+                             class="avatar-img"
+                             (error)="onPlayerAvatarError($event)">
+                      </div>
+                      <div class="player-name-text">{{player.name}}</div>
+                    </div>
+                  </td>
+                  <td class="stat-cell">
+                    <div class="stat-value goals" *ngIf="player.goals > 0">{{player.goals}}</div>
+                    <div class="stat-empty" *ngIf="player.goals === 0">-</div>
+                  </td>
+                  <td class="stat-cell">
+                    <div class="stat-value assists" *ngIf="player.assists > 0">{{player.assists}}</div>
+                    <div class="stat-empty" *ngIf="player.assists === 0">-</div>
+                  </td>
+                  <td class="stat-cell">
+                    <div class="stat-value yellow" *ngIf="player.yellowCards > 0">{{player.yellowCards}}</div>
+                    <div class="stat-empty" *ngIf="player.yellowCards === 0">-</div>
+                  </td>
+                  <td class="stat-cell">
+                    <div class="stat-value red" *ngIf="player.redCards > 0">{{player.redCards}}</div>
+                    <div class="stat-empty" *ngIf="player.redCards === 0">-</div>
+                  </td>
+                  <td class="stat-cell">
+                    <div class="stat-value matches">{{player.matches}}</div>
+                  </td>
+                  <td class="score-cell">
+                    <div class="score-badge" 
+                         [class.high-score]="calculatePlayerScore(player) > 10" 
+                         [class.medium-score]="calculatePlayerScore(player) > 5 && calculatePlayerScore(player) <= 10"
+                         [class.low-score]="calculatePlayerScore(player) <= 5">
+                      {{calculatePlayerScore(player).toFixed(1)}}
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="rankings-footer">
+            <small class="text-muted">
+              <i class="fas fa-calculator me-1"></i>
+              Điểm số = (Bàn thắng × 3) + (Kiến tạo × 2) - (Thẻ vàng × 0.5) - (Thẻ đỏ × 2)
+            </small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Show/Hide Rankings Button -->
+      <div *ngIf="!showPlayerRankings && history.length > 0" class="show-rankings-btn-wrapper">
+        <button 
+          class="modern-btn btn-info"
+          (click)="togglePlayerRankings(); calculatePlayerStatistics()"
+          title="Hiện bảng xếp hạng cầu thủ">
+          <i class="fas fa-trophy me-2"></i>
+          Hiện bảng xếp hạng
+        </button>
       </div>
 
       <!-- Admin Player Management Modal -->
@@ -736,6 +884,119 @@ interface HistoryEntry {
                 <div class="stat-group red">
                   <label for="redBInput">Thẻ đỏ:</label>
                   <input id="redBInput" type="text" [(ngModel)]="redB" class="stat-input" placeholder="Tên cầu thủ">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thu/Chi (Revenue/Expense) Section -->
+      <div class="match-info-card thu-chi-section">
+        <div class="card-header">
+          <h3>
+            <i class="fas fa-wallet me-2"></i>
+            💰 Thu/Chi trận đấu
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="thu-chi-grid">
+            <!-- Revenue Section -->
+            <div class="finance-section revenue-section">
+              <div class="section-title">
+                <i class="fas fa-arrow-up me-2"></i>
+                Thu nhập
+              </div>
+              <div class="stat-group">
+                <label for="thuInput">Tổng thu:</label>
+                <input 
+                  id="thuInput" 
+                  type="number" 
+                  [(ngModel)]="thu" 
+                  class="stat-input finance-input" 
+                  min="0" 
+                  step="10000"
+                  placeholder="0">
+                <span class="currency-label">VNĐ</span>
+              </div>
+            </div>
+
+            <!-- Expenses Section -->
+            <div class="finance-section expenses-section">
+              <div class="section-title">
+                <i class="fas fa-arrow-down me-2"></i>
+                Chi phí
+              </div>
+              <div class="stat-group">
+                <label for="chiNuocInput">Chi nước:</label>
+                <input 
+                  id="chiNuocInput" 
+                  type="number" 
+                  [(ngModel)]="chi_nuoc" 
+                  class="stat-input finance-input" 
+                  min="0" 
+                  step="10000"
+                  placeholder="0">
+                <span class="currency-label">VNĐ</span>
+              </div>
+              <div class="stat-group">
+                <label for="chiSanInput">Chi sân:</label>
+                <input 
+                  id="chiSanInput" 
+                  type="number" 
+                  [(ngModel)]="chi_san" 
+                  class="stat-input finance-input" 
+                  min="0" 
+                  step="10000"
+                  placeholder="0">
+                <span class="currency-label">VNĐ</span>
+              </div>
+              <div class="stat-group">
+                <label for="chiTrongTaiInput">Chi trọng tài:</label>
+                <input 
+                  id="chiTrongTaiInput" 
+                  type="number" 
+                  [(ngModel)]="chi_trongtai" 
+                  class="stat-input finance-input" 
+                  min="0" 
+                  step="10000"
+                  placeholder="0">
+                <span class="currency-label">VNĐ</span>
+              </div>
+              <div class="stat-group">
+                <label for="chiTotalInput">Tổng chi:</label>
+                <input 
+                  id="chiTotalInput" 
+                  type="number" 
+                  [(ngModel)]="chi_total" 
+                  class="stat-input finance-input" 
+                  min="0" 
+                  step="10000"
+                  placeholder="0">
+                <span class="currency-label">VNĐ</span>
+              </div>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="finance-section summary-section">
+              <div class="section-title">
+                <i class="fas fa-calculator me-2"></i>
+                Tổng kết
+              </div>
+              <div class="finance-summary">
+                <div class="summary-row">
+                  <span class="summary-label">Thu nhập:</span>
+                  <span class="summary-value positive">{{ thu | number:'1.0-0' }} VNĐ</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">Chi phí:</span>
+                  <span class="summary-value negative">{{ chi_total | number:'1.0-0' }} VNĐ</span>
+                </div>
+                <div class="summary-row total">
+                  <span class="summary-label">Lợi nhuận:</span>
+                  <span class="summary-value" [class.positive]="(thu - chi_total) >= 0" [class.negative]="(thu - chi_total) < 0">
+                    {{ (thu - chi_total) | number:'1.0-0' }} VNĐ
+                  </span>
                 </div>
               </div>
             </div>
@@ -3162,6 +3423,313 @@ interface HistoryEntry {
     .summary-text { color: #7c3aed; font-weight: 600;
     }
 
+    /* Player Rankings Styles */
+    .player-rankings-section {
+      margin: 2rem 0;
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    .rankings-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      overflow: hidden;
+      border: 2px solid #f0f0f0;
+    }
+
+    .rankings-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rankings-header h3 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+    }
+
+    .rankings-subtitle {
+      padding: 1rem 2rem;
+      background: #f8f9fa;
+      color: #6c757d;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .rankings-table-wrapper {
+      overflow-x: auto;
+    }
+
+    .rankings-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .rankings-table thead {
+      background: #34495e;
+    }
+
+    .rankings-table th {
+      padding: 1rem;
+      color: white;
+      font-weight: 600;
+      text-align: center;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .rankings-table tbody tr {
+      border-bottom: 1px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+
+    .rankings-table tbody tr:hover {
+      background: #f8fcff;
+      transform: translateX(2px);
+    }
+
+    .rankings-table tbody tr.rank-1 {
+      border-left: 4px solid #ffd700;
+      background: #fffbf0;
+    }
+
+    .rankings-table tbody tr.rank-2 {
+      border-left: 4px solid #c0c0c0;
+      background: #f8f9fa;
+    }
+
+    .rankings-table tbody tr.rank-3 {
+      border-left: 4px solid #cd7f32;
+      background: #fff9f5;
+    }
+
+    .rankings-table td {
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .rank-cell {
+      width: 80px;
+    }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 1.2rem;
+      background: #e9ecef;
+      color: #495057;
+    }
+
+    .rank-badge.gold {
+      background: #ffd700;
+      color: #b7791f;
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    }
+
+    .rank-badge.silver {
+      background: #c0c0c0;
+      color: #666;
+      box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
+    }
+
+    .rank-badge.bronze {
+      background: #cd7f32;
+      color: #8b4513;
+      box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
+    }
+
+    .player-cell {
+      text-align: left !important;
+      min-width: 200px;
+    }
+
+    .player-info-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .player-avatar-small {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #667eea;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .player-avatar-small .avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .player-avatar-small .fallback-icon {
+      font-size: 24px;
+      color: white;
+    }
+
+    .player-name-text {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+
+    .stat-cell {
+      width: 100px;
+    }
+
+    .stat-value {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 40px;
+      height: 40px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: white;
+    }
+
+    .stat-value.goals {
+      background: #ff6b6b;
+    }
+
+    .stat-value.assists {
+      background: #4fc3f7;
+    }
+
+    .stat-value.yellow {
+      background: #ffeb3b;
+      color: #b7791f;
+    }
+
+    .stat-value.red {
+      background: #f44336;
+    }
+
+    .stat-value.matches {
+      background: #11998e;
+    }
+
+    .stat-empty {
+      color: #bdc3c7;
+      font-size: 1.2rem;
+      font-weight: 300;
+    }
+
+    .score-cell {
+      width: 100px;
+    }
+
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 60px;
+      height: 40px;
+      border-radius: 20px;
+      font-weight: 800;
+      font-size: 1rem;
+      color: white;
+    }
+
+    .score-badge.high-score {
+      background: #27ae60;
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+
+    .score-badge.medium-score {
+      background: #f39c12;
+      box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+    }
+
+    .score-badge.low-score {
+      background: #95a5a6;
+      box-shadow: 0 4px 12px rgba(149, 165, 166, 0.3);
+    }
+
+    .rankings-footer {
+      padding: 1rem 2rem;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      text-align: center;
+    }
+
+    .show-rankings-btn-wrapper {
+      text-align: center;
+      margin: 2rem 0;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive Design for Rankings */
+    @media (max-width: 768px) {
+      .rankings-table {
+        font-size: 0.85rem;
+      }
+
+      .rankings-table th,
+      .rankings-table td {
+        padding: 0.5rem;
+      }
+
+      .rank-badge {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+
+      .player-avatar-small {
+        width: 40px;
+        height: 40px;
+      }
+
+      .player-name-text {
+        font-size: 0.9rem;
+      }
+
+      .stat-value {
+        min-width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
+      }
+
+      .score-badge {
+        min-width: 50px;
+        height: 35px;
+        font-size: 0.9rem;
+      }
+
+      .player-cell {
+        min-width: 150px;
+      }
+
+      .rankings-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+    }
+
     @media (max-width: 768px) {
       .history-cards-grid { grid-template-columns: 1fr; }
       .match-history-enhanced { padding: 1.5rem; }
@@ -3172,6 +3740,119 @@ interface HistoryEntry {
       .select-header { min-height: 60px; padding: 0.75rem; }
     }
 
+    /* Thu/Chi (Revenue/Expense) Section Styles */
+    .thu-chi-section {
+      margin-bottom: 30px;
+    }
+
+    .thu-chi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 10px 0;
+    }
+
+    .finance-section {
+      background: rgba(255, 255, 255, 0.5);
+      padding: 20px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .revenue-section {
+      border-left: 4px solid #2ecc71;
+    }
+
+    .expenses-section {
+      border-left: 4px solid #e74c3c;
+    }
+
+    .summary-section {
+      border-left: 4px solid #3498db;
+    }
+
+    .section-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+    }
+
+    .finance-input {
+      width: calc(100% - 60px);
+      padding: 10px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .finance-input:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .currency-label {
+      display: inline-block;
+      margin-left: 10px;
+      color: #7f8c8d;
+      font-weight: 500;
+      min-width: 50px;
+    }
+
+    .finance-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+    }
+
+    .summary-row.total {
+      background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.2));
+      border: 2px solid #3498db;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .summary-label {
+      color: #2c3e50;
+      font-weight: 500;
+    }
+
+    .summary-value {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    .summary-value.positive {
+      color: #2ecc71;
+    }
+
+    .summary-value.negative {
+      color: #e74c3c;
+    }
+
+    @media (max-width: 768px) {
+      .thu-chi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .finance-input {
+        width: calc(100% - 70px);
+        font-size: 0.9rem;
+      }
+    }
 
   `]
 })
@@ -3180,6 +3861,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   
   private destroy$ = new Subject<void>();
   private readonly playerService = inject(FirebasePlayerService);
+  private readonly firebaseService = inject(FirebaseService);
   private readonly matchService = inject(MatchService);
   private readonly dataStore = inject(DataStoreService);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -3222,6 +3904,13 @@ export class PlayersComponent implements OnInit, OnDestroy {
   redA = '';
   redB = '';
 
+  // Thu/Chi (Revenue/Expense) fields
+  thu = 0; // Revenue
+  chi_total = 0; // Total expenses
+  chi_nuoc = 0; // Water expenses
+  chi_san = 0; // Field rental expenses
+  chi_trongtai = 0; // Referee expenses
+
   // UI state
   isDragging = false;
   draggedPlayer: Player | null = null;
@@ -3255,6 +3944,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
   
   // Match history for AI analysis
   history: HistoryEntry[] = [];
+  
+  // Player statistics from Firebase history
+  playerStatsMap = new Map<string, PlayerStats>();
+  topPlayers: PlayerStats[] = [];
+  showPlayerRankings = true; // Show rankings by default
   
   // Performance optimization
   private aiAnalysisTimeout?: ReturnType<typeof setTimeout>;
@@ -3304,22 +3998,25 @@ export class PlayersComponent implements OnInit, OnDestroy {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
           
-          const jsonData = await response.json();
+          const jsonData = await response.json() as unknown[];
           console.log('📦 Loaded from JSON:', jsonData?.length || 0);
           
           if (jsonData && Array.isArray(jsonData) && jsonData.length > 0) {
             // Convert JSON data directly to allPlayers format
-            this.allPlayers = jsonData.map((player: any) => ({
-              id: player.id || Math.floor(Math.random() * 100000),
-              firstName: player.firstName || 'Unknown',
-              lastName: player.lastName || '',
-              position: player.position || 'Chưa xác định',
-              DOB: typeof player.DOB === 'number' ? player.DOB : 0,
-              height: player.height || 0,
-              weight: player.weight || 0,
-              avatar: player.avatar || 'assets/images/default-avatar.svg',
-              note: player.note || ''
-            }));
+            this.allPlayers = jsonData.map((player: unknown) => {
+              const p = player as Record<string, unknown>;
+              return {
+                id: (p.id as number) || Math.floor(Math.random() * 100000),
+                firstName: (p.firstName as string) || 'Unknown',
+                lastName: (p.lastName as string) || '',
+                position: (p.position as string) || 'Chưa xác định',
+                DOB: typeof p.DOB === 'number' ? p.DOB : 0,
+                height: (p.height as number) || 0,
+                weight: (p.weight as number) || 0,
+                avatar: (p.avatar as string) || 'assets/images/default-avatar.svg',
+                note: (p.note as string) || ''
+              };
+            });
             
             console.log('✅ Converted JSON players:', this.allPlayers.length);
             this.updateFilteredPlayers();
@@ -4072,7 +4769,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     }
   }
 
-  onAvatarError(event: Event, player?: Player) {
+  onAvatarError(event: Event) {
     const target = event.target as HTMLImageElement;
     target.src = 'assets/images/default-avatar.svg';
   }
@@ -4193,19 +4890,55 @@ export class PlayersComponent implements OnInit, OnDestroy {
   async saveMatchInfo() {
     try {
       console.log('💾 Saving match info...');
-      
+
+      // Arrays of player names for legacy/statistics compatibility
+      const teamA_names = this.teamA.map(p => p.firstName + (p.lastName ? ' ' + p.lastName : ''));
+      const teamB_names = this.teamB.map(p => p.firstName + (p.lastName ? ' ' + p.lastName : ''));
+
+      // Thu/Chi fields from UI inputs
+      const thu = this.thu || (this.teamA.length + this.teamB.length) * 30000; // Use UI value or calculate default
+      const chi_total = this.chi_total;
+      const chi_nuoc = this.chi_nuoc;
+      const chi_san = this.chi_san;
+      const chi_trongtai = this.chi_trongtai;
+
+      // Create the original match object for matchService
       const matchData = await this.createMatchDataWithServices();
-      
+
+      // Attach legacy/statistics fields for compatibility
+      Object.assign(matchData, {
+        teamA: matchData.teamA, // keep original object
+        teamB: matchData.teamB, // keep original object
+        teamA_names,
+        teamB_names,
+        scoreA: this.scoreA,
+        scoreB: this.scoreB,
+        scorerA: this.scorerA,
+        scorerB: this.scorerB,
+        assistA: this.assistA,
+        assistB: this.assistB,
+        yellowA: this.yellowA,
+        yellowB: this.yellowB,
+        redA: this.redA,
+        redB: this.redB,
+        thu,
+        chi_total,
+        chi_nuoc,
+        chi_san,
+        chi_trongtai,
+        createdAt: Date.now(),
+        createdBy: 'system@thanglong.fc',
+        lastSaved: new Date().toISOString(),
+        description: `Trận đấu ngày ${new Date().toISOString().split('T')[0]}`,
+        updatedAt: new Date().toISOString(),
+        thuMode: 'auto',
+      });
+
       await this.matchService.createMatch(matchData);
-      
       await this.addMatchFundTransaction(matchData);
-      
       this.showTemporaryMessage('matchSaveMessage', 'Đã lưu trận đấu vào hệ thống!');
-      
       this.clearMatchData();
-      
       console.log('✅ Match saved successfully. Player count remains:', this.allPlayers.length);
-      
     } catch (error) {
       console.error('❌ Error saving match info:', error);
       this.showTemporaryMessage('matchSaveMessage', 'Lỗi khi lưu trận đấu!');
@@ -4217,7 +4950,24 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const teamBCore = await this.convertToTeamComposition(this.teamB, TeamColor.ORANGE);
     
     const totalPlayers = this.teamA.length + this.teamB.length;
-    const baseRevenue = totalPlayers * 30000;
+    
+    // Use Thu from UI or calculate default
+    const baseRevenue = this.thu || (totalPlayers * 30000);
+    
+    // Use Chi fields from UI
+    const expenses = {
+      referee: this.chi_trongtai || 0,
+      field: this.chi_san || 0,
+      water: this.chi_nuoc || 0,
+      transportation: 0,
+      food: 0,
+      equipment: 0,
+      other: Math.max(0, (this.chi_total || 0) - (this.chi_trongtai || 0) - (this.chi_san || 0) - (this.chi_nuoc || 0)),
+      fixed: 0,
+      variable: 0
+    };
+    
+    const totalExpenses = Object.values(expenses).reduce((sum, val) => sum + val, 0);
     
     return {
       id: `match_${Date.now()}`,
@@ -4246,20 +4996,10 @@ export class PlayersComponent implements OnInit, OnDestroy {
           teamBRevenue: baseRevenue / 2, 
           penaltyRevenue: 0
         },
-        expenses: { 
-          referee: 0, 
-          field: 0, 
-          water: 0, 
-          transportation: 0, 
-          food: 0, 
-          equipment: 0, 
-          other: 0,
-          fixed: 0,
-          variable: 0
-        },
+        expenses,
         totalRevenue: baseRevenue,
-        totalExpenses: 0,
-        netProfit: baseRevenue,
+        totalExpenses,
+        netProfit: baseRevenue - totalExpenses,
         revenueMode: 'auto' as const
       },
       status: MatchStatus.COMPLETED,
@@ -4390,6 +5130,13 @@ private clearMatchData() {
   this.yellowB = '';
   this.redA = '';
   this.redB = '';
+  
+  // Clear Thu/Chi fields
+  this.thu = 0;
+  this.chi_total = 0;
+  this.chi_nuoc = 0;
+  this.chi_san = 0;
+  this.chi_trongtai = 0;
 }
 
 // AI Analysis methods
@@ -4400,13 +5147,82 @@ private initializeAI() {
 
 private loadMatchHistory() {
   try {
+    console.log('🔄 Loading match history from Firebase for player rankings...');
+    
+    // Subscribe to Firebase history (like stats component does)
+    this.firebaseService.history$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (historyData) => {
+          console.log('📊 Received Firebase history for rankings:', historyData.length, 'matches');
+          
+          // Convert HistoryEntry from Firebase to local format
+          // Firebase has teamA/teamB as string[], but we need Player[] for compatibility
+          this.history = historyData.map(entry => ({
+            id: entry.id,
+            date: entry.date || '',
+            teamA: (entry.teamA || []) as unknown as Player[],
+            teamB: (entry.teamB || []) as unknown as Player[],
+            scoreA: entry.scoreA || 0,
+            scoreB: entry.scoreB || 0,
+            scorerA: entry.scorerA,
+            scorerB: entry.scorerB,
+            assistA: entry.assistA,
+            assistB: entry.assistB,
+            yellowA: entry.yellowA,
+            yellowB: entry.yellowB,
+            redA: entry.redA,
+            redB: entry.redB
+          }));
+          
+          console.log('✅ Match history converted for rankings:', this.history.length);
+          
+          // Calculate player statistics after loading history
+          this.calculatePlayerStatistics();
+          
+          // Force UI update - Important for OnPush change detection
+          console.log('🔄 Forcing UI update after Firebase data load...');
+          this.cdr.markForCheck();
+          
+          // Ensure change detection runs in next cycle
+          setTimeout(() => {
+            this.cdr.detectChanges();
+            console.log('✅ Firebase data loaded and UI updated');
+          }, 0);
+        },
+        error: (error) => {
+          console.error('❌ Error loading Firebase history for rankings:', error);
+          // Fallback to localStorage
+          this.loadHistoryFromLocalStorage();
+        }
+      });
+    
+  } catch (error) {
+    console.error('❌ Error in loadMatchHistory:', error);
+    this.loadHistoryFromLocalStorage();
+  }
+}
+
+private loadHistoryFromLocalStorage() {
+  try {
+    console.log('🔄 Falling back to localStorage for player rankings...');
     const saved = localStorage.getItem('matchHistory');
     if (saved) {
-      this.history = JSON.parse(saved);
+      this.history = JSON.parse(saved) as HistoryEntry[];
+      console.log('📊 Match history loaded from localStorage:', this.history.length, 'matches');
+      
+      // Calculate player statistics after loading history
+      this.calculatePlayerStatistics();
+    } else {
+      this.history = [];
+      this.playerStatsMap.clear();
+      this.topPlayers = [];
     }
   } catch (error) {
-    console.error('Error loading match history:', error);
+    console.error('❌ Error loading from localStorage:', error);
     this.history = [];
+    this.playerStatsMap.clear();
+    this.topPlayers = [];
   }
 }
 
@@ -4482,6 +5298,376 @@ async runAIAnalysis() {
 
 private handleClickOutside() {
   // Handle dropdown close on outside click
+}
+
+// Player Statistics Calculation Methods (based on stats.component.ts logic)
+calculatePlayerStatistics() {
+  console.log('📊 calculatePlayerStatistics() called with history length:', this.history.length);
+  
+  if (!this.history || this.history.length === 0) {
+    console.warn('⚠️ No match history available for player statistics');
+    this.playerStatsMap.clear();
+    this.topPlayers = [];
+    return;
+  }
+
+  const playerStatsAll: Record<string, PlayerStats> = {};
+
+  // Process each match in history
+  for (const match of this.history) {
+    if (!match.date) {
+      console.warn('⚠️ Match has no date, skipping:', match);
+      continue;
+    }
+
+    // Get all players from both teams
+    let teamA = match.teamA || [];
+    let teamB = match.teamB || [];
+    
+    if (!Array.isArray(teamA)) teamA = [];
+    if (!Array.isArray(teamB)) teamB = [];
+    
+    const allPlayers = [...teamA, ...teamB];
+    const matchPlayerNames = new Set<string>();
+    
+    // Track unique player participation from team rosters
+    for (const player of allPlayers) {
+      let playerName = '';
+      
+      if (typeof player === 'string') {
+        // New format: player names stored as strings
+        playerName = (player as string).trim();
+      } else if (player && typeof player === 'object' && 
+                 'firstName' in player && typeof (player as { firstName?: string }).firstName === 'string') {
+        // Old format: player objects with firstName/lastName
+        const playerObj = player as { firstName: string; lastName?: string };
+        playerName = `${playerObj.firstName} ${playerObj.lastName || ''}`.trim();
+      }
+      
+      if (!playerName) continue;
+      
+      matchPlayerNames.add(playerName);
+      
+      if (!playerStatsAll[playerName]) {
+        playerStatsAll[playerName] = {
+          name: playerName,
+          goals: 0,
+          assists: 0,
+          yellowCards: 0,
+          redCards: 0,
+          matches: 0
+        };
+      }
+    }
+
+    // IMPORTANT: Also track players mentioned in stat fields (scorers, assists, cards)
+    // even if they're not in team rosters
+    const extractPlayerNames = (statField: string | undefined): string[] => {
+      if (!statField) return [];
+      const parts = String(statField).split(',');
+      return parts.map(p => p.trim().replace(/\s*\(\d+\)$/, '').trim()).filter(Boolean);
+    };
+
+    // Collect all player names from match statistics
+    const allStatPlayerNames = [
+      ...extractPlayerNames(match.scorerA),
+      ...extractPlayerNames(match.scorerB),
+      ...extractPlayerNames(match.assistA),
+      ...extractPlayerNames(match.assistB),
+      ...extractPlayerNames(match.yellowA),
+      ...extractPlayerNames(match.yellowB),
+      ...extractPlayerNames(match.redA),
+      ...extractPlayerNames(match.redB)
+    ];
+
+    // Add these players to the tracking set
+    allStatPlayerNames.forEach(playerName => {
+      if (playerName && !matchPlayerNames.has(playerName)) {
+        console.log(`⚠️ Found player "${playerName}" in stats but not in team roster for match ${match.date}`);
+        matchPlayerNames.add(playerName);
+        
+        if (!playerStatsAll[playerName]) {
+          playerStatsAll[playerName] = {
+            name: playerName,
+            goals: 0,
+            assists: 0,
+            yellowCards: 0,
+            redCards: 0,
+            matches: 0
+          };
+        }
+      }
+    });
+
+    // Count match participation and individual stats for each unique player
+    matchPlayerNames.forEach(playerName => {
+      playerStatsAll[playerName].matches++;
+      
+      // Add individual player stats from match fields
+      const goals = this.parsePlayerStatFromField(match.scorerA, playerName) + 
+                   this.parsePlayerStatFromField(match.scorerB, playerName);
+      const assists = this.parsePlayerStatFromField(match.assistA, playerName) + 
+                     this.parsePlayerStatFromField(match.assistB, playerName);
+      const yellows = this.parsePlayerStatFromField(match.yellowA, playerName) + 
+                     this.parsePlayerStatFromField(match.yellowB, playerName);
+      const reds = this.parsePlayerStatFromField(match.redA, playerName) + 
+                  this.parsePlayerStatFromField(match.redB, playerName);
+      
+      // Debug logging for specific player
+      if (playerName === 'Minh củi' || playerName.includes('Minh')) {
+        console.log(`🔍 DEBUG: Player "${playerName}" in match ${match.date}:`, {
+          scorerA: match.scorerA,
+          scorerB: match.scorerB,
+          assistA: match.assistA,
+          assistB: match.assistB,
+          yellowA: match.yellowA,
+          yellowB: match.yellowB,
+          calculatedGoals: goals,
+          calculatedAssists: assists,
+          calculatedYellows: yellows,
+          calculatedReds: reds,
+          totalGoalsSoFar: playerStatsAll[playerName].goals + goals,
+          totalYellowsSoFar: playerStatsAll[playerName].yellowCards + yellows,
+          totalMatches: playerStatsAll[playerName].matches
+        });
+      }
+      
+      playerStatsAll[playerName].goals += goals;
+      playerStatsAll[playerName].assists += assists;
+      playerStatsAll[playerName].yellowCards += yellows;
+      playerStatsAll[playerName].redCards += reds;
+    });
+  }
+
+  // Convert to Map and get top players
+  this.playerStatsMap.clear();
+  Object.values(playerStatsAll).forEach(stats => {
+    this.playerStatsMap.set(stats.name, stats);
+  });
+
+  // Get top 10 players sorted by score
+  // Force new array reference for OnPush change detection
+  this.topPlayers = [...Object.values(playerStatsAll)
+    .sort((a, b) => this.calculatePlayerScore(b) - this.calculatePlayerScore(a))
+    .slice(0, 10)];
+
+  console.log('📊 Player statistics calculated:');
+  console.log('   - Total players:', this.playerStatsMap.size);
+  console.log('   - Top 10 players:', this.topPlayers.length);
+  console.log('   - Sample stats:', this.topPlayers[0] || 'No players');
+  
+  // Special debug for Minh củi
+  const minhCuiStats = playerStatsAll['Minh củi'];
+  if (minhCuiStats) {
+    console.log('🔍 FINAL STATS for "Minh củi":', minhCuiStats);
+  }
+  
+  // IMPORTANT: Force Angular to detect changes and update the UI
+  // This is needed because we use OnPush change detection strategy
+  console.log('🔄 Triggering change detection to update UI...');
+  this.cdr.markForCheck();
+  
+  // Use setTimeout to ensure change detection runs after current cycle
+  setTimeout(() => {
+    this.cdr.detectChanges();
+    console.log('✅ UI should now be updated with latest statistics');
+  }, 0);
+}
+
+private parsePlayerStatFromField(statField: string | undefined, playerName: string): number {
+  if (!statField || !playerName) return 0;
+  
+  const fieldStr = String(statField).trim();
+  if (fieldStr === '') return 0;
+  
+  // Handle comma-separated names with counts
+  const parts = fieldStr.split(',');
+  let totalCount = 0;
+  
+  // Debug logging for Minh củi
+  const isDebugPlayer = playerName === 'Minh củi' || playerName.includes('Minh');
+  if (isDebugPlayer) {
+    console.log(`🔍 parsePlayerStatFromField: Looking for "${playerName}" in "${fieldStr}"`);
+  }
+  
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    
+    // Extract the name part (without count in parentheses)
+    const nameWithoutCount = trimmed.replace(/\s*\(\d+\)$/, '').trim();
+    
+    if (isDebugPlayer) {
+      console.log(`   Checking part: "${nameWithoutCount}"`);
+    }
+    
+    // Check for exact match
+    if (this.isExactNameMatch(nameWithoutCount, playerName)) {
+      // Extract number if any (e.g., "PlayerName (2)" -> 2)
+      const countMatch = trimmed.match(/\((\d+)\)$/);
+      const count = countMatch ? parseInt(countMatch[1]) : 1;
+      totalCount += count;
+      
+      if (isDebugPlayer) {
+        console.log(`   ✅ MATCH FOUND! Count: ${count}, Total so far: ${totalCount}`);
+      }
+    } else if (isDebugPlayer) {
+      console.log(`   ❌ No match`);
+    }
+  }
+  
+  if (isDebugPlayer) {
+    console.log(`   Final count for "${playerName}": ${totalCount}`);
+  }
+  
+  return totalCount;
+}
+
+private isExactNameMatch(fieldName: string, playerName: string): boolean {
+  // Normalize names (trim and handle case)
+  const normalizedFieldName = fieldName.trim().toLowerCase();
+  const normalizedPlayerName = playerName.trim().toLowerCase();
+  
+  // 1. First try exact full name match
+  if (normalizedFieldName === normalizedPlayerName) {
+    return true;
+  }
+  
+  // 2. Try matching with first name only, but with strict boundary checking
+  const playerFirstName = normalizedPlayerName.split(' ')[0];
+  const fieldIsJustFirstName = !normalizedFieldName.includes(' ');
+  
+  // Only match first name if:
+  // - The field contains exactly the first name (no spaces)
+  // - AND the field name is exactly the same length as the first name
+  if (fieldIsJustFirstName && normalizedFieldName === playerFirstName) {
+    return true;
+  }
+  
+  // 3. Handle cases where field might have partial name but we want exact match
+  const fieldParts = normalizedFieldName.split(/\s+/);
+  const playerParts = normalizedPlayerName.split(/\s+/);
+  
+  // For exact matching, all parts of the field name must match parts of the player name
+  if (fieldParts.length === playerParts.length) {
+    return fieldParts.every((part, index) => part === playerParts[index]);
+  }
+  
+  return false;
+}
+
+calculatePlayerScore(player: PlayerStats): number {
+  // Score calculation: goals*3 + assists*2 - yellowCards*0.5 - redCards*2
+  return (player.goals * 3) + (player.assists * 2) - (player.yellowCards * 0.5) - (player.redCards * 2);
+}
+
+getPlayerAvatarByName(playerName: string): string {
+  // Map player names to their avatar files
+  const nameMap: Record<string, string> = {
+    'Sy': 'Sy.png', 'Sỹ': 'Sy.png',
+    'Trung': 'Trung.png',
+    'Bình': 'Binh.png', 'Binh': 'Binh.png',
+    'Công': 'Cong.png', 'Cong': 'Cong.png',
+    'Cường': 'Cuong.png', 'Cuong': 'Cuong.png',
+    'Đ.Duy': 'D.Duy.png', 'D.Duy': 'D.Duy.png', 'Duy': 'D.Duy.png',
+    'Định': 'Dinh.jpg', 'Dinh': 'Dinh.jpg',
+    'Dương': 'Duong.png', 'Duong': 'Duong.png',
+    'Dybala': 'Dybala.jpg',
+    'Galvin': 'Galvin.png',
+    'H.Thành': 'H.Thanh.png', 'H.Thanh': 'H.Thanh.png',
+    'Hà': 'Ha.png', 'Ha': 'Ha.png',
+    'Hải': 'Hai.png', 'Hai': 'Hai.png',
+    'Hải Lu': 'Hai_lu.png', 'Hải Lưu': 'Hai_lu.png', 'Hai Lu': 'Hai_lu.png', 
+    'Hai Lưu': 'Hai_lu.png', 'Hai_lu': 'Hai_lu.png',
+    'Hậu': 'Hau.png', 'Hau': 'Hau.png',
+    'Hiền': 'Hien.png', 'Hien': 'Hien.png', 'Hiển': 'Hien.png',
+    'Hiếu': 'Hieu.png', 'Hieu': 'Hieu.png',
+    'Hòa': 'Hoa.png', 'Hoà': 'Hoa.png', 'Hoa': 'Hoa.png',
+    'Hùng': 'Hung.png', 'Hung': 'Hung.png',
+    'Huy': 'Huy.png',
+    'K.Duy': 'K.Duy.png',
+    'Lâm': 'Lam.png', 'Lam': 'Lam.png',
+    'Lê': 'Le.png', 'Le': 'Le.png',
+    'Lộc': 'Loc.png', 'Loc': 'Loc.png',
+    'Minh Cui': 'Minh_cui.png', 'Minh_cui': 'Minh_cui.png', 'Minh củi': 'Minh_cui.png',
+    'Minh Nhỏ': 'Minh_nho.jpg', 'Minh_nho': 'Minh_nho.jpg', 'Minh nhỏ': 'Minh_nho.jpg',
+    'Nam': 'Nam.png',
+    'Nhân': 'Nhan.png', 'Nhan': 'Nhan.png',
+    'Phú': 'Phu.png', 'Phu': 'Phu.png',
+    'Q.Thành': 'Q.Thanh.png', 'Q.Thanh': 'Q.Thanh.png',
+    'Quang': 'Quang.png',
+    'Quý': 'Quy.png', 'Quy': 'Quy.png',
+    'T.Hải': 'T.Hai.png', 'T.Hai': 'T.Hai.png',
+    'Tân': 'Tan.png', 'Tan': 'Tan.png',
+    'Tây': 'Tay.png', 'Tay': 'Tay.png',
+    'Thắng': 'Thang.png', 'Thang': 'Thang.png',
+    'Thiện': 'Thien.png', 'Thien': 'Thien.png',
+    'V.Thành': 'V.Thanh.png', 'V.Thanh': 'V.Thanh.png'
+  };
+
+  // Try exact match
+  let fileName = nameMap[playerName];
+  
+  // If not found, try normalized matching
+  if (!fileName) {
+    const normalizedInput = playerName.toLowerCase()
+      .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+      .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+      .replace(/[ìíịỉĩ]/g, 'i')
+      .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+      .replace(/[ùúụủũưừứựửữ]/g, 'u')
+      .replace(/[ỳýỵỷỹ]/g, 'y')
+      .replace(/đ/g, 'd');
+    
+    for (const [key, value] of Object.entries(nameMap)) {
+      const normalizedKey = key.toLowerCase()
+        .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+        .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+        .replace(/[ìíịỉĩ]/g, 'i')
+        .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+        .replace(/[ùúụủũưừứựửữ]/g, 'u')
+        .replace(/[ỳýỵỷỹ]/g, 'y')
+        .replace(/đ/g, 'd');
+      
+      if (normalizedKey === normalizedInput) {
+        fileName = value;
+        break;
+      }
+    }
+  }
+  
+  // If still not found, try first name only
+  if (!fileName) {
+    const firstNameOnly = playerName.split(' ')[0];
+    fileName = nameMap[firstNameOnly];
+  }
+  
+  return fileName ? 
+    `assets/images/avatar_players/${fileName}` : 
+    `assets/images/avatar_players/${playerName.replace(/\s+/g, '_')}.png`;
+}
+
+onPlayerAvatarError(event: Event): void {
+  const target = event.target as HTMLImageElement;
+  target.style.display = 'none';
+  const parent = target.parentNode as HTMLElement;
+  if (parent && !parent.querySelector('.fallback-icon')) {
+    const fallbackIcon = document.createElement('i');
+    fallbackIcon.className = 'fas fa-user-circle fallback-icon';
+    fallbackIcon.style.fontSize = '100%';
+    fallbackIcon.style.color = '#667eea';
+    fallbackIcon.style.display = 'flex';
+    fallbackIcon.style.alignItems = 'center';
+    fallbackIcon.style.justifyContent = 'center';
+    fallbackIcon.style.width = '100%';
+    fallbackIcon.style.height = '100%';
+    parent.appendChild(fallbackIcon);
+  }
+}
+
+togglePlayerRankings() {
+  this.showPlayerRankings = !this.showPlayerRankings;
+  this.cdr.markForCheck();
 }
 
 // End of PlayersComponent class

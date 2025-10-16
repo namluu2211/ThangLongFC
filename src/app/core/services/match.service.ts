@@ -759,9 +759,13 @@ export class MatchService {
         date: match.date,
         description: `Trận đấu ngày ${match.date}`,
         
-        // Map team data to simple arrays
+        // Map team data to simple arrays (legacy format)
         teamA: match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
         teamB: match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
+        
+        // Also save as teamA_names and teamB_names for consistency with existing records
+        teamA_names: match.teamA?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
+        teamB_names: match.teamB?.players?.map(p => `${p.firstName} ${p.lastName}`.trim()) || [],
         
         // Map scores
         scoreA: match.result?.scoreA || 0,
@@ -781,10 +785,13 @@ export class MatchService {
         redA: match.result?.redCardsA?.map(c => c.playerName).join(', ') || '',
         redB: match.result?.redCardsB?.map(c => c.playerName).join(', ') || '',
         
-        // Map financial data
+        // Map financial data with detailed Thu/Chi fields
         thu: (match.finances?.revenue?.teamARevenue || 0) + (match.finances?.revenue?.teamBRevenue || 0),
         thuMode: 'auto' as const,
         chi_total: (match.finances?.expenses?.referee || 0) + (match.finances?.expenses?.water || 0) + (match.finances?.expenses?.field || 0) + (match.finances?.expenses?.transportation || 0) + (match.finances?.expenses?.food || 0) + (match.finances?.expenses?.equipment || 0) + (match.finances?.expenses?.other || 0),
+        chi_nuoc: match.finances?.expenses?.water || 0,
+        chi_san: match.finances?.expenses?.field || 0,
+        chi_trongtai: match.finances?.expenses?.referee || 0,
         
         // Metadata
         createdAt: match.createdAt,
