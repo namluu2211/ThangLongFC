@@ -1,0 +1,45 @@
+/* Players Component (cleaned & deduplicated) */
+
+/* Team headers */
+.team-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.team-header.team-a { background: linear-gradient(45deg,#00bcd4 0%,#0097a7 100%); color:#fff; }
+.team-header.team-b { background: linear-gradient(45deg,#ff9800 0%,#f57c00 100%); color:#fff; }
+
+/* Score input */
+.score-input { width:60px; padding:8px; border:2px solid rgba(255,255,255,.3); border-radius:6px; text-align:center; font-size:1.2rem; font-weight:700; background:rgba(255,255,255,.9); }
+
+/* Player list & layout */
+.player-list-section { margin-bottom:30px; }
+.player-list-card { background:#fff; border-radius:15px; box-shadow:0 8px 32px rgba(0,0,0,.1); border:1px solid #eee; padding:20px; }
+.list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #ecf0f1; }
+.list-footer { display:flex; gap:10px; justify-content:center; margin-top:15px; }
+.players-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:12px; }
+
+/* Player card */
+.player-card { position:relative; background:#fff; padding:10px 8px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,.08); display:flex; flex-direction:column; align-items:center; cursor:pointer; transition:all .25s ease; border:2px solid transparent; min-width:80px; }
+.player-card:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.player-card.team-member { border-color:#27ae60; }
+.player-avatar { width:60px; height:60px; border-radius:50%; object-fit:cover; margin-bottom:6px; border:2px solid #e0e0e0; transition:all .25s ease; }
+.player-card.team-member .player-avatar { border-color:#27ae60; }
+.player-name { font-size:.85rem; font-weight:600; text-align:center; color:#2c3e50; line-height:1.2; }
+.player-rating { font-size:.65rem; color:#34495e; opacity:.8; margin-top:2px; }
+
+/* Delete button */
+.delete-btn { position:absolute; top:-8px; right:-8px; width:24px; height:24px; border-radius:50%; background:#e74c3c; color:#fff; border:none; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; opacity:0; transition:all .3s ease; cursor:pointer; }
+.player-card:hover .delete-btn { opacity:1; }
+.delete-btn:hover { background:#c0392b; transform:scale(1.1); }
+
+/* Pagination */
+.pagination-info { margin:10px 0; text-align:center; font-size:.9rem; color:#6c757d; }
+
+/* Drag & drop area */
+.players-row { min-height:120px; padding:20px; border:3px dashed #bdc3c7; border-radius:10px; display:flex; flex-wrap:wrap; gap:10px; transition:all .3s ease; background:#f6f8fa; position:relative; }
+.players-row.team-players { border-color:#27ae60; background:#eafaf1; }
+.players-row:empty::after { content:"Kéo cầu thủ vào đây"; color:#95a5a6; font-style:italic; display:flex; align-items:center; justify-content:center; width:100%; height:50px; }
+
+/* Responsive */
+@media (max-width:768px) {
+  .action-buttons { flex-direction:column; }
+  .modern-btn { width:100%; max-width:300px; }
+  .players-row { padding:15px; }
+}
