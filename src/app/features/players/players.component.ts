@@ -11,6 +11,9 @@ import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 import { TeamComposition, TeamColor, MatchStatus, GoalDetail, CardDetail, GoalType, CardType } from '../../core/models/match.model';
+import { LoggerService } from '../../core/services/logger.service';
+import { AIAnalysisService } from './services/ai-analysis.service';
+import * as CONSTANTS from './players.constants';
 
 // AI/ML Analysis Interfaces
 interface AIAnalysisResult {
@@ -3729,6 +3732,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private readonly matchService = inject(MatchService);
   private readonly dataStore = inject(DataStoreService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly logger = inject(LoggerService);
+  private readonly aiAnalysis = inject(AIAnalysisService);
   
   allPlayers: Player[] = [];
   filteredPlayers: Player[] = [];
@@ -3739,8 +3744,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   selectedPlayer: Player | null = null;
   
   // Pagination for performance
-  currentPage = 0;
-  pageSize = 20;
+  currentPage = CONSTANTS.PAGINATION.INITIAL_PAGE;
+  pageSize = CONSTANTS.PAGINATION.DEFAULT_PAGE_SIZE;
   totalPages = 0;
   private _paginatedPlayers: Player[] = [];
   private _lastPaginationState = { useRegistered: false, currentPage: -1, dataLength: 0 };
@@ -3816,7 +3821,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   
   // Performance optimization
   private aiAnalysisTimeout?: ReturnType<typeof setTimeout>;
-  private analysisCache = new Map<string, AIAnalysisResult>();
   private lastTeamCompositionHash = '';
 
   trackByPlayerId: TrackByFunction<Player> = (index: number, player: Player) => {
@@ -3829,30 +3833,30 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   async loadPlayers() {
     try {
-      console.log('🔄 loadPlayers called...');
-      console.log('📊 Current allPlayers count BEFORE loading:', this.allPlayers?.length || 0);
+      this.logger.debug('loadPlayers called');
+      this.logger.debug('Current allPlayers count BEFORE loading', { count: this.allPlayers?.length || 0 });
       
       // Reset conversion state and clear players at the start
       this.resetConversionState();
-      console.log('🧹 Reset conversion state for fresh load');
+      this.logger.debug('Reset conversion state for fresh load');
       
       this.isLoadingPlayers = true;
       this.cdr.markForCheck();
       
       // First, try to get data from PlayerService
       const currentData = this.playerService.getAllPlayers();
-      console.log('📊 PlayerService data:', currentData?.length || 0);
+      this.logger.debug('PlayerService data', { count: currentData?.length || 0 });
       
       if (currentData && currentData.length > 0) {
-        console.log('✅ Using PlayerService data');
+        this.logger.info('Using PlayerService data');
         this.corePlayersData = currentData;
         this.allPlayers = []; // Clear before converting
         this.convertCorePlayersToLegacyFormat(currentData);
         this.updateFilteredPlayers();
         this.isLoadingPlayers = false;
-        console.log('✅ loadPlayers completed with PlayerService data:', this.allPlayers.length);
+        this.logger.success('loadPlayers completed with PlayerService data', { count: this.allPlayers.length });
       } else {
-        console.log('⚠️ No PlayerService data, trying assets/players.json...');
+        this.logger.warn('No PlayerService data, trying assets/players.json...');
         
         // Fallback to loading from JSON file
         try {
@@ -3863,7 +3867,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
           }
           
           const jsonData = await response.json() as unknown[];
-          console.log('📦 Loaded from JSON:', jsonData?.length || 0);
+          this.logger.debug('Loaded from JSON', { count: jsonData?.length || 0 });
           
           if (jsonData && Array.isArray(jsonData) && jsonData.length > 0) {
             // Convert JSON data directly to allPlayers format
@@ -3882,7 +3886,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
               };
             });
             
-            console.log('✅ Converted JSON players:', this.allPlayers.length);
+            this.logger.success('Converted JSON players', { count: this.allPlayers.length });
             this.updateFilteredPlayers();
           } else {
             throw new Error('Invalid JSON data format');
@@ -4011,9 +4015,12 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.teamA = availablePlayers.slice(0, half);
     this.teamB = availablePlayers.slice(half);
     
-    console.log(`✅ Teams divided: Team A (${this.teamA.length}), Team B (${this.teamB.length})`);
-    console.log('👥 Team A:', this.teamA.map(p => p.firstName));
-    console.log('👥 Team B:', this.teamB.map(p => p.firstName));
+    this.logger.success('Teams divided', { 
+      teamACount: this.teamA.length, 
+      teamBCount: this.teamB.length 
+    });
+    this.logger.debug('Team A', { players: this.teamA.map(p => p.firstName) });
+    this.logger.debug('Team B', { players: this.teamB.map(p => p.firstName) });
     
     this.updateFilteredPlayers();
     this.syncAIWithTeams(); // Auto-sync AI selections
@@ -4033,7 +4040,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       this.registeredPlayers.push(player);
     }
     
-    localStorage.setItem('registeredPlayers', JSON.stringify(this.registeredPlayers));
+    localStorage.setItem(CONSTANTS.STORAGE_KEYS.REGISTERED_PLAYERS, JSON.stringify(this.registeredPlayers));
     
     if (this.useRegistered) {
       this.updateFilteredPlayers();
@@ -4060,7 +4067,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
   clearRegisteredPlayers() {
     this.registeredPlayers = [];
-    localStorage.removeItem('registeredPlayers');
+    localStorage.removeItem(CONSTANTS.STORAGE_KEYS.REGISTERED_PLAYERS);
     this.showTemporaryMessage('saveRegisteredMessage', 'Đã xóa tất cả cầu thủ đã đăng ký');
     
     if (this.useRegistered) {
@@ -4079,13 +4086,14 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   logPerformanceMetrics() {
-    console.log('📊 Performance Metrics:');
-    console.log('👥 Total Players:', this.allPlayers.length);
-    console.log('✅ Registered Players:', this.registeredPlayers.length);
-    console.log('🔵 Team A:', this.teamA.length);
-    console.log('🟠 Team B:', this.teamB.length);
-    console.log('📄 Current Page:', this.currentPage + 1, '/', this.totalPages);
-    console.log('🔄 Use Registered Mode:', this.useRegistered);
+    this.logger.group('Performance Metrics');
+    this.logger.info('Total Players', { count: this.allPlayers.length });
+    this.logger.info('Registered Players', { count: this.registeredPlayers.length });
+    this.logger.info('Team A', { count: this.teamA.length });
+    this.logger.info('Team B', { count: this.teamB.length });
+    this.logger.info('Current Page', { page: this.currentPage + 1, total: this.totalPages });
+    this.logger.info('Use Registered Mode', { enabled: this.useRegistered });
+    this.logger.groupEnd();
   }
 
   getPaginatedPlayers(): Player[] {
@@ -4164,7 +4172,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     
     this.updateFilteredPlayers();
     this.syncAIWithTeams();
-    this.analysisCache.clear(); // Clear AI cache
+    this.aiAnalysis.clearCache(); // Clear AI cache
     this.cdr.markForCheck();
   }
 
@@ -4177,7 +4185,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     
     this.updateFilteredPlayers();
     this.syncAIWithTeams();
-    this.analysisCache.clear();
+    this.aiAnalysis.clearCache();
     this.aiAnalysisResults = null;
     this.cdr.markForCheck();
   }
@@ -4277,11 +4285,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
         debounceTime(300), // Prevent rapid updates
         distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr))
       )
-      .subscribe({
-        next: (players) => {
-          console.log('📡 Received Firebase data update:', players?.length || 0);
-          
-          if (players && players.length > 0) {
+        .subscribe({
+          next: (players) => {
+            this.logger.debug('Received Firebase data update', { count: players?.length || 0 });          if (players && players.length > 0) {
             this.corePlayersData = players;
             this.allPlayers = []; // Clear before converting
             this.convertCorePlayersToLegacyFormat(players);
@@ -4354,8 +4360,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
       this.aiAnalysisTimeout = null;
     }
     
-    // Clear caches
-    this.analysisCache.clear();
+    // Clear AI cache
+    this.aiAnalysis.clearCache();
     
     // Remove event listeners
     document.removeEventListener('click', this.handleClickOutside.bind(this));
@@ -4723,10 +4729,12 @@ export class PlayersComponent implements OnInit, OnDestroy {
       const uniquePlayers = Array.from(seenPlayers.values());
       
       if (uniquePlayers.length !== corePlayers.length) {
-        console.warn(`🔧 DEDUPLICATION: Removed ${corePlayers.length - uniquePlayers.length} duplicate players`);
+        this.logger.warn('DEDUPLICATION: Removed duplicate players', { 
+          removed: corePlayers.length - uniquePlayers.length 
+        });
       }
       
-      console.log('🧹 Clearing existing allPlayers before conversion');
+      this.logger.debug('Clearing existing allPlayers before conversion');
       this.allPlayers = [];
       
       this.allPlayers = uniquePlayers.map(player => ({
@@ -5170,11 +5178,10 @@ async runAIAnalysis() {
       historicalStats: historicalStats.stats
     };
 
-    // Cache the result
+    // Cache the result (handled by service)
     this.lastTeamCompositionHash = teamHash;
-    this.analysisCache.set(teamHash, this.aiAnalysisResults);
 
-    console.log('✅ AI Analysis completed and cached');
+    this.logger.success('AI Analysis completed and cached');
 
   } catch (error) {
     console.error('❌ AI Analysis error:', error);

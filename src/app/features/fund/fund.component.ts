@@ -3,6 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { Subscription } from 'rxjs';
+import {
+  FUND_CURRENCY,
+  FUND_DATE_FORMAT,
+  FUND_CATEGORIES
+} from './fund.constants';
+import { FundTransactionService, Transaction as FundTransaction } from './fund-transaction.service';
+import { LoggerService } from '../../core/services/logger.service';
 
 interface Transaction {
   id: string;
@@ -930,6 +937,8 @@ interface FundSummary {
 })
 export class FundComponent implements OnInit, OnDestroy {
   private firebaseService = inject(FirebaseService);
+  private fundTransactionService = inject(FundTransactionService);
+  private logger = inject(LoggerService);
   private subscription?: Subscription;
 
   // Data properties
@@ -973,12 +982,14 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   private loadData() {
-    // Load transactions from localStorage
-    const storedTransactions = localStorage.getItem('fund-transactions');
-    if (storedTransactions) {
-      this.transactions = JSON.parse(storedTransactions);
-      this.filterTransactions();
+    try {
+      this.transactions = this.fundTransactionService.loadTransactions();
+      this.logger.info('Loaded transactions from storage', this.transactions);
+    } catch (err) {
+      this.logger.error('Failed to load transactions', err);
+      this.transactions = [];
     }
+    this.filterTransactions();
     this.calculateSummary();
   }
 
@@ -1047,7 +1058,7 @@ export class FundComponent implements OnInit, OnDestroy {
       case 'expense':
         filtered = filtered.filter(t => t.type === 'expense');
         break;
-      case 'this-month':
+      case 'this-month': {
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         filtered = filtered.filter(t => {
@@ -1055,6 +1066,7 @@ export class FundComponent implements OnInit, OnDestroy {
           return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
         });
         break;
+      }
     }
 
     this.filteredTransactions = filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1099,33 +1111,30 @@ export class FundComponent implements OnInit, OnDestroy {
 
   saveTransaction() {
     if (!this.transactionForm.category || !this.transactionForm.description || !this.transactionForm.amount) {
+      this.logger.warn('Transaction form is incomplete', this.transactionForm);
       return;
     }
-
-    const transaction: Transaction = {
-      id: this.editingTransaction?.id || this.generateId(),
-      date: this.transactionForm.date!,
-      type: this.transactionForm.type as 'income' | 'expense',
-      category: this.transactionForm.category,
-      description: this.transactionForm.description,
-      amount: Number(this.transactionForm.amount)
-    };
-
-    if (this.editingTransaction) {
-      // Update existing transaction
-      const index = this.transactions.findIndex(t => t.id === this.editingTransaction!.id);
-      if (index !== -1) {
-        this.transactions[index] = transaction;
+    try {
+      const transaction: FundTransaction = {
+        id: this.editingTransaction?.id || this.generateId(),
+        date: this.transactionForm.date!,
+        type: this.transactionForm.type as 'income' | 'expense',
+        category: this.transactionForm.category!,
+        description: this.transactionForm.description!,
+        amount: Number(this.transactionForm.amount)
+      };
+      if (this.editingTransaction) {
+        this.transactions = this.fundTransactionService.updateTransaction(this.transactions, transaction);
+        this.logger.info('Updated transaction', transaction);
+      } else {
+        this.transactions = this.fundTransactionService.addTransaction(this.transactions, transaction);
+        this.logger.info('Added new transaction', transaction);
       }
-    } else {
-      // Add new transaction
-      this.transactions.push(transaction);
+      this.fundTransactionService.saveTransactions(this.transactions);
+      this.logger.success('Transactions saved');
+    } catch (err) {
+      this.logger.error('Failed to save transaction', err, this.transactionForm);
     }
-
-    // Save to localStorage
-    localStorage.setItem('fund-transactions', JSON.stringify(this.transactions));
-
-    // Recalculate and refresh
     this.calculateSummary();
     this.filterTransactions();
     this.closeTransactionModal();
@@ -1139,8 +1148,14 @@ export class FundComponent implements OnInit, OnDestroy {
 
   deleteTransaction(transaction: Transaction) {
     if (confirm('Bạn có chắc muốn xóa giao dịch này?')) {
-      this.transactions = this.transactions.filter(t => t.id !== transaction.id);
-      localStorage.setItem('fund-transactions', JSON.stringify(this.transactions));
+      try {
+        this.transactions = this.fundTransactionService.deleteTransaction(this.transactions, transaction.id);
+        this.fundTransactionService.saveTransactions(this.transactions);
+        this.logger.info('Deleted transaction', transaction);
+        this.logger.success('Transactions saved after delete');
+      } catch (err) {
+        this.logger.error('Failed to delete transaction', err, transaction);
+      }
       this.calculateSummary();
       this.filterTransactions();
     }
@@ -1159,23 +1174,7 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   getCategories() {
-    const incomeCategories = [
-      { value: 'match-fee', label: 'Phí thi đấu' },
-      { value: 'membership', label: 'Phí thành viên' },
-      { value: 'sponsor', label: 'Tài trợ' },
-      { value: 'other-income', label: 'Thu khác' }
-    ];
-
-    const expenseCategories = [
-      { value: 'field-rental', label: 'Thuê sân' },
-      { value: 'referee', label: 'Trọng tài' },
-      { value: 'equipment', label: 'Dụng cụ' },
-      { value: 'transportation', label: 'Di chuyển' },
-      { value: 'food-drink', label: 'Ăn uống' },
-      { value: 'other-expense', label: 'Chi khác' }
-    ];
-
-    return this.transactionForm.type === 'income' ? incomeCategories : expenseCategories;
+    return FUND_CATEGORIES;
   }
 
   trackTransaction(index: number, transaction: Transaction): string {
@@ -1183,15 +1182,15 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('vi-VN', {
+    return new Intl.NumberFormat(FUND_DATE_FORMAT, {
       style: 'currency',
-      currency: 'VND',
+      currency: FUND_CURRENCY,
       minimumFractionDigits: 0
     }).format(amount);
   }
 
   formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('vi-VN');
+    return new Date(dateString).toLocaleDateString(FUND_DATE_FORMAT);
   }
 
   private generateId(): string {
