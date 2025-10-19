@@ -74,19 +74,26 @@ app-player-list .pagination-controls { margin-top:4px; }
 .badge.rc { background:#ffebee; color:#b71c1c; padding:2px 8px; border-radius:14px; font-weight:600; }
 
 /* Finance Summary */
-.finance-summary { margin-top:38px; }
-.finance-title { margin:0 0 16px; font-size:16px; font-weight:600; color:#2c2350; display:flex; align-items:center; gap:8px; letter-spacing:.4px; }
-.finance-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; }
-.finance-card { background:#ffffff; border:1px solid #d8d1f4; border-radius:16px; padding:16px 18px 14px; box-shadow:0 6px 22px -6px rgba(50,30,90,.25),0 2px 6px rgba(0,0,0,.08); position:relative; }
-.finance-card h4 { margin:0 0 12px; font-size:14px; text-transform:uppercase; letter-spacing:.5px; opacity:.75; }
-.fin-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; font-size:12px; }
-.fin-row label { flex:1; }
-.fin-row input { width:110px; background:#f7f6fd; border:1px solid #d1caeb; padding:4px 6px; border-radius:8px; font-size:12px; }
-.fin-total { margin-top:8px; font-size:12px; font-weight:600; color:#312b53; background:#f9f8fe; padding:6px 8px; border-radius:8px; border:1px solid #e2dcf5; }
-.finance-card.summary { display:flex; flex-direction:column; gap:8px; }
-.fin-row.flat { margin-bottom:0; }
-.profit { margin-top:6px; font-weight:600; font-size:13px; color:#09a37f; padding:8px 10px; border:1px solid #8ce7d2; border-radius:10px; background:linear-gradient(145deg,#e9fff9,#dcfdf5); letter-spacing:.4px; }
-.profit.negative { color:#d03737; border-color:#f8b8b8; background:linear-gradient(145deg,#fff1f1,#ffe2e2); }
+.finance-summary { margin-top:46px; }
+.finance-title { margin:0 0 20px; font-size:20px; font-weight:700; color:#1f1840; display:flex; align-items:center; gap:10px; letter-spacing:.6px; position:relative; }
+.finance-title i { color:#f4b400; text-shadow:0 2px 6px rgba(0,0,0,.25); }
+.finance-title:after { content:' '; position:absolute; left:4px; bottom:-6px; width:64px; height:4px; border-radius:3px; background:linear-gradient(90deg,#ffb347,#ff8c42); opacity:.9; }
+.finance-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:24px 22px; }
+.finance-card { background:linear-gradient(145deg,#ffffff,#f6f3ff); border:1px solid #cfc7e8; border-radius:20px; padding:20px 22px 18px; box-shadow:0 12px 34px -10px rgba(40,25,70,.35),0 4px 12px rgba(0,0,0,.12); position:relative; overflow:hidden; }
+.finance-card:before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 85% 15%,rgba(255,188,80,.28),transparent 60%); pointer-events:none; }
+.finance-card h4 { margin:0 0 14px; font-size:13px; text-transform:uppercase; letter-spacing:.55px; font-weight:700; color:#4a3d70; opacity:.9; display:flex; align-items:center; gap:6px; }
+.finance-card h4:before { content:'\f53a'; font-family:'Font Awesome 5 Free'; font-weight:900; font-size:12px; color:#ff9800; opacity:.75; }
+.fin-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; font-size:12px; position:relative; }
+.fin-row label { flex:1; font-weight:600; color:#40375d; letter-spacing:.3px; }
+.fin-row input { width:120px; background:#ffffff; border:1px solid #cbc3e3; padding:6px 8px; border-radius:10px; font-size:12px; box-shadow:0 2px 4px rgba(0,0,0,.06); transition:box-shadow .18s,border-color .18s; }
+.fin-row input:focus { outline:none; border-color:#7b5df0; box-shadow:0 0 0 2px rgba(123,93,240,.25); }
+.fin-total { margin-top:10px; font-size:12px; font-weight:700; color:#2c2350; background:#fff8e8; padding:8px 10px; border-radius:10px; border:1px solid #f3d9a8; box-shadow:0 2px 6px rgba(0,0,0,.06); letter-spacing:.4px; }
+.finance-card.summary { display:flex; flex-direction:column; gap:10px; background:linear-gradient(145deg,#ffffff,#eef8ff); border:1px solid #c2d9ef; }
+.fin-row.flat { margin-bottom:0; font-size:12px; }
+.fin-row.flat span { color:#473c6b; font-weight:600; }
+.profit { margin-top:10px; font-weight:700; font-size:14px; color:#0c9b72; padding:10px 12px; border:1px solid #7bd8c3; border-radius:12px; background:linear-gradient(145deg,#e6fff7,#d4fbf0); letter-spacing:.5px; display:flex; align-items:center; gap:6px; }
+.profit:before { content:'\f201'; font-family:'Font Awesome 5 Free'; font-weight:900; font-size:14px; }
+.profit.negative { color:#d03333; border-color:#f7b3b3; background:linear-gradient(145deg,#ffecec,#ffe1e1); }
 
 /* Teams Panel */
 app-teams-panel .teams-container { margin-top:26px; }

@@ -14,18 +14,14 @@ import { Player } from '../player-utils';
     <div class="player-list-card light">
       <div class="list-header">
         <h3><i class="fas fa-users me-2"></i>Danh sách cầu thủ</h3>
-        <div class="list-controls">
-          <button class="modern-btn btn-sm btn-primary" (click)="savePlayers.emit()" title="Lưu thay đổi">
-            <i class="fas fa-save me-1"></i>Lưu
-          </button>
-          <button class="modern-btn btn-sm btn-secondary" (click)="toggleList.emit()">
-            {{ showPlayerList ? 'Ẩn danh sách' : 'Hiện danh sách' }}
-          </button>
-        </div>
       </div>
       <app-player-skeleton *ngIf="loading && paginatedPlayers.length === 0"></app-player-skeleton>
-      <div class="players-grid4" *ngIf="paginatedPlayers.length > 0 && !loading; else noPlayersTemplate">
-        <div *ngFor="let player of paginatedPlayers; trackBy: trackByPlayerId" class="player-cell" [class.registered]="isRegistered(player)">
+      <div class="legend-row" *ngIf="paginatedPlayers.length && registeredPlayers.length">
+        <span class="legend-item"><span class="legend-dot reg"></span> Đã đăng ký</span>
+        <span class="legend-item"><span class="legend-dot unreg"></span> Chưa đăng ký</span>
+      </div>
+      <div class="players-grid4" *ngIf="paginatedPlayers.length > 0 && !loading; else noPlayersTemplate" aria-label="Danh sách cầu thủ phân trang">
+        <div *ngFor="let player of paginatedPlayers; trackBy: trackByPlayerId" class="player-cell" [class.registered]="isRegistered(player)" [attr.aria-label]="player.firstName + (isRegistered(player)? ' đã đăng ký':' chưa đăng ký')">
           <div class="top-row">
             <div class="avatar-small" (click)="viewPlayer.emit(player)" tabindex="0" (keyup)="onPlayerInfoKey($event, player)">
               <img appAvatarFallback [fallbackSrc]="'assets/images/default-avatar.svg'" [src]="player.avatar || 'assets/images/default-avatar.svg'" [alt]="player.firstName" loading="lazy">
@@ -37,6 +33,7 @@ import { Player } from '../player-utils';
           <div class="info">
             <div class="name" [title]="player.firstName + ' ' + player.lastName">{{ player.firstName }} {{ player.lastName }}</div>
             <div class="position">{{ player.position }}</div>
+            <div class="reg-badge" *ngIf="isRegistered(player)" aria-label="Đã đăng ký">Đăng ký</div>
           </div>
         </div>
       </div>
@@ -67,20 +64,28 @@ import { Player } from '../player-utils';
     .list-header h3 { margin:0; font-size:1rem; font-weight:600; color:#312b53; letter-spacing:.3px; }
     .list-controls { display:flex; gap:6px; }
   .players-grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-  .player-cell { background:#ffffff; border:1px solid #dad4ed; border-radius:12px; padding:8px 8px 6px; display:flex; flex-direction:column; gap:4px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.05); transition:box-shadow .18s, transform .18s; }
-  .player-cell.registered { border-color:#53b963; box-shadow:0 3px 10px -2px rgba(30,120,55,.25); }
+  .player-cell { background:#ffffff; border:1px solid #dad4ed; border-radius:14px; padding:8px 8px 6px; display:flex; flex-direction:column; gap:4px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.05); transition:box-shadow .18s, transform .18s, border-color .25s; }
+  .player-cell.registered { border-color:#2e9b43; box-shadow:0 4px 14px -2px rgba(36,130,60,.28); background:linear-gradient(145deg,#ffffff,#f3fff6); }
   .player-cell:hover { box-shadow:0 6px 16px rgba(0,0,0,.15); transform:translateY(-3px); }
+  .legend-row { display:flex; gap:18px; align-items:center; font-size:.6rem; margin:2px 2px 8px; padding:4px 6px; background:#efeafc; border:1px solid #ded3f9; border-radius:10px; width:fit-content; box-shadow:0 2px 4px rgba(50,30,90,.12); }
+  .legend-item { display:flex; align-items:center; gap:4px; font-weight:500; color:#504672; }
+  .legend-dot { width:12px; height:12px; border-radius:50%; display:inline-block; background:#d0c7ec; border:1px solid #b7add7; }
+  .legend-dot.reg { background:#2e9b43; border-color:#237b35; }
+  .legend-dot.unreg { background:#b7b2cc; }
   .top-row { display:flex; align-items:center; justify-content:space-between; gap:6px; }
     .register-toggle { background:#ece8fa; border:1px solid #d3cbed; color:#5a3fd0; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:14px; transition:background .18s, color .18s; }
     .player-row.registered .register-toggle { background:#36a14a; border-color:#2d8a3d; color:#fff; }
     .register-toggle:hover { background:#ded7f4; }
     .player-row.registered .register-toggle:hover { background:#42b156; }
     .register-toggle:focus-visible { outline:2px solid #ffcf66; outline-offset:2px; }
-    .avatar-small { width:38px; height:38px; border-radius:50%; overflow:hidden; border:2px solid #d3cbed; background:#fff; display:flex; align-items:center; justify-content:center; }
+  .avatar-small { width:42px; height:42px; border-radius:50%; overflow:hidden; border:2px solid #d3cbed; background:#fff; display:flex; align-items:center; justify-content:center; position:relative; }
+  /* Removed animated ring highlight for registered players */
     .avatar-small img { width:100%; height:100%; object-fit:cover; }
     .info { display:flex; flex-direction:column; line-height:1.15; }
     .name { font-weight:600; font-size:.8rem; color:#2c2350; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .position { font-size:.65rem; text-transform:uppercase; letter-spacing:.5px; color:#6e6a85; }
+  .position { font-size:.6rem; text-transform:uppercase; letter-spacing:.5px; color:#6e6a85; }
+  .reg-badge { margin-top:2px; font-size:.5rem; background:#2e9b43; color:#fff; padding:2px 6px; border-radius:12px; letter-spacing:.5px; font-weight:600; box-shadow:0 2px 4px rgba(0,0,0,.15); }
+  @keyframes spin { to { transform:rotate(360deg); } }
     .pagination-controls { display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0 4px; }
     .empty { text-align:center; padding:32px 20px; background:#faf9fe; border:1px dashed #d8d1f4; border-radius:14px; color:#695f90; }
     .empty .icon { font-size:2.4rem; margin-bottom:12px; opacity:.65; }

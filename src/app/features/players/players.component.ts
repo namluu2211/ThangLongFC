@@ -28,7 +28,7 @@ import { TeamsPanelComponent } from './components/teams-panel.component';
 // Removed FinancePanelComponent & PlayerRankingsComponent from Đội hình tab
 
 interface PlayerStats { name:string; goals:number; assists:number; yellowCards:number; redCards:number; matches:number; }
-interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{teamA:number;teamB:number;balanceScore:number} }
+interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{ xanh:number; cam:number; balance:number } }
 interface RawPlayerJson { id?: number|string; firstName?: string; lastName?: string; position?: string; DOB?: number; dateOfBirth?: string|number; height?: number; weight?: number; avatar?: string; note?: string; notes?: string; }
 interface PlayerWithCoreId extends Player { coreId?: string; }
 
@@ -59,6 +59,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private readonly financeService=inject(MatchFinanceService);
 
   corePlayersData:PlayerInfo[]=[]; allPlayers:PlayerWithCoreId[]=[]; registeredPlayers:PlayerWithCoreId[]=[]; useRegistered=false;
+  filterRegisteredOnly=false;
   teamA:Player[]=[]; teamB:Player[]=[]; scoreA=0; scoreB=0;
   // Match event state (Phase B)
   goalsA:{playerId:number;assistId?:number;minute:number}[]=[];
@@ -222,7 +223,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
     try{ await this.simplePlayerService.deletePlayer(id); }catch(e){ this.logger.errorDev('delete player failed',e); }
   }
 
-  getDisplayPlayers():Player[]{ return this.useRegistered? this.registeredPlayers: this.allPlayers; }
+  getDisplayPlayers():Player[]{
+    const base = this.useRegistered? this.registeredPlayers: this.allPlayers;
+    if(this.filterRegisteredOnly) return base.filter(p=> this.registeredPlayers.some(r=>r.id===p.id));
+    return base;
+  }
   getPaginatedPlayers():Player[]{
     const display=this.getDisplayPlayers();
     const result=this.pagination.paginate(display,this.currentPage);
@@ -236,11 +241,18 @@ export class PlayersComponent implements OnInit, OnDestroy {
   togglePlayerListView(){ this.showPlayerList=!this.showPlayerList; }
   toggleUseRegistered(){ this.useRegistered=!this.useRegistered; this.updatePagination(); }
   clearRegisteredPlayers(){ this.registeredPlayers=[]; localStorage.removeItem(STORAGE_KEYS.REGISTERED_PLAYERS); if(this.useRegistered) this.updatePagination(); }
+  // Public wrapper for template to toggle the registered-only filter without exposing internal pagination helper
+  toggleRegisteredFilter(){
+    this.filterRegisteredOnly = !this.filterRegisteredOnly;
+    this.updatePagination();
+    this.cdr.markForCheck();
+  }
   canDivideTeams(){ return this.getDisplayPlayers().length>=2; }
 
-  shuffleTeams(){ const pool=this.getDisplayPlayers().slice(); if(pool.length<2) return; for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; } const half=Math.ceil(pool.length/2); this.teamA=pool.slice(0,half); this.teamB=pool.slice(half); this.triggerTeamChange(); }
+  shuffleTeams(){ const pool=this.getDisplayPlayers().slice(); if(pool.length<2) return; for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; } const half=Math.ceil(pool.length/2); this.replaceTeam('A', pool.slice(0,half)); this.replaceTeam('B', pool.slice(half)); this.triggerTeamChange(); }
   // Drag-drop handled by lazy TeamDndComponent
-  removeFromTeam(player:Player, team:'A'|'B'){ if(team==='A') this.teamA=this.teamA.filter(p=>p.id!==player.id); else this.teamB=this.teamB.filter(p=>p.id!==player.id); this.triggerTeamChange(); this.persistTeams(); }
+  removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
+  }
   private triggerTeamChange(){ this.teamChange$.next(); this.persistTeams(); }
   onTeamDropped(event: { previousContainer: { data: Player[] }; container: { data: Player[] }; previousIndex: number; currentIndex: number }){
     // Basic CDK drop event mapping without importing concrete type to avoid circular import here
@@ -257,15 +269,14 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.triggerTeamChange();
     this.cdr.markForCheck();
   }
-  clearTeams(){ this.teamA=[]; this.teamB=[]; this.triggerTeamChange(); localStorage.removeItem('persisted_teams'); }
+  clearTeams(){ this.teamA.length=0; this.teamB.length=0; this.triggerTeamChange(); localStorage.removeItem('persisted_teams'); }
   shuffleRegisteredTeams(){
-    // Use only registered players pool (explicit per requirement)
     const pool=this.registeredPlayers.slice();
     if(pool.length<2){ return; }
     for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
     const half=Math.ceil(pool.length/2);
-    this.teamA=pool.slice(0,half);
-    this.teamB=pool.slice(half);
+    this.replaceTeam('A', pool.slice(0,half));
+    this.replaceTeam('B', pool.slice(half));
     this.triggerTeamChange();
   }
 
@@ -299,7 +310,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
           draws:res.historicalContext.recentPerformance.draws,
           totalMatches:res.historicalContext.matchesAnalyzed
         },
-        teamStrengths:{ teamA:teamAStr, teamB:teamBStr, balanceScore }
+        teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
       };
       this.lastTeamCompositionHash=hash; this.isAnalyzing=false; this.cdr.markForCheck();
     });
@@ -550,5 +561,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
     // Score formula (simple weighting)
     for(const s of stats.values()){ s.score = s.goals*4 + s.assists*3 - s.yellow*0.5 - s.red*3; }
     return Array.from(stats.values()).sort((a,b)=> b.score - a.score);
+  }
+
+  /** Keep array reference stable for drag & drop while replacing contents */
+  private replaceTeam(team:'A'|'B', players:Player[]){
+    const target= team==='A'? this.teamA: this.teamB;
+    target.length=0; for(const p of players) target.push(p);
   }
 }

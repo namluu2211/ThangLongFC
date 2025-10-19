@@ -14,13 +14,12 @@
 
     <section class="players-toolbar" aria-label="Thanh công cụ đội hình">
       <div class="toolbar-left">
-        <button class="tl-btn" (click)="togglePlayerListView()" [attr.aria-pressed]="showPlayerList">
-          <i class="fas fa-list"></i>
-          {{ showPlayerList ? 'Ẩn danh sách' : 'Hiện danh sách' }}
-        </button>
         <button class="tl-btn" (click)="toggleUseRegistered()" [attr.aria-pressed]="useRegistered">
           <i class="fas" [class.fa-user-check]="useRegistered" [class.fa-users]="!useRegistered"></i>
           {{ useRegistered ? 'Đăng ký (' + registeredPlayers.length + ')' : 'Tất cả (' + allPlayers.length + ')' }}
+        </button>
+  <button class="tl-btn" (click)="toggleRegisteredFilter()" [attr.aria-pressed]="filterRegisteredOnly" title="Chỉ hiển thị cầu thủ đã đăng ký">
+          <i class="fas" [class.fa-filter]="!filterRegisteredOnly" [class.fa-filter-circle-check]="filterRegisteredOnly"></i>
         </button>
         <button class="tl-btn" (click)="clearRegisteredPlayers()" [disabled]="registeredPlayers.length===0" title="Xóa danh sách đăng ký">
           <i class="fas fa-trash"></i>
@@ -32,7 +31,6 @@
       <div class="toolbar-right">
         <button class="tl-btn" (click)="shuffleRegisteredTeams()" [disabled]="registeredPlayers.length < 2"><i class="fas fa-shuffle"></i> Chia đội</button>
         <button class="tl-btn" (click)="clearTeams()" [disabled]="!teamA.length && !teamB.length"><i class="fas fa-rotate-left"></i></button>
-        <button class="tl-btn primary" (click)="saveMatchInfo()" [disabled]="teamA.length === 0 && teamB.length === 0"><i class="fas fa-save"></i> Lưu</button>
         <button class="tl-btn" (click)="runAIAnalysis()" [disabled]="!teamA.length || !teamB.length" title="Phân tích AI"><i class="fas fa-robot"></i></button>
       </div>
     </section>
@@ -190,23 +188,23 @@
     </section>
 
     <!-- Thu/Chi Section -->
-  <section class="finance-summary">
-      <h3 class="finance-title"><i class="fas fa-coins me-2"></i>Thu/Chi trận đấu</h3>
+  <section class="finance-summary" role="region" aria-labelledby="financeHeading">
+    <h3 id="financeHeading" class="finance-title"><i class="fas fa-coins me-2"></i>Thu/Chi trận đấu</h3>
       <div class="finance-grid">
         <div class="finance-card">
           <h4>Thu nhập</h4>
-          <div class="fin-row"><label for="revWin">Phí đội thắng</label><input id="revWin" type="number" min="0" [(ngModel)]="_revWinner"/></div>
-          <div class="fin-row"><label for="revLose">Phí đội thua</label><input id="revLose" type="number" min="0" [(ngModel)]="_revLoser"/></div>
-          <div class="fin-row"><label for="revCards">Phạt thẻ</label><input id="revCards" type="number" min="0" [(ngModel)]="_revCards"/></div>
-          <div class="fin-row"><label for="revOther">Khác</label><input id="revOther" type="number" min="0" [(ngModel)]="_revOther"/></div>
+          <div class="fin-row"><label for="revWin"><i class="fas fa-trophy"></i> Phí đội thắng</label><input id="revWin" aria-label="Phí đội thắng" type="number" min="0" [(ngModel)]="_revWinner"/></div>
+          <div class="fin-row"><label for="revLose"><i class="fas fa-user-group"></i> Phí đội thua</label><input id="revLose" aria-label="Phí đội thua" type="number" min="0" [(ngModel)]="_revLoser"/></div>
+          <div class="fin-row"><label for="revCards"><i class="fas fa-square-minus"></i> Phạt thẻ</label><input id="revCards" aria-label="Phí phạt thẻ" type="number" min="0" [(ngModel)]="_revCards"/></div>
+          <div class="fin-row"><label for="revOther"><i class="fas fa-circle-plus"></i> Khác</label><input id="revOther" aria-label="Thu khác" type="number" min="0" [(ngModel)]="_revOther"/></div>
           <div class="fin-total">Tổng thu: {{ (_revWinner||0)+(_revLoser||0)+(_revCards||0)+(_revOther||0) | number }}</div>
         </div>
         <div class="finance-card">
           <h4>Chi phí</h4>
-          <div class="fin-row"><label for="expWater">Nước</label><input id="expWater" type="number" min="0" [(ngModel)]="_expWater"/></div>
-          <div class="fin-row"><label for="expField">Sân</label><input id="expField" type="number" min="0" [(ngModel)]="_expField"/></div>
-          <div class="fin-row"><label for="expRef">Trong tài</label><input id="expRef" type="number" min="0" [(ngModel)]="_expRef"/></div>
-          <div class="fin-row"><label for="expOther">Khác</label><input id="expOther" type="number" min="0" [(ngModel)]="_expOther"/></div>
+          <div class="fin-row"><label for="expWater"><i class="fas fa-droplet"></i> Nước</label><input id="expWater" aria-label="Chi phí nước" type="number" min="0" [(ngModel)]="_expWater"/></div>
+          <div class="fin-row"><label for="expField"><i class="fas fa-futbol"></i> Sân</label><input id="expField" aria-label="Chi phí sân" type="number" min="0" [(ngModel)]="_expField"/></div>
+          <div class="fin-row"><label for="expRef"><i class="fas fa-whistle"></i> Trọng tài</label><input id="expRef" aria-label="Chi phí trọng tài" type="number" min="0" [(ngModel)]="_expRef"/></div>
+          <div class="fin-row"><label for="expOther"><i class="fas fa-ellipsis"></i> Khác</label><input id="expOther" aria-label="Chi phí khác" type="number" min="0" [(ngModel)]="_expOther"/></div>
           <div class="fin-total">Tổng chi: {{ (_expWater||0)+(_expField||0)+(_expRef||0)+(_expOther||0) | number }}</div>
         </div>
         <div class="finance-card summary">
