@@ -10,37 +10,38 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
   imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="header-container">
+  <div class="header-container" role="banner" aria-label="Application header">
       <!-- Logo Section -->
-      <div class="logo-section">
-        <div class="logo-icon">
+  <div class="logo-section" role="link" tabindex="0" aria-label="Trang chủ Thăng Long FC">
+  <div class="logo-icon" aria-hidden="true">
           <i class="fas fa-futbol"></i>
         </div>
-        <div class="logo-text">
+  <div class="logo-text" aria-label="Tên ứng dụng">
           <span class="logo-main">Thăng Long FC</span>
           <span class="logo-subtitle">Team Management</span>
         </div>
       </div>
 
       <!-- Login Section -->
-      <div class="auth-section">
+  <div class="auth-section" role="navigation" aria-label="Tài khoản người dùng">
         <!-- Modal Backdrop -->
         <div 
           *ngIf="!loggedIn && showLoginForm" 
           class="modal-backdrop" 
           tabindex="0"
+          aria-label="Đóng biểu mẫu đăng nhập" 
           (click)="closeLoginForm()" 
           (keydown)="onBackdropKeydown($event)">
         </div>
         
         <!-- Login Form -->
-        <div *ngIf="!loggedIn && showLoginForm" class="login-form expanded">
+        <div *ngIf="!loggedIn && showLoginForm" class="login-form expanded" role="dialog" aria-modal="true" aria-labelledby="loginHeading">
           <div class="form-header">
-            <h4>🔥 Login</h4>
+            <h4 id="loginHeading">🔥 Login</h4>
             <button class="close-btn" (click)="closeLoginForm()">×</button>
           </div>
           <form class="form-content" (submit)="login(); $event.preventDefault()">
-            <div class="input-group">
+            <div class="input-group" aria-label="Email đăng nhập">
               <input 
                 type="email" 
                 [(ngModel)]="email" 
@@ -48,7 +49,7 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
                 autocomplete="email"
                 required>
             </div>
-            <div class="input-group">
+            <div class="input-group" aria-label="Mật khẩu">
               <input 
                 type="password" 
                 [(ngModel)]="password" 
@@ -69,7 +70,7 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
         </div>
 
         <!-- Login Button -->
-        <div *ngIf="!loggedIn" class="login-container">
+        <div *ngIf="!loggedIn" class="login-container" aria-label="Khu vực đăng nhập">
           <button class="login-toggle-btn" (click)="toggleLoginForm()">
             <i class="fas fa-sign-in-alt"></i>
             Đăng Nhập
@@ -77,10 +78,11 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
         </div>
 
         <!-- User Profile Section -->
-        <div *ngIf="loggedIn" class="user-profile">
+  <div *ngIf="loggedIn" class="user-profile" aria-label="Thông tin người dùng">
           <div 
             class="user-info" 
             tabindex="0" 
+            role="button" aria-haspopup="true" aria-expanded="{{showUserMenu}}" aria-label="Mở menu người dùng"
             (click)="toggleUserMenu()" 
             (keydown)="onUserInfoKeydown($event)">
             <div class="user-avatar">
@@ -96,7 +98,7 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
           </div>
           
           <!-- User Dropdown Menu -->
-          <div class="user-dropdown" *ngIf="showUserMenu">
+          <div class="user-dropdown" *ngIf="showUserMenu" role="menu" aria-label="Menu người dùng">
             <div class="dropdown-header">
               <div class="dropdown-avatar">
                 <div class="dropdown-avatar-placeholder">
@@ -111,11 +113,11 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-items">
-              <div class="dropdown-item" tabindex="0" (click)="openProfile()" (keydown)="onDropdownItemKeydown($event, openProfile)">
+              <div class="dropdown-item" tabindex="0" role="menuitem" (click)="openProfile()" (keydown)="onDropdownItemKeydown($event, openProfile)">
                 <i class="fas fa-user-edit"></i>
                 Thông tin cá nhân
               </div>
-              <div class="dropdown-item" tabindex="0" (click)="openSettings()" (keydown)="onDropdownItemKeydown($event, openSettings)">
+              <div class="dropdown-item" tabindex="0" role="menuitem" (click)="openSettings()" (keydown)="onDropdownItemKeydown($event, openSettings)">
                 <i class="fas fa-cog"></i>
                 Cài đặt
               </div>
@@ -123,6 +125,8 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
               <div 
                 class="dropdown-item logout-item" 
                 tabindex="0"
+                role="menuitem"
+                aria-label="Đăng xuất"
                 (click)="logout()"
                 (keydown)="onDropdownItemKeydown($event, logout)">
                 <i class="fas fa-sign-out-alt"></i>

@@ -6,18 +6,9 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
 import { map, distinctUntilChanged, shareReplay } from 'rxjs/operators';
-import { 
-  getDatabase, 
-  ref, 
-  push, 
-  set, 
-  onValue, 
-  serverTimestamp,
-  remove,
-  update,
-  Database,
-  off
-} from 'firebase/database';
+// Pruned direct firebase/database runtime imports; rely on dynamic firebase core accessor.
+import type { Database } from 'firebase/database';
+// 'off' is only needed for cleanup; will access via dynamic fb accessor.
 import { 
   PlayerInfo, 
   PlayerStats, 
@@ -51,7 +42,8 @@ export interface FirebasePlayer {
 })
 export class FirebasePlayerService {
   private database: Database;
-  private playersRef: import('firebase/database').DatabaseReference;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private playersRef: any;
   
   // State management
   private readonly _players$ = new BehaviorSubject<Map<string, PlayerInfo>>(new Map());
@@ -123,9 +115,11 @@ export class FirebasePlayerService {
       console.log('🚀 FirebasePlayerService initializing...');
       this._loading$.next(true);
       
-      // Initialize database reference
-      this.database = getDatabase();
-      this.playersRef = ref(this.database, 'players');
+  // Initialize database reference via firebaseService dynamic core
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this.firebaseService as any)._fb;
+  this.database = fb.getDatabase(this.firebaseService['app']);
+  this.playersRef = fb.ref(this.database, 'players');
       console.log('✅ Firebase database initialized');
       
       // Load from localStorage first for immediate UI
@@ -152,7 +146,9 @@ export class FirebasePlayerService {
     console.log('👂 Setting up real-time listener for players...');
     console.log('🔗 Database reference:', this.playersRef);
     
-    onValue(this.playersRef, 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this.firebaseService as any)._fb;
+  fb.onValue(this.playersRef, 
       (snapshot) => {
         try {
           console.log('📡 Firebase snapshot received');
@@ -203,8 +199,10 @@ export class FirebasePlayerService {
 
   private monitorConnectionStatus(): void {
     // Monitor Firebase connection status
-    const connectedRef = ref(this.database, '.info/connected');
-    onValue(connectedRef, (snapshot) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fb: any = (this.firebaseService as any)._fb;
+    const connectedRef = fb.ref(this.database, '.info/connected');
+    fb.onValue(connectedRef, (snapshot) => {
       const isConnected = snapshot.val();
       
       if (isConnected) {
@@ -237,16 +235,20 @@ export class FirebasePlayerService {
         isRegistered: playerData.isRegistered ?? true,
         status: playerData.status || PlayerStatus.ACTIVE,
         stats: { ...DEFAULT_PLAYER_STATS },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createdAt: (this.firebaseService as any)._fb.serverTimestamp(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updatedAt: (this.firebaseService as any)._fb.serverTimestamp(),
         createdBy: this.getCurrentUserEmail()
       };
 
       // Try to save to Firebase
       if (this._syncStatus$.value !== 'offline') {
         try {
-          const newPlayerRef = push(this.playersRef);
-          await set(newPlayerRef, newPlayer);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fb: any = (this.firebaseService as any)._fb;
+          const newPlayerRef = fb.push(this.playersRef);
+          await fb.set(newPlayerRef, newPlayer);
           
           console.log('✅ Player created in Firebase:', newPlayerRef.key);
           return newPlayerRef.key!;
@@ -298,15 +300,18 @@ export class FirebasePlayerService {
       
       const updateData = {
         ...updates,
-        updatedAt: serverTimestamp(),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updatedAt: (this.firebaseService as any)._fb.serverTimestamp(),
         updatedBy: this.getCurrentUserEmail()
       };
 
       // Try to update in Firebase
       if (this._syncStatus$.value !== 'offline') {
         try {
-          const playerRef = ref(this.database, `players/${id}`);
-          await update(playerRef, updateData);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fb: any = (this.firebaseService as any)._fb;
+          const playerRef = fb.ref(this.database, `players/${id}`);
+          await fb.update(playerRef, updateData);
           
           console.log('✅ Player updated in Firebase:', id);
           return;
@@ -364,8 +369,10 @@ export class FirebasePlayerService {
       // Try to delete from Firebase
       if (this._syncStatus$.value !== 'offline') {
         try {
-          const playerRef = ref(this.database, `players/${id}`);
-          await remove(playerRef);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fb: any = (this.firebaseService as any)._fb;
+          const playerRef = fb.ref(this.database, `players/${id}`);
+          await fb.remove(playerRef);
           
           console.log('✅ Player deleted from Firebase:', id);
           return;
@@ -418,13 +425,16 @@ export class FirebasePlayerService {
       if (this._syncStatus$.value !== 'offline') {
         // Try Firebase batch update
         const updatePromises = updates.map(({ id, data }) => {
-          const playerRef = ref(this.database, `players/${id}`);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fb: any = (this.firebaseService as any)._fb;
+          const playerRef = fb.ref(this.database, `players/${id}`);
           const updateData = {
             ...data,
-            updatedAt: serverTimestamp(),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            updatedAt: (this.firebaseService as any)._fb.serverTimestamp(),
             updatedBy: this.getCurrentUserEmail()
           };
-          return update(playerRef, updateData);
+          return fb.update(playerRef, updateData);
         });
         
         await Promise.all(updatePromises);
@@ -519,20 +529,27 @@ export class FirebasePlayerService {
       try {
         switch (operation.type) {
         case 'create': {
-          const newPlayerRef = push(this.playersRef);
-          await set(newPlayerRef, {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const fb: any = (this.firebaseService as any)._fb;
+          const newPlayerRef = fb.push(this.playersRef);
+          await fb.set(newPlayerRef, {
             ...operation.data,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            createdAt: (this.firebaseService as any)._fb.serverTimestamp(),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            updatedAt: (this.firebaseService as any)._fb.serverTimestamp()
           });
           console.log('✅ Pending create synced:', newPlayerRef.key);
           break;
         }          case 'update':
             if (operation.id) {
-              const playerRef = ref(this.database, `players/${operation.id}`);
-              await update(playerRef, {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const fb: any = (this.firebaseService as any)._fb;
+              const playerRef = fb.ref(this.database, `players/${operation.id}`);
+              await fb.update(playerRef, {
                 ...operation.data,
-                updatedAt: serverTimestamp()
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                updatedAt: (this.firebaseService as any)._fb.serverTimestamp()
               });
               console.log('✅ Pending update synced:', operation.id);
             }
@@ -540,8 +557,10 @@ export class FirebasePlayerService {
             
           case 'delete':
             if (operation.id) {
-              const playerRef = ref(this.database, `players/${operation.id}`);
-              await remove(playerRef);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const fb: any = (this.firebaseService as any)._fb;
+              const playerRef = fb.ref(this.database, `players/${operation.id}`);
+              await fb.remove(playerRef);
               console.log('✅ Pending delete synced:', operation.id);
             }
             break;
@@ -740,7 +759,9 @@ export class FirebasePlayerService {
     
     // Unsubscribe from Firebase listeners
     if (this.playersRef) {
-      off(this.playersRef);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fb: any = (this.firebaseService as any)._fb;
+      fb.off(this.playersRef);
     }
     
     // Complete observables

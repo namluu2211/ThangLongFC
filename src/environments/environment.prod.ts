@@ -4,6 +4,15 @@ export const environment = {
   production: true,
   enableAnalytics: true, // Enable analytics in production
   apiUrl: 'https://api.thanglong-fc.com',
+  // Feature gating flags (production tuned)
+  features: {
+    performanceMonitoring: false, // disable continuous perf monitoring to save CPU
+    assetOptimization: true, // enable avatar & critical asset preload
+    componentPreload: true, // preload select components after idle
+    firebaseRealtime: true, // keep realtime sync
+    aiAnalysis: true // allow AI analysis (can be toggled if costly)
+    ,fileCrud: false // disable file-based CRUD in production
+  },
   firebase: {
     // Production values should be replaced during build process
     apiKey: '{{NG_APP_FIREBASE_API_KEY}}',

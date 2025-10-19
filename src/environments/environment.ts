@@ -5,6 +5,15 @@
 export const environment = {
   production: false,
   enableAnalytics: false, // Disable analytics in development
+  // Feature gating flags (development defaults)
+  features: {
+    performanceMonitoring: true, // allow performance service to run locally for tuning
+    assetOptimization: false, // disable heavy preloading in dev to speed rebuilds
+    componentPreload: false, // disable preload to observe raw lazy loading behavior
+    firebaseRealtime: true, // keep realtime for iterative development
+    aiAnalysis: true // allow AI analysis component loading
+    ,fileCrud: true // enable local file-based CRUD server usage in dev
+  },
   firebase: {
     // Firebase config - use placeholder for build replacement, or real config for development
     apiKey: 'AIzaSyA8LGY9V5Y_mMAdo76vRslUaeykzzUbx48',

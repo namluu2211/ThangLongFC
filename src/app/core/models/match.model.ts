@@ -202,6 +202,7 @@ export enum CardType {
 
 export enum EventType {
   GOAL = 'goal',
+  ASSIST = 'assist',
   YELLOW_CARD = 'yellow_card',
   RED_CARD = 'red_card',
   SUBSTITUTION = 'substitution',

@@ -973,6 +973,12 @@ export class FundComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit() {
+    // Deferred Firebase listeners: attach fund & history listeners only when Fund route is active
+    this.firebaseService.attachFundListener();
+    // History might be needed for match-related financial summaries
+    this.firebaseService.attachHistoryListener();
+    // Statistics may be displayed or computed within fund summaries
+    this.firebaseService.attachStatisticsListener();
     this.loadData();
     this.subscribeToMatchHistory();
   }
