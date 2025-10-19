@@ -1,26 +1,40 @@
 <!-- Extracted template from players.component.ts (partial) -->
 <div class="modern-container">
   <div class="players-orchestrator">
+    <div class="analyzing-overlay" *ngIf="isAnalyzing">
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <div class="spinner" role="status" aria-label="Đang phân tích AI"></div>
+        <div class="label">Đang phân tích đội hình...</div>
+      </div>
+    </div>
     <section class="players-header">
             <h2 id="playersHeading" class="page-title"><i class="fas fa-users me-2"></i>⚽ Quản lý đội hình</h2>
             <p id="playersSubheading" class="page-subtitle">Chia đội và ghi nhận thành tích trận đấu</p>
     </section>
 
-    <section class="players-actions">
-      <button class="modern-btn btn-info" (click)="togglePlayerListView()">
-        <i class="fas fa-list me-2"></i>{{ showPlayerList ? 'Ẩn danh sách' : 'Hiện danh sách' }}
-      </button>
-      <button class="modern-btn btn-warning" [class.btn-danger]="useRegistered && registeredPlayers.length === 0" (click)="toggleUseRegistered()">
-        <i class="fas fa-toggle-on me-2"></i>{{ useRegistered ? 'Chỉ đã đăng ký (' + registeredPlayers.length + ')' : 'Dùng tất cả (' + allPlayers.length + ')' }}
-      </button>
-      <button class="modern-btn btn-outline-secondary btn-sm" (click)="clearRegisteredPlayers()"><i class="fas fa-trash me-1"></i>Xóa đăng ký</button>
-      <button class="modern-btn btn-primary" [disabled]="!canDivideTeams()" (click)="shuffleTeams()">
-        <i class="fas fa-shuffle me-2"></i>Chia đội
-      </button>
-      <button class="modern-btn btn-success" (click)="saveMatchInfo()" [disabled]="teamA.length === 0 && teamB.length === 0">
-        <i class="fas fa-save me-2"></i>Lưu trận đấu
-      </button>
-      <small class="text-muted ms-3">{{ getPlayerModeStatus() }}</small>
+    <section class="players-toolbar" aria-label="Thanh công cụ đội hình">
+      <div class="toolbar-left">
+        <button class="tl-btn" (click)="togglePlayerListView()" [attr.aria-pressed]="showPlayerList">
+          <i class="fas fa-list"></i>
+          {{ showPlayerList ? 'Ẩn danh sách' : 'Hiện danh sách' }}
+        </button>
+        <button class="tl-btn" (click)="toggleUseRegistered()" [attr.aria-pressed]="useRegistered">
+          <i class="fas" [class.fa-user-check]="useRegistered" [class.fa-users]="!useRegistered"></i>
+          {{ useRegistered ? 'Đăng ký (' + registeredPlayers.length + ')' : 'Tất cả (' + allPlayers.length + ')' }}
+        </button>
+        <button class="tl-btn" (click)="clearRegisteredPlayers()" [disabled]="registeredPlayers.length===0" title="Xóa danh sách đăng ký">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+      <div class="toolbar-center">
+        <span class="mode-indicator">{{ getPlayerModeStatus() }}</span>
+      </div>
+      <div class="toolbar-right">
+        <button class="tl-btn" (click)="shuffleRegisteredTeams()" [disabled]="registeredPlayers.length < 2"><i class="fas fa-shuffle"></i> Chia đội</button>
+        <button class="tl-btn" (click)="clearTeams()" [disabled]="!teamA.length && !teamB.length"><i class="fas fa-rotate-left"></i></button>
+        <button class="tl-btn primary" (click)="saveMatchInfo()" [disabled]="teamA.length === 0 && teamB.length === 0"><i class="fas fa-save"></i> Lưu</button>
+        <button class="tl-btn" (click)="runAIAnalysis()" [disabled]="!teamA.length || !teamB.length" title="Phân tích AI"><i class="fas fa-robot"></i></button>
+      </div>
     </section>
 
     <app-player-list
@@ -38,8 +52,6 @@
       (viewPlayer)="viewPlayer($event)"
       (toggleList)="togglePlayerListView()"
       (reload)="loadPlayers()"
-      (createPlayer)="createNewPlayer($event)"
-      (updatePlayer)="updateExistingPlayer($event.player, $event.updates)"
       (deletePlayer)="deletePlayer($event)"
     ></app-player-list>
 
@@ -48,18 +60,165 @@
       [teamB]="teamB"
       [scoreA]="scoreA"
       [scoreB]="scoreB"
+      [goalsTextA]="goalsTextA" [goalsTextB]="goalsTextB"
+      [assistsTextA]="assistsTextA" [assistsTextB]="assistsTextB"
+      [yellowTextA]="yellowTextA" [yellowTextB]="yellowTextB"
+      [redTextA]="redTextA" [redTextB]="redTextB"
       (scoreAChange)="scoreA = $event"
       (scoreBChange)="scoreB = $event"
+      (goalsTextChange)="onGoalsTextChange($event)"
+      (assistsTextChange)="onAssistsTextChange($event)"
+      (yellowTextChange)="onYellowTextChange($event)"
+      (redTextChange)="onRedTextChange($event)"
       (removePlayer)="removeFromTeam($event.player, $event.team)"
+      (teamDrop)="onTeamDropped($event)"
     ></app-teams-panel>
 
-    <!-- Lazy drag & drop loader -->
-    <div class="mt-2" *ngIf="teamA.length || teamB.length">
-        <button class="modern-btn btn-outline-primary btn-sm" (click)="loadDnd()" *ngIf="!dndLoaded" aria-label="Enable drag and drop for teams">Bật chế độ kéo thả</button>
-    </div>
-    <ng-container *ngIf="dndLoaded">
-      <ng-container *ngComponentOutlet="dndComponent; inputs: { teamA: teamA, teamB: teamB, removePlayer: removeFromTeamBound, teamDrop: teamDropBound }"></ng-container>
-    </ng-container>
+    <!-- Match Events Inputs -->
+    <section class="match-events" *ngIf="teamA.length || teamB.length">
+      <h3 class="events-title"><i class="fas fa-clipboard-list me-2"></i>Sự kiện trận đấu</h3>
+      <div class="events-grid">
+        <!-- Team A Events -->
+        <div class="events-card team-a">
+          <h4>Đội Xanh</h4>
+          <div class="event-group">
+            <h5>Ghi bàn</h5>
+            <div class="inline-form">
+              <select [(ngModel)]="_gaPlayerA" aria-label="Chọn cầu thủ ghi bàn đội A">
+                <option [ngValue]="null">Cầu thủ</option>
+                <option *ngFor="let p of teamA" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <select [(ngModel)]="_gaAssistA" aria-label="Chọn kiến tạo đội A">
+                <option [ngValue]="null">Kiến tạo</option>
+                <option *ngFor="let p of teamA" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_gaMinuteA" placeholder="Phút" />
+              <button (click)="addGoal('A', _gaPlayerA!, _gaMinuteA || 0, _gaAssistA||undefined); _gaPlayerA=null; _gaAssistA=null; _gaMinuteA=null" [disabled]="!_gaPlayerA" title="Thêm bàn thắng"><i class="fas fa-plus"></i></button>
+            </div>
+            <ul class="event-list">
+              <li *ngFor="let g of goalsA; let i=index">
+                <span class="badge goal">⚽ {{ getPlayerName(g.playerId) }} <small *ngIf="g.minute!==undefined">({{g.minute}}')</small><span *ngIf="g.assistId"> - KT: {{ getPlayerName(g.assistId) }}</span></span>
+                <button class="remove" (click)="removeGoal('A',i)">×</button>
+              </li>
+            </ul>
+          </div>
+          <div class="event-group">
+            <h5>Thẻ</h5>
+            <div class="inline-form">
+              <select [(ngModel)]="_ycPlayerA">
+                <option [ngValue]="null">Vàng</option>
+                <option *ngFor="let p of teamA" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_ycMinuteA" placeholder="Phút" />
+              <button (click)="addCard('yellow','A',_ycPlayerA!, _ycMinuteA||0); _ycPlayerA=null; _ycMinuteA=null" [disabled]="!_ycPlayerA" title="Thêm thẻ vàng"><i class="fas fa-plus"></i></button>
+            </div>
+            <div class="inline-form">
+              <select [(ngModel)]="_rcPlayerA">
+                <option [ngValue]="null">Đỏ</option>
+                <option *ngFor="let p of teamA" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_rcMinuteA" placeholder="Phút" />
+              <button (click)="addCard('red','A',_rcPlayerA!, _rcMinuteA||0); _rcPlayerA=null; _rcMinuteA=null" [disabled]="!_rcPlayerA" title="Thêm thẻ đỏ"><i class="fas fa-plus"></i></button>
+            </div>
+            <ul class="event-list">
+              <li *ngFor="let c of yellowCardsA; let yi=index">
+                <span class="badge yc">🟨 {{ getPlayerName(c.playerId) }} <small *ngIf="c.minute!==undefined">({{c.minute}}')</small></span>
+                <button class="remove" (click)="removeCard('yellow','A',yi)">×</button>
+              </li>
+              <li *ngFor="let c of redCardsA; let ri=index">
+                <span class="badge rc">🟥 {{ getPlayerName(c.playerId) }} <small *ngIf="c.minute!==undefined">({{c.minute}}')</small></span>
+                <button class="remove" (click)="removeCard('red','A',ri)">×</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <!-- Team B Events -->
+        <div class="events-card team-b">
+          <h4>Đội Cam</h4>
+          <div class="event-group">
+            <h5>Ghi bàn</h5>
+            <div class="inline-form">
+              <select [(ngModel)]="_gaPlayerB">
+                <option [ngValue]="null">Cầu thủ</option>
+                <option *ngFor="let p of teamB" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <select [(ngModel)]="_gaAssistB">
+                <option [ngValue]="null">Kiến tạo</option>
+                <option *ngFor="let p of teamB" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_gaMinuteB" placeholder="Phút" />
+              <button (click)="addGoal('B', _gaPlayerB!, _gaMinuteB || 0, _gaAssistB||undefined); _gaPlayerB=null; _gaAssistB=null; _gaMinuteB=null" [disabled]="!_gaPlayerB" title="Thêm bàn thắng"><i class="fas fa-plus"></i></button>
+            </div>
+            <ul class="event-list">
+              <li *ngFor="let g of goalsB; let i=index">
+                <span class="badge goal">⚽ {{ getPlayerName(g.playerId) }} <small *ngIf="g.minute!==undefined">({{g.minute}}')</small><span *ngIf="g.assistId"> - KT: {{ getPlayerName(g.assistId) }}</span></span>
+                <button class="remove" (click)="removeGoal('B',i)">×</button>
+              </li>
+            </ul>
+          </div>
+          <div class="event-group">
+            <h5>Thẻ</h5>
+            <div class="inline-form">
+              <select [(ngModel)]="_ycPlayerB">
+                <option [ngValue]="null">Vàng</option>
+                <option *ngFor="let p of teamB" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_ycMinuteB" placeholder="Phút" />
+              <button (click)="addCard('yellow','B',_ycPlayerB!, _ycMinuteB||0); _ycPlayerB=null; _ycMinuteB=null" [disabled]="!_ycPlayerB" title="Thêm thẻ vàng"><i class="fas fa-plus"></i></button>
+            </div>
+            <div class="inline-form">
+              <select [(ngModel)]="_rcPlayerB">
+                <option [ngValue]="null">Đỏ</option>
+                <option *ngFor="let p of teamB" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_rcMinuteB" placeholder="Phút" />
+              <button (click)="addCard('red','B',_rcPlayerB!, _rcMinuteB||0); _rcPlayerB=null; _rcMinuteB=null" [disabled]="!_rcPlayerB" title="Thêm thẻ đỏ"><i class="fas fa-plus"></i></button>
+            </div>
+            <ul class="event-list">
+              <li *ngFor="let c of yellowCardsB; let yi=index">
+                <span class="badge yc">🟨 {{ getPlayerName(c.playerId) }} <small *ngIf="c.minute!==undefined">({{c.minute}}')</small></span>
+                <button class="remove" (click)="removeCard('yellow','B',yi)">×</button>
+              </li>
+              <li *ngFor="let c of redCardsB; let ri=index">
+                <span class="badge rc">🟥 {{ getPlayerName(c.playerId) }} <small *ngIf="c.minute!==undefined">({{c.minute}}')</small></span>
+                <button class="remove" (click)="removeCard('red','B',ri)">×</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Thu/Chi Section -->
+  <section class="finance-summary">
+      <h3 class="finance-title"><i class="fas fa-coins me-2"></i>Thu/Chi trận đấu</h3>
+      <div class="finance-grid">
+        <div class="finance-card">
+          <h4>Thu nhập</h4>
+          <div class="fin-row"><label for="revWin">Phí đội thắng</label><input id="revWin" type="number" min="0" [(ngModel)]="_revWinner"/></div>
+          <div class="fin-row"><label for="revLose">Phí đội thua</label><input id="revLose" type="number" min="0" [(ngModel)]="_revLoser"/></div>
+          <div class="fin-row"><label for="revCards">Phạt thẻ</label><input id="revCards" type="number" min="0" [(ngModel)]="_revCards"/></div>
+          <div class="fin-row"><label for="revOther">Khác</label><input id="revOther" type="number" min="0" [(ngModel)]="_revOther"/></div>
+          <div class="fin-total">Tổng thu: {{ (_revWinner||0)+(_revLoser||0)+(_revCards||0)+(_revOther||0) | number }}</div>
+        </div>
+        <div class="finance-card">
+          <h4>Chi phí</h4>
+          <div class="fin-row"><label for="expWater">Nước</label><input id="expWater" type="number" min="0" [(ngModel)]="_expWater"/></div>
+          <div class="fin-row"><label for="expField">Sân</label><input id="expField" type="number" min="0" [(ngModel)]="_expField"/></div>
+          <div class="fin-row"><label for="expRef">Trong tài</label><input id="expRef" type="number" min="0" [(ngModel)]="_expRef"/></div>
+          <div class="fin-row"><label for="expOther">Khác</label><input id="expOther" type="number" min="0" [(ngModel)]="_expOther"/></div>
+          <div class="fin-total">Tổng chi: {{ (_expWater||0)+(_expField||0)+(_expRef||0)+(_expOther||0) | number }}</div>
+        </div>
+        <div class="finance-card summary">
+          <h4>Tổng kết</h4>
+          <div class="fin-row flat"><span>Thu nhập:</span><strong>{{ ((_revWinner||0)+(_revLoser||0)+(_revCards||0)+(_revOther||0)) | number }} VND</strong></div>
+          <div class="fin-row flat"><span>Chi phí:</span><strong>{{ ((_expWater||0)+(_expField||0)+(_expRef||0)+(_expOther||0)) | number }} VND</strong></div>
+          <div class="profit" [class.negative]="profit()<0">Lợi nhuận: {{ profit() | number }} VND</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Legacy DnD component removed: integrated drag & drop now inside TeamsPanel -->
 
     <div class="mt-3" *ngIf="teamA.length && teamB.length">
         <button class="modern-btn btn-outline-info btn-sm" (click)="loadAIComponent()" *ngIf="!aiLoaded" aria-label="Enable AI analysis">Bật phân tích AI</button>
@@ -68,24 +227,5 @@
       <ng-container *ngComponentOutlet="aiComponent; inputs: { teamA: teamA, teamB: teamB, ai: aiAnalysisResults, isAnalyzing: isAnalyzing, runAnalysis: runAIAnalysis }"></ng-container>
     </ng-container>
 
-    <app-finance-panel
-      [thu]="thu"
-      [chi_total]="chi_total"
-      [chi_nuoc]="chi_nuoc"
-      [chi_san]="chi_san"
-      [chi_trongtai]="chi_trongtai"
-      (thuChange)="thu=$event"
-      (chiTotalChange)="chi_total=$event"
-      (chiNuocChange)="chi_nuoc=$event"
-      (chiSanChange)="chi_san=$event"
-      (chiTrongTaiChange)="chi_trongtai=$event"
-    ></app-finance-panel>
 
-    <app-player-rankings
-      [topPlayers]="topPlayers"
-      [showPlayerRankings]="showPlayerRankings"
-      [getPlayerAvatarByName]="getPlayerAvatarByName"
-      [calculatePlayerScore]="calculatePlayerScore"
-      (toggleRankings)="togglePlayerRankings()"
-    ></app-player-rankings>
   </div>
