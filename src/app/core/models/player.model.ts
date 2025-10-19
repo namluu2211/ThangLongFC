@@ -66,6 +66,7 @@ export interface PlayerStats {
   averageGoalsPerMatch: number;
   averageAssistsPerMatch: number;
   disciplinaryScore: number; // Lower is better
+  balanceScore?: number; // Composite metric: evaluates positional distribution & contribution consistency
   
   // Financial contribution
   totalRevenue: number; // From wins, etc.
@@ -168,6 +169,7 @@ export const DEFAULT_PLAYER_STATS: PlayerStats = {
   averageGoalsPerMatch: 0,
   averageAssistsPerMatch: 0,
   disciplinaryScore: 0,
+  balanceScore: 0,
   totalRevenue: 0,
   totalPenalties: 0,
   netContribution: 0,
