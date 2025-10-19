@@ -6,20 +6,33 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <ng-container *ngIf="loaded; else loading">
-      <ng-container *ngComponentOutlet="playersComponent; inputs: componentInputs"></ng-container>
-    </ng-container>
-    <ng-template #loading>
-      <div class="players-shell-loading">
-        <div class="spinner"></div>
-        <div>Tải đội hình...</div>
+    <ng-container *ngIf="error; else mainContent">
+      <div class="players-shell-error" role="alert">
+        <h3>⚠️ Không tải được module đội hình</h3>
+        <p>{{errorMessage}}</p>
+        <button type="button" (click)="retry()" class="retry-btn">Thử lại</button>
       </div>
+    </ng-container>
+    <ng-template #mainContent>
+      <ng-container *ngIf="loaded; else loading">
+        <ng-container *ngComponentOutlet="playersComponent; inputs: componentInputs"></ng-container>
+      </ng-container>
+      <ng-template #loading>
+        <div class="players-shell-loading">
+          <div class="spinner"></div>
+          <div>Tải đội hình...</div>
+        </div>
+      </ng-template>
     </ng-template>
   `,
   styles:[`
     .players-shell-loading { display:flex; flex-direction:column; align-items:center; padding:24px; color:#444; }
     .spinner { width:32px; height:32px; border:4px solid #ccc; border-top-color:#2196f3; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:12px; }
     @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    .players-shell-error { border:1px solid #d32f2f; background:#ffebee; padding:20px; border-radius:12px; text-align:center; max-width:480px; margin:24px auto; color:#b71c1c; }
+    .players-shell-error h3 { margin:0 0 8px; font-size:1.05rem; }
+    .retry-btn { background:#1976d2; color:#fff; border:none; padding:10px 18px; border-radius:24px; cursor:pointer; font-weight:600; }
+    .retry-btn:hover { background:#145fa6; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -29,13 +42,30 @@ export class PlayersShellComponent implements OnInit {
   loaded = false;
   componentInputs: Record<string, unknown> = {};
   private readonly cdr = inject(ChangeDetectorRef);
+  error=false; errorMessage='';
 
-  async ngOnInit() {
-    // Dynamically import heavy players component
-    const module = await import('./players.component');
-    this.playersComponent = module.PlayersComponent;
-    this.componentInputs = { canEdit: this.canEdit };
-    this.loaded = true;
-    this.cdr.markForCheck();
+  async ngOnInit() { await this.load(); }
+
+  private async load(){
+    this.error=false; this.errorMessage='';
+    try {
+      // Add small delay to allow initial route stabilization
+      const module = await import(/* webpackChunkName: 'players-component' */ './players.component');
+      this.playersComponent = module.PlayersComponent;
+      this.componentInputs = { canEdit: this.canEdit };
+      this.loaded = true;
+    } catch (e:unknown) {
+      console.error('Failed to dynamically import players.component', e);
+      this.error=true;
+      if (e && typeof e === 'object' && 'message' in e) {
+        this.errorMessage = String((e as { message?: unknown }).message);
+      } else {
+        this.errorMessage = 'Không thể tải file JS (có thể do 404 hoặc cache cũ).';
+      }
+    } finally {
+      this.cdr.markForCheck();
+    }
   }
+
+  retry(){ this.loaded=false; this.playersComponent=null; void this.load(); }
 }
