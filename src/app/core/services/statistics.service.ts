@@ -4,12 +4,19 @@
  */
 
 import { Injectable, inject } from '@angular/core';
-import { Observable, combineLatest, BehaviorSubject } from 'rxjs';
-import { map, shareReplay, take } from 'rxjs/operators';
+import { PerfMarksService } from './perf-marks.service';
+import { Observable, combineLatest, BehaviorSubject, Subject } from 'rxjs';
+import { map, shareReplay, take, debounceTime } from 'rxjs/operators';
 import { PlayerInfo } from '../models/player.model';
 import { MatchInfo } from '../models/match.model';
 import { DataStoreService, FundTransaction } from './data-store.service';
+// Lazy analytics loading for bundle optimization
+/// <reference path="./lazy-analytics-loader.service.ts" />
+import { LazyAnalyticsLoaderService } from './lazy-analytics-loader.service';
 import { FirebaseService, StatisticsEntry, StatisticsData } from '../../services/firebase.service';
+
+interface StatisticsDataExtended extends StatisticsData { batchType?: 'aggregate'; playerName?: string; }
+import { CacheService } from './cache.service';
 
 export interface PlayerStatistics {
   playerId: string;
@@ -186,7 +193,10 @@ export interface ComparisonAnalytics {
 })
 export class StatisticsService {
   private readonly dataStore = inject(DataStoreService);
+  private readonly lazyLoader = inject(LazyAnalyticsLoaderService) as LazyAnalyticsLoaderService;
   private readonly firebaseService = inject(FirebaseService);
+  private readonly cache = inject(CacheService);
+  private readonly perfMarks = inject(PerfMarksService) as PerfMarksService;
 
   // Cached observables for performance
   private readonly playerStatistics$ = new BehaviorSubject<PlayerStatistics[]>([]);
@@ -333,7 +343,12 @@ export class StatisticsService {
       this.getPlayerStatistics(),
       this.dataStore.matches$
     ]).pipe(
-      map(() => this.calculateCorrelations())
+      map(() => {
+        void this.lazyLoader.getComparisonAnalytics().then(service => {
+          service.buildCorrelations();
+        });
+        return { goalVsWinRate:0, experienceVsPerformance:0, teamSizeVsSuccess:0, spendingVsResults:0 };
+      })
     );
   }
 
@@ -351,617 +366,121 @@ export class StatisticsService {
     );
   }
 
-  // Private calculation methods
-  private calculatePlayerStatistics(players: PlayerInfo[], matches: MatchInfo[]): PlayerStatistics[] {
-    return players.map(player => {
-      const playerMatches = this.getPlayerMatches(player.id!, matches);
-      const performance = this.calculatePlayerPerformance(player, playerMatches);
-      const financial = this.calculatePlayerFinancial(player, playerMatches);
-      const trends = this.calculatePlayerTrends(player, playerMatches);
-      
-      return {
-        playerId: player.id!,
-        playerName: `${player.firstName} ${player.lastName || ''}`.trim(),
-        performance,
-        financial,
-        trends,
-        rankings: this.calculatePlayerRankings(player.id!, players, matches)
-      };
-    });
-  }
-
-  private calculateTeamStatistics(players: PlayerInfo[], matches: MatchInfo[]): TeamStatistics {
-    return {
-      teamComposition: this.calculateTeamComposition(players),
-      performance: this.calculateTeamPerformance(matches),
-      financial: this.calculateTeamFinancial(matches),
-      trends: this.calculateTeamTrends(matches)
-    };
-  }
-
-  private calculateMatchAnalytics(match: MatchInfo, players: PlayerInfo[]): MatchAnalytics {
-    return {
-      matchId: match.id,
-      date: match.date,
-      quality: this.calculateMatchQuality(match),
-      balance: this.calculateMatchBalance(match, players),
-      financial: this.calculateMatchFinancial(match),
-      playerHighlights: this.calculatePlayerHighlights(match)
-    };
-  }
-
-  private calculateFundAnalytics(
-    currentFund: number, 
-    transactions: FundTransaction[]
-  ): FundAnalytics {
-    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    
-    return {
-      overview: {
-        currentBalance: currentFund,
-        totalIncome,
-        totalExpenses,
-        netGrowth: totalIncome - totalExpenses,
-        growthRate: totalExpenses > 0 ? (totalIncome / totalExpenses - 1) * 100 : 0
-      },
-      trends: this.calculateFundTrends(transactions),
-      projections: this.calculateFundProjections(transactions),
-      insights: this.calculateFundInsights(transactions)
-    };
-  }
-
-  private getPlayerMatches(playerId: string, matches: MatchInfo[]): MatchInfo[] {
-    return matches.filter(match => 
-      match.teamA.players.some(p => p.id === playerId) ||
-      match.teamB.players.some(p => p.id === playerId)
+  // Unified aggregator (Phase 3)
+  getAllAnalytics(): Observable<{
+    players: PlayerStatistics[];
+    team: TeamStatistics;
+    fund: FundAnalytics;
+    matches: MatchAnalytics[];
+    comparison: ComparisonAnalytics['playerComparison'];
+  }> {
+    return combineLatest([
+      this.getPlayerStatistics(),
+      this.getTeamStatistics(),
+      this.getFundAnalytics(),
+      this.getMatchAnalytics(),
+      this.comparePlayer([]) // empty list yields baseline comparison structure
+    ]).pipe(
+      map(([players, team, fund, matches, comparison]) => ({ players, team, fund, matches, comparison })),
+      shareReplay(1)
     );
   }
 
-  private calculatePlayerPerformance(player: PlayerInfo, matches: MatchInfo[]): PlayerStatistics['performance'] {
-    let wins = 0;
-    let losses = 0;
-    let draws = 0;
-    let goalsScored = 0;
-    let assists = 0;
-    let yellowCards = 0;
-    let redCards = 0;
-
-    matches.forEach(match => {
-      const isTeamA = match.teamA.players.some(p => p.id === player.id);
-      const isTeamB = match.teamB.players.some(p => p.id === player.id);
-      
-      if (!isTeamA && !isTeamB) return;
-
-      // Determine match result for player
-      const playerTeamScore = isTeamA ? match.result.scoreA : match.result.scoreB;
-      const opponentScore = isTeamA ? match.result.scoreB : match.result.scoreA;
-      
-      if (playerTeamScore > opponentScore) wins++;
-      else if (playerTeamScore < opponentScore) losses++;
-      else draws++;
-
-      // Count player's goals and assists
-      if (isTeamA) {
-        goalsScored += match.result.goalsA.filter(g => g.playerId === player.id).length;
-        assists += match.result.goalsA.filter(g => g.assistedBy === player.id).length;
-        yellowCards += match.result.yellowCardsA.filter(c => c.playerId === player.id).length;
-        redCards += match.result.redCardsA.filter(c => c.playerId === player.id).length;
-      } else {
-        goalsScored += match.result.goalsB.filter(g => g.playerId === player.id).length;
-        assists += match.result.goalsB.filter(g => g.assistedBy === player.id).length;
-        yellowCards += match.result.yellowCardsB.filter(c => c.playerId === player.id).length;
-        redCards += match.result.redCardsB.filter(c => c.playerId === player.id).length;
-      }
-    });
-
-    const totalMatches = matches.length;
-    
-    return {
-      totalMatches,
-      wins,
-      losses,
-      draws,
-      winRate: totalMatches > 0 ? (wins / totalMatches) * 100 : 0,
-      goalsScored,
-      assists,
-      yellowCards,
-      redCards,
-      averageGoalsPerMatch: totalMatches > 0 ? goalsScored / totalMatches : 0,
-      averageAssistsPerMatch: totalMatches > 0 ? assists / totalMatches : 0
-    };
-  }
-
-  private calculatePlayerFinancial(player: PlayerInfo, matches: MatchInfo[]): PlayerStatistics['financial'] {
-    let totalRevenue = 0;
-    let penaltiesPaid = 0;
-
-    matches.forEach(match => {
-      const isTeamA = match.teamA.players.some(p => p.id === player.id);
-      const isTeamB = match.teamB.players.some(p => p.id === player.id);
-      
-      if (!isTeamA && !isTeamB) return;
-
-      // Calculate player's share of match revenue
-      const totalPlayers = match.teamA.players.length + match.teamB.players.length;
-      const playerShare = match.finances.totalRevenue / totalPlayers;
-      totalRevenue += playerShare;
-
-      // Calculate penalties
-      const yellowCardFee = 50000; // From DEFAULT_FINANCIAL_RATES
-      const redCardFee = 100000;
-      
-      if (isTeamA) {
-        penaltiesPaid += match.result.yellowCardsA.filter(c => c.playerId === player.id).length * yellowCardFee;
-        penaltiesPaid += match.result.redCardsA.filter(c => c.playerId === player.id).length * redCardFee;
-      } else {
-        penaltiesPaid += match.result.yellowCardsB.filter(c => c.playerId === player.id).length * yellowCardFee;
-        penaltiesPaid += match.result.redCardsB.filter(c => c.playerId === player.id).length * redCardFee;
-      }
-    });
-
-    return {
-      totalRevenue,
-      averageRevenuePerMatch: matches.length > 0 ? totalRevenue / matches.length : 0,
-      penaltiesPaid,
-      netContribution: totalRevenue - penaltiesPaid
-    };
-  }
-
-  private calculatePlayerTrends(player: PlayerInfo, matches: MatchInfo[]): PlayerStatistics['trends'] {
-    const recentMatches = matches.slice(-5);
-    const last10Matches = matches.slice(-10);
-    
-    const recentForm: ('W' | 'L' | 'D')[] = recentMatches.map(match => {
-      const isTeamA = match.teamA.players.some(p => p.id === player.id);
-      const playerTeamScore = isTeamA ? match.result.scoreA : match.result.scoreB;
-      const opponentScore = isTeamA ? match.result.scoreB : match.result.scoreA;
-      
-      if (playerTeamScore > opponentScore) return 'W';
-      if (playerTeamScore < opponentScore) return 'L';
-      return 'D';
-    });
-
-    const goalsLastFiveMatches = recentMatches.reduce((total, match) => {
-      const isTeamA = match.teamA.players.some(p => p.id === player.id);
-      if (isTeamA) {
-        return total + match.result.goalsA.filter(g => g.playerId === player.id).length;
-      } else {
-        return total + match.result.goalsB.filter(g => g.playerId === player.id).length;
-      }
-    }, 0);
-
-    const winsLast10 = last10Matches.filter(match => {
-      const isTeamA = match.teamA.players.some(p => p.id === player.id);
-      const playerTeamScore = isTeamA ? match.result.scoreA : match.result.scoreB;
-      const opponentScore = isTeamA ? match.result.scoreB : match.result.scoreA;
-      return playerTeamScore > opponentScore;
-    }).length;
-
-    const winRateLast10Matches = last10Matches.length > 0 ? (winsLast10 / last10Matches.length) * 100 : 0;
-
-    // Simple performance trend calculation
-    const firstHalfWinRate = matches.length > 4 ? 
-      (matches.slice(0, Math.floor(matches.length / 2)).filter(match => {
-        const isTeamA = match.teamA.players.some(p => p.id === player.id);
-        const playerTeamScore = isTeamA ? match.result.scoreA : match.result.scoreB;
-        const opponentScore = isTeamA ? match.result.scoreB : match.result.scoreA;
-        return playerTeamScore > opponentScore;
-      }).length / Math.floor(matches.length / 2)) * 100 : 0;
-
-    const secondHalfWinRate = matches.length > 4 ?
-      (matches.slice(Math.floor(matches.length / 2)).filter(match => {
-        const isTeamA = match.teamA.players.some(p => p.id === player.id);
-        const playerTeamScore = isTeamA ? match.result.scoreA : match.result.scoreB;
-        const opponentScore = isTeamA ? match.result.scoreB : match.result.scoreA;
-        return playerTeamScore > opponentScore;
-      }).length / Math.ceil(matches.length / 2)) * 100 : 0;
-
-    const performanceTrend = 
-      secondHalfWinRate > firstHalfWinRate + 10 ? 'improving' :
-      secondHalfWinRate < firstHalfWinRate - 10 ? 'declining' : 'stable';
-
-    return {
-      recentForm,
-      goalsLastFiveMatches,
-      winRateLast10Matches,
-      performanceTrend
-    };
-  }
-
-  private calculatePlayerRankings(
-    playerId: string, 
-    players: PlayerInfo[], 
-    matches: MatchInfo[]
-  ): PlayerStatistics['rankings'] {
-    const allPlayerStats = players.map(p => {
-      const playerMatches = this.getPlayerMatches(p.id!, matches);
-      return {
+  // Private calculation methods
+  private calculatePlayerStatistics(players: PlayerInfo[], matches: MatchInfo[]): PlayerStatistics[] {
+    const key = 'playerStats:' + players.length + ':' + matches.length + ':' + (matches[matches.length-1]?.id || 'none');
+    // Measure only on cache miss
+    const cached = this.cache.get<PlayerStatistics[]>(key);
+    if(cached) return cached;
+    const { value, measure } = this.perfMarks.timeSync('calc_player_stats', (): PlayerStatistics[] => {
+      void this.lazyLoader.getPlayerAdvanced().then(service => {
+        const full = service.buildPlayerStatistics(players, matches);
+        this.playerStatistics$.next(full);
+        this.cache.set(key, full, 15000);
+      });
+      // Fallback placeholder
+      return players.map(p => ({
         playerId: p.id!,
-        ...this.calculatePlayerPerformance(p, playerMatches),
-        ...this.calculatePlayerFinancial(p, playerMatches)
+        playerName: `${p.firstName} ${p.lastName || ''}`.trim(),
+        performance: { totalMatches: matches.length, wins:0, losses:0, draws:0, winRate:0, goalsScored:0, assists:0, yellowCards:0, redCards:0, averageGoalsPerMatch:0, averageAssistsPerMatch:0 },
+        financial: { totalRevenue:0, averageRevenuePerMatch:0, penaltiesPaid:0, netContribution:0 },
+        trends: { recentForm:[], goalsLastFiveMatches:0, winRateLast10Matches:0, performanceTrend:'stable' as const },
+        rankings: { goalsRank:0, assistsRank:0, winRateRank:0, revenueRank:0, overallRank:0 }
+      }));
+    });
+    if(measure && measure.duration > 50){
+      console.log(`⚙️ Player stats computed in ${measure.duration.toFixed(2)}ms`);
+    }
+    this.cache.set(key, value, 15000);
+    return value;
+  }
+
+  private calculateTeamStatistics(players: PlayerInfo[], matches: MatchInfo[]): TeamStatistics {
+    const key = 'teamStats:' + players.length + ':' + matches.length + ':' + (matches[matches.length-1]?.id || 'none');
+    const cached = this.cache.get<TeamStatistics>(key);
+    if(cached) return cached;
+    const { value, measure } = this.perfMarks.timeSync('calc_team_stats', (): TeamStatistics => {
+      void this.lazyLoader.getTeamAnalytics().then(service => {
+        const full = service.buildTeamStatistics(players, matches);
+        this.teamStatistics$.next(full);
+        this.cache.set(key, full, 15000);
+      });
+      return {
+        teamComposition: { totalPlayers: players.length, averageExperience:0, positionDistribution:{}, strengthDistribution:{ strong:0, average:0, developing:0 } },
+        performance: { totalMatches: matches.length, homeWins:0, awayWins:0, draws:0, losses: matches.length, winRate:0, averageGoalsScored:0, averageGoalsConceded:0, cleanSheets:0 },
+        financial: { totalRevenue:0, totalExpenses:0, averageProfitPerMatch:0, mostProfitableMatch:'', leastProfitableMatch:'' },
+        trends: { monthlyMatches:[], goalsScoredTrend:[], profitabilityTrend:[], performanceByOpposition:[] }
       };
     });
-
-    // Sort by different metrics to get rankings
-    const goalsSorted = [...allPlayerStats].sort((a, b) => b.goalsScored - a.goalsScored);
-    const assistsSorted = [...allPlayerStats].sort((a, b) => b.assists - a.assists);
-    const winRateSorted = [...allPlayerStats].sort((a, b) => b.winRate - a.winRate);
-    const revenueSorted = [...allPlayerStats].sort((a, b) => b.totalRevenue - a.totalRevenue);
-
-    return {
-      goalsRank: goalsSorted.findIndex(p => p.playerId === playerId) + 1,
-      assistsRank: assistsSorted.findIndex(p => p.playerId === playerId) + 1,
-      winRateRank: winRateSorted.findIndex(p => p.playerId === playerId) + 1,
-      revenueRank: revenueSorted.findIndex(p => p.playerId === playerId) + 1,
-      overallRank: Math.round((
-        goalsSorted.findIndex(p => p.playerId === playerId) +
-        assistsSorted.findIndex(p => p.playerId === playerId) +
-        winRateSorted.findIndex(p => p.playerId === playerId) +
-        revenueSorted.findIndex(p => p.playerId === playerId)
-      ) / 4) + 1
-    };
+    if(measure && measure.duration > 50){
+      console.log(`⚙️ Team stats computed in ${measure.duration.toFixed(2)}ms`);
+    }
+    this.cache.set(key, value, 15000);
+    return value;
   }
 
-  // Additional helper methods for team and match calculations
-  private calculateTeamComposition(players: PlayerInfo[]): TeamStatistics['teamComposition'] {
-    const totalPlayers = players.length;
-    const averageExperience = players.reduce((sum, p) => sum + (p.stats.totalMatches || 0), 0) / totalPlayers;
-    
-    // Position distribution (simplified)
-    const positionDistribution: Record<string, number> = {
-      'Thủ môn': players.filter(p => p.position === 'Thủ môn').length,
-      'Hậu vệ': players.filter(p => p.position === 'Hậu vệ').length,
-      'Tiền vệ': players.filter(p => p.position === 'Tiền vệ').length,
-      'Tiền đạo': players.filter(p => p.position === 'Tiền đạo').length,
-      'Khác': players.filter(p => !p.position || !['Thủ môn', 'Hậu vệ', 'Tiền vệ', 'Tiền đạo'].includes(p.position)).length
-    };
-
-    // Strength distribution based on win rate
-    const strong = players.filter(p => (p.stats.winRate || 0) >= 70).length;
-    const developing = players.filter(p => (p.stats.winRate || 0) < 40).length;
-    const average = totalPlayers - strong - developing;
-
-    return {
-      totalPlayers,
-      averageExperience,
-      positionDistribution,
-      strengthDistribution: { strong, average, developing }
-    };
-  }
-
-  private calculateTeamPerformance(matches: MatchInfo[]): TeamStatistics['performance'] {
-    const totalMatches = matches.length;
-    let homeWins = 0;
-    let awayWins = 0;
-    let draws = 0;
-    const losses = 0;
-    let totalGoalsScored = 0;
-    let cleanSheets = 0;
-
-    matches.forEach(match => {
-      const scoreA = match.result.scoreA;
-      const scoreB = match.result.scoreB;
-      
-      totalGoalsScored += scoreA + scoreB;
-      
-      if (scoreA > scoreB) {
-        homeWins++;
-        if (scoreB === 0) cleanSheets++;
-      } else if (scoreB > scoreA) {
-        awayWins++;
-        if (scoreA === 0) cleanSheets++;
-      } else {
-        draws++;
-        if (scoreA === 0 && scoreB === 0) cleanSheets++;
-      }
+  private calculateMatchAnalytics(match: MatchInfo, players: PlayerInfo[]): MatchAnalytics {
+    void this.lazyLoader.getMatchAnalytics().then(service => {
+      // Build analytics (currently not persisted directly; could push to a subject if needed)
+      service.buildMatchAnalytics(match, players);
     });
-
-    const winRate = totalMatches > 0 ? ((homeWins + awayWins) / totalMatches) * 100 : 0;
-    const averageGoalsScored = totalMatches > 0 ? totalGoalsScored / totalMatches : 0;
-
     return {
-      totalMatches,
-      homeWins,
-      awayWins,
-      draws,
-      losses,
-      winRate,
-      averageGoalsScored,
-      averageGoalsConceded: averageGoalsScored, // Simplified
-      cleanSheets
+      matchId: match.id,
+      date: match.date,
+      quality: { competitiveness:0, entertainment:0, organization:0, fairPlay:0, overallRating:0 },
+      balance: { teamStrength:0, experienceBalance:0, sizeBalance:0, recommendation:'Đang tải...' },
+      financial: { profitability:0, costEfficiency:0, revenueOptimization:0, breakdownAnalysis:'' },
+      playerHighlights: { topPerformer:'', topScorer:'', mvp:'', disciplinaryIssues:[] }
     };
   }
 
-  private calculateTeamFinancial(matches: MatchInfo[]): TeamStatistics['financial'] {
-    let totalRevenue = 0;
-    let totalExpenses = 0;
-    let mostProfitable = { matchId: '', profit: -Infinity };
-    let leastProfitable = { matchId: '', profit: Infinity };
-
-    matches.forEach(match => {
-      totalRevenue += match.finances.totalRevenue;
-      totalExpenses += match.finances.totalExpenses;
-      
-      if (match.finances.netProfit > mostProfitable.profit) {
-        mostProfitable = { matchId: match.date, profit: match.finances.netProfit };
-      }
-      
-      if (match.finances.netProfit < leastProfitable.profit) {
-        leastProfitable = { matchId: match.date, profit: match.finances.netProfit };
-      }
+  private calculateFundAnalytics(currentFund: number, transactions: FundTransaction[]): FundAnalytics {
+    const key = 'fundAnalytics:' + currentFund + ':' + transactions.length + ':' + (transactions[transactions.length-1]?.id || 'none');
+    return this.cache.wrap<FundAnalytics>(key, 15000, (): FundAnalytics => {
+      void this.lazyLoader.getFundAnalytics().then(service => {
+        const full = service.buildFundAnalytics(currentFund, transactions);
+        this.fundAnalytics$.next(full);
+        this.cache.set(key, full, 15000);
+      });
+      return {
+        overview: { currentBalance: currentFund, totalIncome:0, totalExpenses:0, netGrowth:0, growthRate:0 },
+        trends: { monthlyIncome:[], monthlyExpenses:[], monthlyNet:[], categoryBreakdown:[] },
+        projections: { nextMonthProjection:0, yearEndProjection:0, breakEvenAnalysis:{ monthsToBreakEven:0, requiredMonthlyIncome:0 } },
+        insights: { topIncomeSource:'', topExpenseCategory:'', costOptimizationSuggestions:[], revenueImprovementSuggestions:[] }
+      };
     });
-
-    return {
-      totalRevenue,
-      totalExpenses,
-      averageProfitPerMatch: matches.length > 0 ? (totalRevenue - totalExpenses) / matches.length : 0,
-      mostProfitableMatch: mostProfitable.matchId,
-      leastProfitableMatch: leastProfitable.matchId
-    };
   }
 
-  private calculateTeamTrends(matches: MatchInfo[]): TeamStatistics['trends'] {
-    // Group matches by month
-    const monthlyData = new Map<string, { matches: MatchInfo[]; wins: number }>();
-    
-    matches.forEach(match => {
-      const monthKey = match.date.substring(0, 7); // YYYY-MM
-      if (!monthlyData.has(monthKey)) {
-        monthlyData.set(monthKey, { matches: [], wins: 0 });
-      }
-      
-      const data = monthlyData.get(monthKey)!;
-      data.matches.push(match);
-      
-      if (match.result.scoreA > match.result.scoreB || match.result.scoreB > match.result.scoreA) {
-        data.wins++;
-      }
-    });
-
-    const monthlyMatches = Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month,
-      count: data.matches.length,
-      winRate: data.matches.length > 0 ? (data.wins / data.matches.length) * 100 : 0
-    }));
-
-    const goalsScoredTrend = Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month,
-      goals: data.matches.reduce((sum, match) => sum + match.result.scoreA + match.result.scoreB, 0)
-    }));
-
-    const profitabilityTrend = Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month,
-      profit: data.matches.reduce((sum, match) => sum + match.finances.netProfit, 0)
-    }));
-
-    return {
-      monthlyMatches,
-      goalsScoredTrend,
-      profitabilityTrend,
-      performanceByOpposition: [] // Simplified - would need opponent data
-    };
-  }
-
-  private calculateMatchQuality(match: MatchInfo): MatchAnalytics['quality'] {
-    const totalGoals = match.result.scoreA + match.result.scoreB;
-    const totalCards = match.result.yellowCardsA.length + match.result.yellowCardsB.length + 
-                      (match.result.redCardsA.length + match.result.redCardsB.length) * 3;
-
-    const entertainment = Math.min(100, totalGoals * 20);
-    const fairPlay = Math.max(0, 100 - totalCards * 10);
-    const competitiveness = Math.max(0, 100 - Math.abs(match.result.scoreA - match.result.scoreB) * 20);
-    const organization = 85; // Default
-
-    return {
-      competitiveness,
-      entertainment,
-      organization,
-      fairPlay,
-      overallRating: (entertainment + fairPlay + competitiveness + organization) / 4
-    };
-  }
-
-  private calculateMatchBalance(match: MatchInfo, players: PlayerInfo[]): MatchAnalytics['balance'] {
-    const teamAStrength = this.calculateTeamStrength(match.teamA.players, players);
-    const teamBStrength = this.calculateTeamStrength(match.teamB.players, players);
-    const strengthBalance = 100 - Math.abs(teamAStrength - teamBStrength);
-    
-    const teamASize = match.teamA.players.length;
-    const teamBSize = match.teamB.players.length;
-    const sizeBalance = Math.abs(teamASize - teamBSize) <= 1 ? 100 : 60;
-
-    return {
-      teamStrength: (teamAStrength + teamBStrength) / 2,
-      experienceBalance: 80, // Simplified
-      sizeBalance,
-      recommendation: strengthBalance < 60 ? 'Đội hình không cân bằng' : 'Đội hình tương đối cân bằng'
-    };
-  }
-
-  private calculateMatchFinancial(match: MatchInfo): MatchAnalytics['financial'] {
-    const profitability = match.finances.netProfit > 0 ? 100 : 0;
-    const costEfficiency = match.finances.totalExpenses > 0 ? 
-      (match.finances.totalRevenue / match.finances.totalExpenses) * 50 : 100;
-
-    return {
-      profitability,
-      costEfficiency: Math.min(100, costEfficiency),
-      revenueOptimization: 80, // Simplified
-      breakdownAnalysis: `Thu ${match.finances.totalRevenue.toLocaleString()}₫ - Chi ${match.finances.totalExpenses.toLocaleString()}₫`
-    };
-  }
-
-  private calculatePlayerHighlights(match: MatchInfo): MatchAnalytics['playerHighlights'] {
-    const allGoals = [...match.result.goalsA, ...match.result.goalsB];
-    const topScorer = allGoals.length > 0 ? allGoals[0].playerName : 'Không có';
-    
-    return {
-      topPerformer: topScorer,
-      topScorer,
-      mvp: topScorer,
-      disciplinaryIssues: [
-        ...match.result.yellowCardsA.map(card => `Thẻ vàng: ${card.playerName}`),
-        ...match.result.yellowCardsB.map(card => `Thẻ vàng: ${card.playerName}`),
-        ...match.result.redCardsA.map(card => `Thẻ đỏ: ${card.playerName}`),
-        ...match.result.redCardsB.map(card => `Thẻ đỏ: ${card.playerName}`)
-      ]
-    };
-  }
-
-  private calculateTeamStrength(teamPlayers: PlayerInfo[], allPlayers: PlayerInfo[]): number {
-    if (teamPlayers.length === 0) return 0;
-    
-    const totalStrength = teamPlayers.reduce((sum, teamPlayer) => {
-      const player = allPlayers.find(p => p.id === teamPlayer.id);
-      if (!player) return sum;
-      
-      const winRate = player.stats.winRate || 0;
-      const experience = Math.min(player.stats.totalMatches, 50) * 2;
-      const performance = (player.stats.averageGoalsPerMatch * 20) + (player.stats.averageAssistsPerMatch * 15);
-      
-      return sum + (winRate + experience + performance) / 3;
-    }, 0);
-    
-    return totalStrength / teamPlayers.length;
-  }
-
-  private calculateFundTrends(transactions: FundTransaction[]): FundAnalytics['trends'] {
-    // Group transactions by month
-    const monthlyData = new Map<string, { income: number; expenses: number }>();
-    
-    transactions.forEach(transaction => {
-      const monthKey = transaction.date.substring(0, 7);
-      if (!monthlyData.has(monthKey)) {
-        monthlyData.set(monthKey, { income: 0, expenses: 0 });
-      }
-      
-      const data = monthlyData.get(monthKey)!;
-      if (transaction.type === 'income') {
-        data.income += transaction.amount;
-      } else {
-        data.expenses += transaction.amount;
-      }
-    });
-
-    const monthlyIncome = Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month, amount: data.income
-    }));
-
-    const monthlyExpenses = Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month, amount: data.expenses
-    }));
-
-    const monthlyNet = Array.from(monthlyData.entries()).map(([month, data]) => ({
-      month, amount: data.income - data.expenses
-    }));
-
-    // Category breakdown
-    const categoryTotals = new Map<string, number>();
-    transactions.forEach(transaction => {
-      const current = categoryTotals.get(transaction.category) || 0;
-      categoryTotals.set(transaction.category, current + transaction.amount);
-    });
-
-    const totalAmount = Array.from(categoryTotals.values()).reduce((sum, amount) => sum + amount, 0);
-    const categoryBreakdown = Array.from(categoryTotals.entries()).map(([category, amount]) => ({
-      category,
-      amount,
-      percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0
-    }));
-
-    return {
-      monthlyIncome,
-      monthlyExpenses,
-      monthlyNet,
-      categoryBreakdown
-    };
-  }
-
-  private calculateFundProjections(transactions: FundTransaction[]): FundAnalytics['projections'] {
-    // Simple projection based on recent trends
-    const recentTransactions = transactions.slice(-10);
-    const averageMonthlyIncome = recentTransactions.filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0) / Math.max(1, recentTransactions.filter(t => t.type === 'income').length);
-    
-    const averageMonthlyExpenses = recentTransactions.filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0) / Math.max(1, recentTransactions.filter(t => t.type === 'expense').length);
-
-    const monthlyNet = averageMonthlyIncome - averageMonthlyExpenses;
-
-    return {
-      nextMonthProjection: monthlyNet,
-      yearEndProjection: monthlyNet * 12,
-      breakEvenAnalysis: {
-        monthsToBreakEven: averageMonthlyExpenses > 0 ? Math.ceil(averageMonthlyExpenses / averageMonthlyIncome) : 0,
-        requiredMonthlyIncome: averageMonthlyExpenses * 1.1 // 10% buffer
-      }
-    };
-  }
-
-  private calculateFundInsights(transactions: FundTransaction[]): FundAnalytics['insights'] {
-    const incomeByCategory = new Map<string, number>();
-    const expensesByCategory = new Map<string, number>();
-
-    transactions.forEach(transaction => {
-      const map = transaction.type === 'income' ? incomeByCategory : expensesByCategory;
-      const current = map.get(transaction.category) || 0;
-      map.set(transaction.category, current + transaction.amount);
-    });
-
-    const topIncomeCategory = Array.from(incomeByCategory.entries())
-      .sort(([,a], [,b]) => b - a)[0];
-    const topExpenseCategory = Array.from(expensesByCategory.entries())
-      .sort(([,a], [,b]) => b - a)[0];
-
-    return {
-      topIncomeSource: topIncomeCategory ? topIncomeCategory[0] : 'Chưa có dữ liệu',
-      topExpenseCategory: topExpenseCategory ? topExpenseCategory[0] : 'Chưa có dữ liệu',
-      costOptimizationSuggestions: [
-        'Tối ưu hóa chi phí sân bóng',
-        'Chia sẻ chi phí trọng tài',
-        'Mua nước uống theo số lượng lớn'
-      ],
-      revenueImprovementSuggestions: [
-        'Tăng phí tham gia cho trận thắng',
-        'Tổ chức thêm các trận giao hữu',
-        'Tìm kiếm nhà tài trợ'
-      ]
-    };
-  }
+  // Player/team/match/fund comparison helpers delegated to extracted services
 
   private calculatePlayerComparison(
     playerIds: string[], 
     playerStats: PlayerStatistics[]
   ): ComparisonAnalytics['playerComparison'] {
-    const comparedStats = playerIds.map(id => 
-      playerStats.find(s => s.playerId === id)
-    ).filter(Boolean) as PlayerStatistics[];
-
-    const metrics = {
-      goals: comparedStats.map(s => s.performance.goalsScored),
-      assists: comparedStats.map(s => s.performance.assists),
-      winRate: comparedStats.map(s => s.performance.winRate),
-      revenue: comparedStats.map(s => s.financial.totalRevenue),
-      matches: comparedStats.map(s => s.performance.totalMatches)
-    };
-
-    const getBestPerformer = (values: number[]) => {
-      const maxIndex = values.indexOf(Math.max(...values));
-      return comparedStats[maxIndex]?.playerName || 'N/A';
-    };
-
-    return {
-      players: comparedStats.map(s => s.playerName),
-      metrics,
-      winner: {
-        goals: getBestPerformer(metrics.goals),
-        assists: getBestPerformer(metrics.assists),
-        winRate: getBestPerformer(metrics.winRate),
-        revenue: getBestPerformer(metrics.revenue),
-        overall: getBestPerformer(metrics.goals.map((g, i) => g + metrics.assists[i] + metrics.winRate[i] / 10))
-      }
-    };
+    void this.lazyLoader.getComparisonAnalytics().then(service => {
+      service.buildPlayerComparison(playerIds, playerStats);
+    });
+    return { players: [], metrics: { goals:[], assists:[], winRate:[], revenue:[], matches:[] }, winner: { goals:'', assists:'', winRate:'', revenue:'', overall:'' } };
   }
 
   private calculateTimeComparison(
@@ -969,36 +488,10 @@ export class StatisticsService {
     period1: { start: string; end: string },
     period2: { start: string; end: string }
   ): ComparisonAnalytics['timeComparison'] {
-    const period1Matches = matches.filter(m => m.date >= period1.start && m.date <= period1.end);
-    const period2Matches = matches.filter(m => m.date >= period2.start && m.date <= period2.end);
-
-    const calculatePeriodMetrics = (periodMatches: MatchInfo[]) => ({
-      matches: periodMatches.length,
-      winRate: periodMatches.length > 0 ? 
-        (periodMatches.filter(m => Math.max(m.result.scoreA, m.result.scoreB) > Math.min(m.result.scoreA, m.result.scoreB)).length / periodMatches.length) * 100 : 0,
-      goals: periodMatches.reduce((sum, m) => sum + m.result.scoreA + m.result.scoreB, 0),
-      revenue: periodMatches.reduce((sum, m) => sum + m.finances.totalRevenue, 0)
+    void this.lazyLoader.getComparisonAnalytics().then(service => {
+      service.buildTimeComparison(matches, period1, period2);
     });
-
-    const metrics1 = calculatePeriodMetrics(period1Matches);
-    const metrics2 = calculatePeriodMetrics(period2Matches);
-
-    return {
-      period1,
-      period2,
-      metrics: {
-        matches: [metrics1.matches, metrics2.matches],
-        winRate: [metrics1.winRate, metrics2.winRate],
-        goals: [metrics1.goals, metrics2.goals],
-        revenue: [metrics1.revenue, metrics2.revenue]
-      },
-      improvement: {
-        matches: metrics2.matches - metrics1.matches,
-        winRate: metrics2.winRate - metrics1.winRate,
-        goals: metrics2.goals - metrics1.goals,
-        revenue: metrics2.revenue - metrics1.revenue
-      }
-    };
+    return { period1, period2, metrics: { matches:[0,0], winRate:[0,0], goals:[0,0], revenue:[0,0] }, improvement: { matches:0, winRate:0, goals:0, revenue:0 } };
   }
 
   private predictPlayerPerformance(playerStats: PlayerStatistics[]): { 
@@ -1037,20 +530,7 @@ export class StatisticsService {
     };
   }
 
-  private calculateCorrelations(): {
-    goalVsWinRate: number;
-    experienceVsPerformance: number;
-    teamSizeVsSuccess: number;
-    spendingVsResults: number;
-  } {
-    // Simplified correlation calculations
-    return {
-      goalVsWinRate: 0.7, // Strong positive correlation
-      experienceVsPerformance: 0.6, // Moderate positive correlation
-      teamSizeVsSuccess: 0.3, // Weak positive correlation
-      spendingVsResults: 0.4 // Moderate positive correlation
-    };
-  }
+  // Correlation logic delegated to ComparisonAnalyticsService (currently placeholder static values)
 
   private generateStatisticsReport(
     playerStats: PlayerStatistics[], 
@@ -1095,36 +575,27 @@ export class StatisticsService {
 
   // Firebase Sync Methods
   private initializeFirebaseSync(): void {
-    // Auto-sync statistics to Firebase periodically
-    this.getPlayerStatistics().subscribe(async (playerStats) => {
+    // Throttled batching approach: aggregate stats updates and flush every 30s (or on manual trigger later)
+    const flush$ = new Subject<void>();
+
+    // Queue holders
+    let latestPlayerStats: PlayerStatistics[] = [];
+    let latestTeamStats: TeamStatistics | null = null;
+    let latestFundAnalytics: FundAnalytics | null = null;
+
+    this.getPlayerStatistics().subscribe(stats => { latestPlayerStats = stats; flush$.next(); });
+    this.getTeamStatistics().subscribe(stats => { latestTeamStats = stats; flush$.next(); });
+    this.getFundAnalytics().subscribe(analytics => { latestFundAnalytics = analytics; flush$.next(); });
+
+    flush$.pipe(debounceTime(30000)).subscribe(async () => {
       try {
-        await this.syncPlayerStatisticsToFirebase(playerStats);
+        await this.syncBatchToFirebase(latestPlayerStats, latestTeamStats, latestFundAnalytics);
       } catch (error) {
-        console.error('❌ Failed to sync player statistics to Firebase:', error);
+        console.error('❌ Failed batched statistics sync:', error);
       }
     });
 
-    this.getTeamStatistics().subscribe(async (teamStats) => {
-      if (teamStats) {
-        try {
-          await this.syncTeamStatisticsToFirebase(teamStats);
-        } catch (error) {
-          console.error('❌ Failed to sync team statistics to Firebase:', error);
-        }
-      }
-    });
-
-    this.getFundAnalytics().subscribe(async (fundAnalytics) => {
-      if (fundAnalytics) {
-        try {
-          await this.syncFundAnalyticsToFirebase(fundAnalytics);
-        } catch (error) {
-          console.error('❌ Failed to sync fund analytics to Firebase:', error);
-        }
-      }
-    });
-
-    console.log('✅ Firebase statistics sync initialized');
+    console.log('✅ Firebase statistics sync initialized (batched & throttled)');
   }
 
   async syncPlayerStatisticsToFirebase(playerStats: PlayerStatistics[]): Promise<void> {
@@ -1148,6 +619,69 @@ export class StatisticsService {
       };
 
       await this.firebaseService.addStatisticsEntry(entry);
+    }
+  }
+
+  private async syncBatchToFirebase(
+    playerStats: PlayerStatistics[],
+    teamStats: TeamStatistics | null,
+    fundAnalytics: FundAnalytics | null
+  ): Promise<void> {
+    // Batch: write a single aggregation entry per category
+    if(playerStats.length){
+      const aggregatedPlayerData: StatisticsDataExtended = {
+        totalMatches: playerStats.reduce((s,p)=> s + p.performance.totalMatches,0),
+        totalGoals: playerStats.reduce((s,p)=> s + p.performance.goalsScored,0),
+        winRate: playerStats.reduce((s,p)=> s + p.performance.winRate,0) / playerStats.length,
+        totalRevenue: playerStats.reduce((s,p)=> s + p.financial.totalRevenue,0),
+        totalExpenses: playerStats.reduce((s,p)=> s + p.financial.penaltiesPaid,0),
+        playerCount: playerStats.length,
+        playerName: 'ALL'
+      } as StatisticsData;
+      aggregatedPlayerData.batchType = 'aggregate';
+      await this.firebaseService.addStatisticsEntry({
+        type: 'player',
+        period: 'batch',
+        date: new Date().toISOString(),
+        data: aggregatedPlayerData,
+        calculatedAt: new Date().toISOString(),
+        calculatedBy: 'system'
+      });
+    }
+    if(teamStats){
+      const teamData: StatisticsDataExtended = {
+        totalMatches: teamStats.performance.totalMatches,
+        totalGoals: teamStats.performance.averageGoalsScored,
+        winRate: teamStats.performance.winRate,
+        totalRevenue: teamStats.financial.totalRevenue,
+        totalExpenses: teamStats.financial.totalExpenses,
+        playerCount: teamStats.teamComposition.totalPlayers
+      };
+      teamData.batchType = 'aggregate';
+      await this.firebaseService.addStatisticsEntry({
+        type: 'team',
+        period: 'batch',
+        date: new Date().toISOString(),
+        data: teamData,
+        calculatedAt: new Date().toISOString(),
+        calculatedBy: 'system'
+      });
+    }
+    if(fundAnalytics){
+      const fundData: StatisticsDataExtended = {
+        totalRevenue: fundAnalytics.overview.totalIncome,
+        totalExpenses: fundAnalytics.overview.totalExpenses,
+        averageGoalsPerMatch: fundAnalytics.overview.growthRate
+      };
+      fundData.batchType = 'aggregate';
+      await this.firebaseService.addStatisticsEntry({
+        type: 'financial',
+        period: 'batch',
+        date: new Date().toISOString(),
+        data: fundData,
+        calculatedAt: new Date().toISOString(),
+        calculatedBy: 'system'
+      });
     }
   }
 

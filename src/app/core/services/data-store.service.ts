@@ -11,6 +11,7 @@ import { MatchInfo } from '../models/match.model';
 import { PlayerService } from './player.service';
 import { MatchService } from './match.service';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
+import { Player } from '../../features/players/player-utils';
 
 export interface AppState {
   players: {
@@ -84,6 +85,21 @@ export class DataStoreService {
   private readonly playerService = inject(PlayerService);
   private readonly matchService = inject(MatchService);
   private readonly firebaseService = inject(FirebaseService);
+
+  // Team state sharing for analysis route & stats
+  private readonly _teamA$ = new BehaviorSubject<Player[]>([]);
+  private readonly _teamB$ = new BehaviorSubject<Player[]>([]);
+
+  get teamA$(): Observable<Player[]> { return this._teamA$.asObservable(); }
+  get teamB$(): Observable<Player[]> { return this._teamB$.asObservable(); }
+
+  /**
+   * Set current teams (publishing shallow copies to avoid accidental mutation across routes)
+   */
+  setTeams(teamA: Player[], teamB: Player[]): void {
+    this._teamA$.next([...teamA]);
+    this._teamB$.next([...teamB]);
+  }
 
   // Application state
   private readonly _appState$ = new BehaviorSubject<AppState>(this.getInitialAppState());

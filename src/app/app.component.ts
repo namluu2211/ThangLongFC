@@ -1,12 +1,8 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HistoryComponent } from './features/history/history.component';
-import { PlayersComponent } from './features/players/players.component';
-import { PlayersSimpleComponent } from './features/players/players-simple.component';
-import { FundComponent } from './features/fund/fund.component';
-import { StatsComponent } from './features/stats/stats.component';
 import { FirebaseService } from './services/firebase.service';
 import { PerformanceService } from './services/performance.service';
 import { LazyLoadingService } from './services/lazy-loading.service';
@@ -14,6 +10,7 @@ import { AssetOptimizationService } from './services/asset-optimization.service'
 import { DataStoreService } from './core/services/data-store.service';
 import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
+import { environment } from '../environments/environment';
 import { takeUntil, debounceTime } from 'rxjs/operators';
 
 
@@ -24,12 +21,10 @@ import { takeUntil, debounceTime } from 'rxjs/operators';
     CommonModule,
     FormsModule,
     HeaderComponent,
-    HistoryComponent,
-    PlayersComponent,
-    PlayersSimpleComponent,
-    FundComponent,
-    StatsComponent,
-    FooterComponent
+    FooterComponent,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive
   ],
   template: `
   <div class="app-header">
@@ -37,57 +32,26 @@ import { takeUntil, debounceTime } from 'rxjs/operators';
     </div>
     <div class="container">
       <div class="hline"></div>
-      <div class="navigation-buttons">
-        <button 
-          class="nav-btn" 
-          [class.active]="show === 'players'"
-          (click)="show='players'">
-          <i class="fas fa-users"></i>
-          <span>Đội hình</span>
-        </button>
-        <button 
-          class="nav-btn" 
-          [class.active]="show === 'list'"
-          (click)="show='list'">
-          <i class="fas fa-list"></i>
-          <span>Danh sách</span>
-        </button>
-        <button 
-          class="nav-btn" 
-          [class.active]="show === 'history'"
-          (click)="show='history'">
-          <i class="fas fa-history"></i>
-          <span>Lịch sử</span>
-        </button>
-        <button 
-          class="nav-btn" 
-          [class.active]="show === 'fund'"
-          (click)="show='fund'">
-          <i class="fas fa-wallet"></i>
-          <span>Tài chính</span>
-        </button>
-        <button 
-          class="nav-btn" 
-          [class.active]="show === 'stats'"
-          (click)="show='stats'">
-          <i class="fas fa-chart-bar"></i>
-          <span>Thống kê</span>
-        </button>
-      </div>
+      <nav class="navigation-buttons" aria-label="Main navigation">
+        <a routerLink="/players" routerLinkActive="active" class="nav-btn">
+          <i class="fas fa-users"></i><span>Đội hình</span>
+        </a>
+        <a routerLink="/players-list" routerLinkActive="active" class="nav-btn">
+          <i class="fas fa-list"></i><span>Danh sách</span>
+        </a>
+        <a routerLink="/history" routerLinkActive="active" class="nav-btn">
+          <i class="fas fa-history"></i><span>Lịch sử</span>
+        </a>
+        <a routerLink="/fund" routerLinkActive="active" class="nav-btn">
+          <i class="fas fa-wallet"></i><span>Tài chính</span>
+        </a>
+        <a routerLink="/stats" routerLinkActive="active" class="nav-btn">
+          <i class="fas fa-chart-bar"></i><span>Thống kê</span>
+        </a>
+      </nav>
       <!-- Professional Content Area -->
       <div class="content-area fade-in">
-        <!-- Team Division - Full players component with drag-drop functionality -->
-        <app-players *ngIf="show==='players'" [canEdit]="canEdit"></app-players>
-        
-        <!-- Registered Players List - Enhanced players management -->
-        <div *ngIf="show==='list'" style="padding: 20px;">
-          <app-players-simple></app-players-simple>
-        </div>
-        
-        <app-history *ngIf="show==='history'" [canEdit]="canEdit"></app-history>
-        
-        <app-fund *ngIf="show==='fund'" [canEdit]="canEdit"></app-fund>
-        <app-stats *ngIf="show==='stats'"></app-stats>
+        <router-outlet></router-outlet>
       </div>
       <div *ngIf="!loggedIn" class="small">Bạn đang xem ở chế độ khách. Đăng nhập để chỉnh sửa hoặc lưu dữ liệu.</div>
     </div>
@@ -101,7 +65,7 @@ export class AppComponent implements OnInit, OnDestroy {
   
   loggedIn = false;
   role = '';
-  show = 'players'; // default to team division for better UX
+  // show removed; router handles active view
   canEdit = false;
   currentFund = 0;
   isLoading = false;
@@ -160,12 +124,37 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private initializeOptionalServices() {
     try {
-      // Initialize performance monitoring if available
-      if (this.performanceService) {
+      const f = environment.features;
+      // Performance & related services gated by environment flags
+      if (f.performanceMonitoring && this.performanceService) {
         this.initializePerformanceServices();
+      } else {
+        console.log('🚫 Performance monitoring disabled by feature flag');
       }
-      
-      console.log('✅ Optional services initialized');
+
+      // Asset optimization can run independently if enabled
+      if (f.assetOptimization && this.assetOptimizationService) {
+        try {
+          this.assetOptimizationService.preloadCriticalAssets();
+          console.log('✅ Asset optimization started (flag enabled)');
+        } catch (e) {
+          console.warn('⚠️ Asset optimization failed to start:', e);
+        }
+      } else {
+        console.log('🚫 Asset optimization disabled by feature flag');
+      }
+
+      // Component preloading (lazy hints)
+      if (f.componentPreload && this.lazyLoadingService) {
+        setTimeout(() => {
+          this.lazyLoadingService?.preloadComponent('match-info');
+          console.log('✅ Component preloading started (flag enabled)');
+        }, 100);
+      } else {
+        console.log('🚫 Component preload disabled by feature flag');
+      }
+
+      console.log('✅ Optional services initialization pass completed');
     } catch (error) {
       console.warn('⚠️ Some optional services not available:', error);
     }
@@ -215,7 +204,7 @@ export class AppComponent implements OnInit, OnDestroy {
     console.log('🚀 Initializing performance services...');
     
     try {
-      // Performance monitoring is automatically started in constructor
+      // Performance monitoring is automatically started in constructor when service exists
       if (this.performanceService) {
         console.log('✅ Performance monitoring active');
         
@@ -238,20 +227,7 @@ export class AppComponent implements OnInit, OnDestroy {
           });
       }
       
-      // Preload critical assets for player avatars
-      if (this.assetOptimizationService) {
-        this.assetOptimizationService.preloadCriticalAssets();
-        console.log('✅ Asset optimization started');
-      }
-      
-      // Preload critical components after service initialization
-      if (this.lazyLoadingService) {
-        setTimeout(() => {
-          // Only preload truly lazy-loaded components like match-info
-          this.lazyLoadingService?.preloadComponent('match-info');
-          console.log('✅ Component preloading started');
-        }, 100);
-      }
+      // Asset & component preload moved to initializeOptionalServices with flags
         
     } catch (error) {
       console.warn('⚠️ Performance services initialization failed:', error);

@@ -12,6 +12,7 @@ export interface Player {
   note?: string;
   scorer?: string;
   assist?: string;
+  [key: string]: unknown; // Added to satisfy consumers expecting index signature
 }
 
 // Team division result

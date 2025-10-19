@@ -1,6 +1,8 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { importProvidersFrom } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { appRoutes } from './app/app.routes';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { environment } from './environments/environment';
@@ -18,7 +20,8 @@ console.log('Database URL:', environment.firebase.databaseURL);
 
 // Create providers array
 const providers = [
-  importProvidersFrom(CommonModule, FormsModule)
+  importProvidersFrom(CommonModule, FormsModule),
+  provideRouter(appRoutes)
 ];
 
 // Only add Firebase providers if config is valid

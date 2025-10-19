@@ -37,30 +37,36 @@ import { take } from 'rxjs/operators';
       <div class="filter-section" *ngIf="matches.length > 0">
         <div class="search-controls">
           <div class="search-group">
-            <label>🔍 Tìm kiếm</label>
+            <label for="history-search-input">🔍 Tìm kiếm</label>
             <input 
+              id="history-search-input"
               type="text" 
               [(ngModel)]="searchTerm" 
               (input)="onSearchChange()"
               placeholder="Tìm theo ngày, cầu thủ ghi bàn..."
-              class="search-input">
+              class="search-input"
+              aria-label="Tìm kiếm trận đấu">
           </div>
           
           <div class="filter-group">
-            <label>📅 Tháng</label>
+            <label for="history-month-filter">📅 Tháng</label>
             <input 
+              id="history-month-filter"
               type="month" 
               [(ngModel)]="dateFilter" 
               (change)="onDateFilterChange()"
-              class="date-filter">
+              class="date-filter"
+              aria-label="Lọc theo tháng">
           </div>
           
           <div class="filter-group">
-            <label>🏆 Kết quả</label>
+            <label for="history-score-filter">🏆 Kết quả</label>
             <select 
+              id="history-score-filter"
               [(ngModel)]="scoreFilter" 
               (change)="onScoreFilterChange()"
-              class="score-filter">
+              class="score-filter"
+              aria-label="Lọc theo kết quả trận đấu">
               <option value="all">Tất cả</option>
               <option value="win">Thắng</option>
               <option value="draw">Hòa</option>
@@ -68,14 +74,19 @@ import { take } from 'rxjs/operators';
             </select>
           </div>
           
-          <button class="clear-filters-btn" (click)="clearFilters()" *ngIf="searchTerm || dateFilter || scoreFilter !== 'all'">
+          <button 
+            class="clear-filters-btn" 
+            (click)="clearFilters()" 
+            *ngIf="searchTerm || dateFilter || scoreFilter !== 'all'"
+            aria-label="Xóa tất cả bộ lọc đang áp dụng"
+          >
             🗑️ Xóa bộ lọc
           </button>
         </div>
       </div>
 
       <!-- Fund Sync Result -->
-      <div class="fund-sync-result" *ngIf="showFundSyncResult">
+      <div class="fund-sync-result" *ngIf="showFundSyncResult" aria-live="polite" aria-atomic="true">
         <div class="sync-message">{{ fundSyncMessage }}</div>
       </div>
 
@@ -358,8 +369,8 @@ import { take } from 'rxjs/operators';
       </div>
       
       <!-- Edit Match Modal -->
-      <div class="modal-overlay" *ngIf="showEditModal" (click)="cancelEdit()">
-        <div class="modal-content edit-modal" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showEditModal" (click)="cancelEdit()" tabindex="0" (keydown)="onOverlayKey($event)">
+        <div class="modal-content edit-modal" (click)="$event.stopPropagation()" tabindex="0" (keydown)="onModalKey($event)">
           <div class="modal-header">
             <h3>✏️ Chỉnh sửa trận đấu</h3>
             <button class="close-btn" (click)="cancelEdit()">&times;</button>
@@ -372,19 +383,19 @@ import { take } from 'rxjs/operators';
                 <h4>Thông tin trận đấu</h4>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Ngày thi đấu</label>
-                    <input type="date" [(ngModel)]="editFormData.date" name="date" class="form-control">
+                    <label for="edit-date">Ngày thi đấu</label>
+                    <input id="edit-date" type="date" [(ngModel)]="editFormData.date" name="date" class="form-control">
                   </div>
                 </div>
                 
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Tỷ số Đội Xanh</label>
-                    <input type="number" [(ngModel)]="editFormData.scoreA" name="scoreA" class="form-control" min="0">
+                    <label for="edit-scoreA">Tỷ số Đội Xanh</label>
+                    <input id="edit-scoreA" type="number" [(ngModel)]="editFormData.scoreA" name="scoreA" class="form-control" min="0">
                   </div>
                   <div class="form-group">
-                    <label>Tỷ số Đội Cam</label>
-                    <input type="number" [(ngModel)]="editFormData.scoreB" name="scoreB" class="form-control" min="0">
+                    <label for="edit-scoreB">Tỷ số Đội Cam</label>
+                    <input id="edit-scoreB" type="number" [(ngModel)]="editFormData.scoreB" name="scoreB" class="form-control" min="0">
                   </div>
                 </div>
               </div>
@@ -394,23 +405,23 @@ import { take } from 'rxjs/operators';
                 <h4>Ghi bàn và Kiến tạo</h4>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Ghi bàn Đội Xanh</label>
-                    <input type="text" [(ngModel)]="editFormData.scorerA" name="scorerA" class="form-control" placeholder="Tên cầu thủ ghi bàn">
+                    <label for="edit-scorerA">Ghi bàn Đội Xanh</label>
+                    <input id="edit-scorerA" type="text" [(ngModel)]="editFormData.scorerA" name="scorerA" class="form-control" placeholder="Tên cầu thủ ghi bàn">
                   </div>
                   <div class="form-group">
-                    <label>Kiến tạo Đội Xanh</label>
-                    <input type="text" [(ngModel)]="editFormData.assistA" name="assistA" class="form-control" placeholder="Tên cầu thủ kiến tạo">
+                    <label for="edit-assistA">Kiến tạo Đội Xanh</label>
+                    <input id="edit-assistA" type="text" [(ngModel)]="editFormData.assistA" name="assistA" class="form-control" placeholder="Tên cầu thủ kiến tạo">
                   </div>
                 </div>
                 
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Ghi bàn Đội Cam</label>
-                    <input type="text" [(ngModel)]="editFormData.scorerB" name="scorerB" class="form-control" placeholder="Tên cầu thủ ghi bàn">
+                    <label for="edit-scorerB">Ghi bàn Đội Cam</label>
+                    <input id="edit-scorerB" type="text" [(ngModel)]="editFormData.scorerB" name="scorerB" class="form-control" placeholder="Tên cầu thủ ghi bàn">
                   </div>
                   <div class="form-group">
-                    <label>Kiến tạo Đội Cam</label>
-                    <input type="text" [(ngModel)]="editFormData.assistB" name="assistB" class="form-control" placeholder="Tên cầu thủ kiến tạo">
+                    <label for="edit-assistB">Kiến tạo Đội Cam</label>
+                    <input id="edit-assistB" type="text" [(ngModel)]="editFormData.assistB" name="assistB" class="form-control" placeholder="Tên cầu thủ kiến tạo">
                   </div>
                 </div>
               </div>
@@ -420,23 +431,23 @@ import { take } from 'rxjs/operators';
                 <h4>Thẻ phạt</h4>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Thẻ vàng Đội Xanh</label>
-                    <input type="text" [(ngModel)]="editFormData.yellowA" name="yellowA" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ vàng">
+                    <label for="edit-yellowA">Thẻ vàng Đội Xanh</label>
+                    <input id="edit-yellowA" type="text" [(ngModel)]="editFormData.yellowA" name="yellowA" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ vàng">
                   </div>
                   <div class="form-group">
-                    <label>Thẻ vàng Đội Cam</label>
-                    <input type="text" [(ngModel)]="editFormData.yellowB" name="yellowB" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ vàng">
+                    <label for="edit-yellowB">Thẻ vàng Đội Cam</label>
+                    <input id="edit-yellowB" type="text" [(ngModel)]="editFormData.yellowB" name="yellowB" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ vàng">
                   </div>
                 </div>
                 
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Thẻ đỏ Đội Xanh</label>
-                    <input type="text" [(ngModel)]="editFormData.redA" name="redA" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ đỏ">
+                    <label for="edit-redA">Thẻ đỏ Đội Xanh</label>
+                    <input id="edit-redA" type="text" [(ngModel)]="editFormData.redA" name="redA" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ đỏ">
                   </div>
                   <div class="form-group">
-                    <label>Thẻ đỏ Đội Cam</label>
-                    <input type="text" [(ngModel)]="editFormData.redB" name="redB" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ đỏ">
+                    <label for="edit-redB">Thẻ đỏ Đội Cam</label>
+                    <input id="edit-redB" type="text" [(ngModel)]="editFormData.redB" name="redB" class="form-control" placeholder="Danh sách cầu thủ nhận thẻ đỏ">
                   </div>
                 </div>
               </div>
@@ -446,30 +457,30 @@ import { take } from 'rxjs/operators';
                 <h4>Tài chính</h4>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Tổng thu (đ)</label>
-                    <input type="number" [(ngModel)]="editFormData.thu" name="thu" class="form-control" min="0">
+                    <label for="edit-thu">Tổng thu (đ)</label>
+                    <input id="edit-thu" type="number" [(ngModel)]="editFormData.thu" name="thu" class="form-control" min="0">
                   </div>
                   <div class="form-group">
-                    <label>Tổng chi (đ)</label>
-                    <input type="number" [(ngModel)]="editFormData.chi_total" name="chi_total" class="form-control" min="0">
-                  </div>
-                </div>
-                
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Chi sân (đ)</label>
-                    <input type="number" [(ngModel)]="editFormData.chi_san" name="chi_san" class="form-control" min="0">
-                  </div>
-                  <div class="form-group">
-                    <label>Chi trọng tài (đ)</label>
-                    <input type="number" [(ngModel)]="editFormData.chi_trongtai" name="chi_trongtai" class="form-control" min="0">
+                    <label for="edit-chi_total">Tổng chi (đ)</label>
+                    <input id="edit-chi_total" type="number" [(ngModel)]="editFormData.chi_total" name="chi_total" class="form-control" min="0">
                   </div>
                 </div>
                 
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Chi nước (đ)</label>
-                    <input type="number" [(ngModel)]="editFormData.chi_nuoc" name="chi_nuoc" class="form-control" min="0">
+                    <label for="edit-chi_san">Chi sân (đ)</label>
+                    <input id="edit-chi_san" type="number" [(ngModel)]="editFormData.chi_san" name="chi_san" class="form-control" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="edit-chi_trongtai">Chi trọng tài (đ)</label>
+                    <input id="edit-chi_trongtai" type="number" [(ngModel)]="editFormData.chi_trongtai" name="chi_trongtai" class="form-control" min="0">
+                  </div>
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="edit-chi_nuoc">Chi nước (đ)</label>
+                    <input id="edit-chi_nuoc" type="number" [(ngModel)]="editFormData.chi_nuoc" name="chi_nuoc" class="form-control" min="0">
                   </div>
                 </div>
               </div>
@@ -484,8 +495,8 @@ import { take } from 'rxjs/operators';
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div class="modal-overlay" *ngIf="showDeleteModal" (click)="cancelDelete()">
-        <div class="modal-content delete-modal" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showDeleteModal" (click)="cancelDelete()" tabindex="0" (keydown)="onOverlayKey($event)">
+        <div class="modal-content delete-modal" (click)="$event.stopPropagation()" tabindex="0" (keydown)="onModalKey($event)">
           <div class="modal-header">
             <h3>🗑️ Xác nhận xóa</h3>
             <button class="close-btn" (click)="cancelDelete()">&times;</button>
@@ -949,6 +960,8 @@ export class HistoryComponent implements OnInit {
   private readonly COLLAPSE_STATES_KEY = 'history_date_collapse_states';
 
   ngOnInit(): void {
+    // Deferred Firebase listeners: ensure history listener is attached only when History route is active
+    this.firebaseService.attachHistoryListener();
     this.loadMatches();
     this.loadCollapseStates();
   }
@@ -1209,6 +1222,23 @@ export class HistoryComponent implements OnInit {
   cancelDelete(): void {
     this.showDeleteModal = false;
     this.matchToDelete = null;
+  }
+
+  // Accessibility handlers for modal overlays
+  onOverlayKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (this.showEditModal) this.cancelEdit();
+      if (this.showDeleteModal) this.cancelDelete();
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      if (this.showEditModal) this.cancelEdit();
+    }
+  }
+
+  onModalKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.showEditModal) {
+      this.cancelEdit();
+    }
   }
 
   private validateEditForm(): { isValid: boolean; errors: string[] } {

@@ -1,19 +1,13 @@
-import { Injectable } from '@angular/core';
-import { initializeApp, getApps } from 'firebase/app';
-import { 
-  getDatabase, 
-  ref, 
-  push, 
-  set, 
-  onValue, 
-  serverTimestamp,
-  Database,
-  goOffline,
-  goOnline
-} from 'firebase/database';
+import { Injectable, inject } from '@angular/core';
+// Dynamic import slimming: remove eager firebase/app & firebase/database code from initial bundle.
+// We import only types here; runtime code loaded on-demand.
+// Avoid importing firebase types directly to ensure no accidental runtime inclusion.
+// Use minimal structural placeholders.
+type FirebaseAppLike = object;
+type FirebaseDatabaseLike = object;
 import { BehaviorSubject } from 'rxjs';
 import { shareReplay, distinctUntilChanged } from 'rxjs';
-import { firebaseConfig, isFirebaseConfigValid } from '../config/firebase.config';
+import { FirebaseCoreService } from './firebase-core.service';
 import { AdminConfig } from '../config/admin.config';
 
 export interface MatchResult {
@@ -121,9 +115,12 @@ export interface HistoryEntry {
   providedIn: 'root'
 })
 export class FirebaseService {
-  private app: import('firebase/app').FirebaseApp | null = null;
-  private database: Database | null = null;
-  private isEnabled = false;
+  private core = inject(FirebaseCoreService);
+  private coreReady = false;
+  private coreInitPromise: Promise<void> | null = null;
+  private get app(): FirebaseAppLike | null { return this.core.app as FirebaseAppLike | null; }
+  private get database(): FirebaseDatabaseLike | null { return this.core.database as FirebaseDatabaseLike | null; }
+  private get isEnabled(): boolean { return this.core.enabled; }
   
   // Optimized BehaviorSubjects with caching
   private matchResultsSubject = new BehaviorSubject<MatchResult[]>([]);
@@ -192,50 +189,75 @@ export class FirebaseService {
   // Network status monitoring
   private networkStatus = new BehaviorSubject<'online' | 'offline' | 'slow'>('online');
 
+  // Dynamic firebase function accessor
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private fb(): any { return (this as any)._fb; }
+
   constructor() {
-    // Only initialize if config is valid to prevent bootstrap errors
-    if (isFirebaseConfigValid) {
-      this.initializeFirebaseService();
-      this.setupNetworkMonitoring();
-    } else {
-      console.log('🔄 Firebase service running in offline mode (invalid config)');
-      this.isEnabled = false;
-      // Still set up network monitoring for potential future initialization
-      this.setupNetworkMonitoring();
-    }
+    // Defer Firebase core initialization until idle; can be forced earlier via ensureCoreReady()
+    this.deferInit();
+    this.setupNetworkMonitoring();
   }
 
-  private initializeFirebaseService() {
-    try {
-      // Check if Firebase app already exists
-      const existingApps = getApps();
-      if (existingApps.length > 0) {
-        console.log('🔥 Using existing Firebase app instance in firebase.service');
-        this.app = existingApps[0];
+  private deferInit() {
+    if (this.coreInitPromise) return;
+    this.coreInitPromise = new Promise<void>((resolve) => {
+      const win = globalThis as unknown as { requestIdleCallback?: (cb: () => void) => void };
+      const start = async () => {
+        try {
+          // Lazily initialize Firebase core only when idle
+          await this.core.ensureInitialized?.();
+          this.postCoreInit();
+          this.coreReady = true;
+        } finally {
+          resolve();
+        }
+      };
+      if (typeof win !== 'undefined' && typeof win.requestIdleCallback === 'function') {
+        win.requestIdleCallback(() => { void start(); });
       } else {
-        console.log('🔥 Initializing new Firebase app in firebase.service');
-        this.app = initializeApp(firebaseConfig);
+        setTimeout(() => { void start(); }, 300);
       }
-      this.database = getDatabase(this.app, firebaseConfig.databaseURL);
-      this.isEnabled = true;
-      console.log('✅ Firebase service initialized successfully');
+    });
+  }
+
+  private async ensureCoreReady(): Promise<void> {
+    if (this.coreReady) return;
+    // Force initialization immediately if explicitly needed before idle callback fires
+    await this.core.ensureInitialized?.();
+    if (!this.coreInitPromise) this.deferInit();
+    // If initialization happened early (ensureInitialized), attach listeners now
+    if (!this.coreReady && this.core.enabled && this.core.fb()) {
+      this.postCoreInit();
+      this.coreReady = true;
+      return;
+    }
+    await this.coreInitPromise;
+  }
+
+  private postCoreInit() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this as any)._fb = this.core.fb();
+    if (this.isEnabled) {
       this.initializeOptimizedListeners();
       this.setupConnectionMonitoring();
       this.enableOfflineSupport();
-    } catch (error) {
-      console.error('❌ Firebase service initialization failed:', error);
-      this.isEnabled = false;
+      console.log('✅ Firebase service listeners attached (core split)');
+    } else {
+      console.log('⚠️ Firebase core not enabled; skipping listeners');
     }
   }
 
   private initializeOptimizedListeners() {
-    // Optimized listeners with error handling and retry logic
+    // Attach only essential listeners initially (match & player stats)
     this.setupListener('matchResults', this.matchResultsSubject);
-    this.setupListener('playerStats', this.playerStatsSubject);  
-    this.setupListener('history', this.historySubject);
-    this.setupListener('fundTransactions', this.fundTransactionsSubject);
-    this.setupListener('statistics', this.statisticsSubject);
+    this.setupListener('playerStats', this.playerStatsSubject);
   }
+
+  // Deferred listeners (feature routes will call these)
+  attachHistoryListener() { this.setupListener('history', this.historySubject); }
+  attachFundListener() { this.setupListener('fundTransactions', this.fundTransactionsSubject); }
+  attachStatisticsListener() { this.setupListener('statistics', this.statisticsSubject); }
 
   private setupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
     if (!this.isEnabled || !this.database) {
@@ -243,10 +265,13 @@ export class FirebaseService {
       return;
     }
     
-    const dbRef = ref(this.database, path);
+  // Access dynamic firebase functions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const dbRef = fb.ref(this.database, path);
     
     const retryListener = (retryCount = 0) => {
-      onValue(dbRef, 
+  fb.onValue(dbRef, 
         (snapshot) => {
           try {
             const data = snapshot.val();
@@ -285,8 +310,10 @@ export class FirebaseService {
   }
 
   private setupConnectionMonitoring() {
-    const connectedRef = ref(this.database, '.info/connected');
-    onValue(connectedRef, (snapshot) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const connectedRef = fb.ref(this.database, '.info/connected');
+  fb.onValue(connectedRef, (snapshot: { val: () => boolean }) => {
       const isConnected = snapshot.val();
       this.connectionStatus.next(isConnected);
       
@@ -312,16 +339,19 @@ export class FirebaseService {
   // Optimized CRUD operations with batching and caching
 
   async addMatchResult(matchResult: Omit<MatchResult, 'id'>): Promise<string> {
+    await this.ensureCoreReady();
     return this.executeBatchOperation(async () => {
-      const matchesRef = ref(this.database, 'matchResults');
-      const newMatchRef = push(matchesRef);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const matchesRef = fb.ref(this.database, 'matchResults');
+  const newMatchRef = fb.push(matchesRef);
       
       const optimizedMatchResult = {
         ...matchResult,
         updatedAt: new Date().toISOString()
       };
       
-      await set(newMatchRef, optimizedMatchResult);
+  await fb.set(newMatchRef, optimizedMatchResult);
       
       // Update cache immediately
       const currentMatches = this.matchResultsSubject.value;
@@ -334,16 +364,19 @@ export class FirebaseService {
   }
 
     async addPlayerStats(stats: Omit<PlayerStats, 'id'>): Promise<string> {
-    return this.executeBatchOperation(async () => {
-      const statsRef = ref(this.database, 'playerStats');
-      const newStatsRef = push(statsRef);
+      await this.ensureCoreReady();
+      return this.executeBatchOperation(async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const statsRef = fb.ref(this.database, 'playerStats');
+  const newStatsRef = fb.push(statsRef);
       
       const optimizedStats = {
         ...stats,
         updatedAt: new Date().toISOString()
       };
       
-      await set(newStatsRef, optimizedStats);
+  await fb.set(newStatsRef, optimizedStats);
       
       // Update cache immediately
       const currentStats = this.playerStatsSubject.value;
@@ -356,9 +389,12 @@ export class FirebaseService {
   }
 
   async addHistoryEntry(entry: Omit<HistoryEntry, 'id'>): Promise<string> {
+    await this.ensureCoreReady();
     return this.executeBatchOperation(async () => {
-      const historyRef = ref(this.database, 'history');
-      const newHistoryRef = push(historyRef);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const historyRef = fb.ref(this.database, 'history');
+  const newHistoryRef = fb.push(historyRef);
       
       const optimizedEntry = {
         ...entry,
@@ -366,9 +402,9 @@ export class FirebaseService {
         createdBy: this.getCurrentUserEmail()
       };
       
-      await set(newHistoryRef, {
+  await fb.set(newHistoryRef, {
         ...entry,
-        createdAt: serverTimestamp(),
+  createdAt: this.fb().serverTimestamp(),
         createdBy: this.getCurrentUserEmail()
       });
       
@@ -519,7 +555,8 @@ export class FirebaseService {
   // Connection management
   async goOnlineMode(): Promise<void> {
     try {
-      goOnline(this.database);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb; fb.goOnline(this.database);
       console.log('🔥 Firebase online mode enabled');
     } catch (error) {
       console.error('❌ Failed to enable online mode:', error);
@@ -528,7 +565,8 @@ export class FirebaseService {
 
   async goOfflineMode(): Promise<void> {
     try {
-      goOffline(this.database);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb; fb.goOffline(this.database);
       console.log('📱 Firebase offline mode enabled');
     } catch (error) {
       console.error('❌ Failed to enable offline mode:', error);
@@ -659,7 +697,8 @@ export class FirebaseService {
     
     try {
       if (this.database) {
-        goOffline(this.database);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb; fb.goOffline(this.database);
       }
     } catch (error) {
       console.warn('⚠️ Firebase offline mode setup warning:', error);
@@ -672,7 +711,8 @@ export class FirebaseService {
     
     try {
       if (this.database) {
-        goOnline(this.database);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb; fb.goOnline(this.database);
         // Sync any offline changes
         await this.syncOfflineChanges();
       }
@@ -726,8 +766,10 @@ export class FirebaseService {
   async deleteMatchResult(id: string): Promise<void> {
     return this.executeBatchOperation(async () => {
       console.log('🗑️ Deleting match result:', id);
-      const matchRef = ref(this.database, `matchResults/${id}`);
-      await set(matchRef, null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const matchRef = fb.ref(this.database, `matchResults/${id}`);
+  await fb.set(matchRef, null);
       
       // Update cache immediately
       const currentMatches = this.matchResultsSubject.value;
@@ -741,8 +783,10 @@ export class FirebaseService {
   async deletePlayerStats(id: string): Promise<void> {
     return this.executeBatchOperation(async () => {
       console.log('🗑️ Deleting player stats:', id);
-      const statsRef = ref(this.database, `playerStats/${id}`);
-      await set(statsRef, null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const statsRef = fb.ref(this.database, `playerStats/${id}`);
+  await fb.set(statsRef, null);
       
       // Update cache immediately
       const currentStats = this.playerStatsSubject.value;
@@ -756,8 +800,10 @@ export class FirebaseService {
   async deleteHistoryEntry(id: string): Promise<void> {
     return this.executeBatchOperation(async () => {
       console.log('🗑️ Deleting history entry:', id);
-      const historyRef = ref(this.database, `history/${id}`);
-      await set(historyRef, null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const historyRef = fb.ref(this.database, `history/${id}`);
+  await fb.set(historyRef, null);
       
       // Update cache immediately
       const currentHistory = this.historySubject.value;
@@ -774,14 +820,16 @@ export class FirebaseService {
       
       const updateData = {
         ...updates,
-        updatedAt: serverTimestamp(),
+  updatedAt: this.fb().serverTimestamp(),
         updatedBy: this.getCurrentUserEmail()
       };
       
       // Use Firebase's update method for partial updates
       const updatePromises = Object.entries(updateData).map(([key, value]) => {
-        const fieldRef = ref(this.database, `history/${id}/${key}`);
-        return set(fieldRef, value);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const fieldRef = fb.ref(this.database, `history/${id}/${key}`);
+  return fb.set(fieldRef, value);
       });
       
       await Promise.all(updatePromises);
@@ -801,8 +849,10 @@ export class FirebaseService {
   async addFundTransaction(transaction: Omit<FundTransaction, 'id'>): Promise<string> {
     return this.executeBatchOperation(async () => {
       console.log('💰 Adding fund transaction:', transaction);
-      const fundRef = ref(this.database, 'fundTransactions');
-      const newFundRef = push(fundRef);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const fundRef = fb.ref(this.database, 'fundTransactions');
+  const newFundRef = fb.push(fundRef);
       
       const optimizedTransaction = {
         ...transaction,
@@ -810,9 +860,9 @@ export class FirebaseService {
         createdBy: this.getCurrentUserEmail()
       };
       
-      await set(newFundRef, {
+  await fb.set(newFundRef, {
         ...transaction,
-        createdAt: serverTimestamp(),
+  createdAt: this.fb().serverTimestamp(),
         createdBy: this.getCurrentUserEmail()
       });
       
@@ -832,13 +882,15 @@ export class FirebaseService {
       
       const updateData = {
         ...updates,
-        updatedAt: serverTimestamp(),
+  updatedAt: this.fb().serverTimestamp(),
         updatedBy: this.getCurrentUserEmail()
       };
       
       const updatePromises = Object.entries(updateData).map(([key, value]) => {
-        const fieldRef = ref(this.database, `fundTransactions/${id}/${key}`);
-        return set(fieldRef, value);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const fieldRef = fb.ref(this.database, `fundTransactions/${id}/${key}`);
+  return fb.set(fieldRef, value);
       });
       
       await Promise.all(updatePromises);
@@ -857,8 +909,10 @@ export class FirebaseService {
   async deleteFundTransaction(id: string): Promise<void> {
     return this.executeBatchOperation(async () => {
       console.log('🗑️ Deleting fund transaction:', id);
-      const fundRef = ref(this.database, `fundTransactions/${id}`);
-      await set(fundRef, null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const fundRef = fb.ref(this.database, `fundTransactions/${id}`);
+  await fb.set(fundRef, null);
       
       // Update cache immediately
       const currentTransactions = this.fundTransactionsSubject.value;
@@ -873,8 +927,10 @@ export class FirebaseService {
   async addStatisticsEntry(entry: Omit<StatisticsEntry, 'id'>): Promise<string> {
     return this.executeBatchOperation(async () => {
       console.log('📊 Adding statistics entry:', entry);
-      const statsRef = ref(this.database, 'statistics');
-      const newStatsRef = push(statsRef);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const statsRef = fb.ref(this.database, 'statistics');
+  const newStatsRef = fb.push(statsRef);
       
       const optimizedEntry = {
         ...entry,
@@ -882,9 +938,9 @@ export class FirebaseService {
         calculatedBy: this.getCurrentUserEmail()
       };
       
-      await set(newStatsRef, {
+  await fb.set(newStatsRef, {
         ...entry,
-        calculatedAt: serverTimestamp(),
+  calculatedAt: this.fb().serverTimestamp(),
         calculatedBy: this.getCurrentUserEmail()
       });
       
@@ -904,13 +960,13 @@ export class FirebaseService {
       
       const updateData = {
         ...updates,
-        calculatedAt: serverTimestamp(),
+  calculatedAt: this.fb().serverTimestamp(),
         calculatedBy: this.getCurrentUserEmail()
       };
       
       const updatePromises = Object.entries(updateData).map(([key, value]) => {
-        const fieldRef = ref(this.database, `statistics/${id}/${key}`);
-        return set(fieldRef, value);
+  const fieldRef = this.fb().ref(this.database, `statistics/${id}/${key}`);
+  return this.fb().set(fieldRef, value);
       });
       
       await Promise.all(updatePromises);
@@ -929,8 +985,8 @@ export class FirebaseService {
   async deleteStatisticsEntry(id: string): Promise<void> {
     return this.executeBatchOperation(async () => {
       console.log('🗑️ Deleting statistics entry:', id);
-      const statsRef = ref(this.database, `statistics/${id}`);
-      await set(statsRef, null);
+  const statsRef = this.fb().ref(this.database, `statistics/${id}`);
+  await this.fb().set(statsRef, null);
       
       // Update cache immediately
       const currentStats = this.statisticsSubject.value;
@@ -949,17 +1005,17 @@ export class FirebaseService {
       
       if (matchData.id) {
         // Update existing match
-        historyRef = ref(this.database, `history/${matchData.id}`);
+  historyRef = this.fb().ref(this.database, `history/${matchData.id}`);
         // Filter out undefined values for Firebase compatibility
         const cleanMatchData = Object.fromEntries(
           Object.entries(matchData).filter(entry => entry[1] !== undefined)
         );
         const updateData = {
           ...cleanMatchData,
-          updatedAt: serverTimestamp(),
+          updatedAt: this.fb().serverTimestamp(),
           updatedBy: this.getCurrentUserEmail()
         };
-        await set(historyRef, updateData);
+  await this.fb().set(historyRef, updateData);
         
         // Update cache
         const currentHistory = this.historySubject.value;
@@ -972,8 +1028,8 @@ export class FirebaseService {
         return matchData.id;
       } else {
         // Create new match
-        historyRef = ref(this.database, 'history');
-        const newHistoryRef = push(historyRef);
+  historyRef = this.fb().ref(this.database, 'history');
+  const newHistoryRef = this.fb().push(historyRef);
         
         // Filter out undefined values and exclude id for new entries
         const matchDataWithoutId = Object.fromEntries(
@@ -981,12 +1037,12 @@ export class FirebaseService {
         );
         const newMatchData = {
           ...matchDataWithoutId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: this.fb().serverTimestamp(),
+          updatedAt: this.fb().serverTimestamp(),
           createdBy: this.getCurrentUserEmail()
         };
         
-        await set(newHistoryRef, newMatchData);
+  await this.fb().set(newHistoryRef, newMatchData);
         
         // Update cache
         const currentHistory = this.historySubject.value;
@@ -1001,12 +1057,12 @@ export class FirebaseService {
 
   async updateMatchFinancialField(matchId: string, field: string, value: string | number | boolean | null | undefined): Promise<void> {
     return this.executeBatchOperation(async () => {
-      const fieldRef = ref(this.database, `history/${matchId}/${field}`);
-      await set(fieldRef, value);
+  const fieldRef = this.fb().ref(this.database, `history/${matchId}/${field}`);
+  await this.fb().set(fieldRef, value);
       
       // Also update metadata
-      const metaRef = ref(this.database, `history/${matchId}/updatedAt`);
-      await set(metaRef, serverTimestamp());
+  const metaRef = this.fb().ref(this.database, `history/${matchId}/updatedAt`);
+  await this.fb().set(metaRef, this.fb().serverTimestamp());
       
       // Update cache
       const currentHistory = this.historySubject.value;
@@ -1023,14 +1079,14 @@ export class FirebaseService {
     return this.executeBatchOperation(async () => {
       const updateData = {
         ...updates,
-        updatedAt: serverTimestamp(),
+  updatedAt: this.fb().serverTimestamp(),
         updatedBy: this.getCurrentUserEmail()
       };
       
       // Use Firebase's update method for partial updates
       const updatePromises = Object.entries(updateData).map(([key, value]) => {
-        const fieldRef = ref(this.database, `history/${matchId}/${key}`);
-        return set(fieldRef, value);
+  const fieldRef = this.fb().ref(this.database, `history/${matchId}/${key}`);
+  return this.fb().set(fieldRef, value);
       });
       
       await Promise.all(updatePromises);

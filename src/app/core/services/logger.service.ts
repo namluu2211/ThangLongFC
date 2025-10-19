@@ -14,6 +14,7 @@ export enum LogLevel {
 })
 export class LoggerService {
   private currentLevel: LogLevel = environment.production ? LogLevel.WARN : LogLevel.DEBUG;
+  private readonly isDev = !environment.production;
 
   setLogLevel(level: LogLevel): void {
     this.currentLevel = level;
@@ -22,17 +23,29 @@ export class LoggerService {
   debug(message: string, ...args: unknown[]): void {
     this.log(LogLevel.DEBUG, '🔍', message, args);
   }
+  debugDev(message: string, ...args: unknown[]): void {
+    if (this.isDev) this.debug(message, ...args);
+  }
 
   info(message: string, ...args: unknown[]): void {
     this.log(LogLevel.INFO, 'ℹ️', message, args);
+  }
+  infoDev(message: string, ...args: unknown[]): void {
+    if (this.isDev) this.info(message, ...args);
   }
 
   warn(message: string, ...args: unknown[]): void {
     this.log(LogLevel.WARN, '⚠️', message, args);
   }
+  warnDev(message: string, ...args: unknown[]): void {
+    if (this.isDev) this.warn(message, ...args);
+  }
 
   error(message: string, error?: unknown, ...args: unknown[]): void {
     this.log(LogLevel.ERROR, '❌', message, [error, ...args]);
+  }
+  errorDev(message: string, error?: unknown, ...args: unknown[]): void {
+    if (this.isDev) this.error(message, error, ...args);
   }
 
   success(message: string, ...args: unknown[]): void {

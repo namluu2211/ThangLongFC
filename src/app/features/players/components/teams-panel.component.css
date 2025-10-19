@@ -1,0 +1,8 @@
+.team-header { padding: 15px 20px; display:flex; justify-content:space-between; align-items:center; font-weight:600; }
+.team-header.team-a { background:linear-gradient(45deg,#00bcd4 0%,#0097a7 100%); color:#fff; }
+.team-header.team-b { background:linear-gradient(45deg,#ff9800 0%,#f57c00 100%); color:#fff; }
+.score-input { width:60px; padding:8px; border:2px solid rgba(255,255,255,.3); border-radius:6px; text-align:center; font-size:1.2rem; font-weight:700; background:rgba(255,255,255,.9); }
+.players-row { min-height:120px; padding:20px; border:3px dashed #bdc3c7; border-radius:10px; display:flex; flex-wrap:wrap; gap:10px; transition:all .3s ease; background:#f6f8fa; position:relative; }
+.players-row.team-players { border-color:#27ae60; background:#eafaf1; }
+.players-row:empty::after { content:"Kéo cầu thủ vào đây"; color:#95a5a6; font-style:italic; display:flex; align-items:center; justify-content:center; width:100%; height:50px; }
+@media (max-width:768px){ .players-row { padding:15px; } }

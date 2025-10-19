@@ -2578,6 +2578,8 @@ export class StatsComponent implements OnInit, OnDestroy {
   totalPages = 0;
   
   ngOnInit(): void {
+    // Deferred statistics listener: ensure statistics Firebase node attaches only when Stats route active
+    try { this.firebaseService.attachStatisticsListener?.(); } catch { /* optional */ }
     this.loadCoreData();
     this.loadHistory();
   }
