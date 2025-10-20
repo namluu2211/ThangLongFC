@@ -51,7 +51,10 @@
       (toggleList)="togglePlayerListView()"
       (reload)="loadPlayers()"
       (deletePlayer)="deletePlayer($event)"
+      (editPlayer)="startEditPlayer($event)"
     ></app-player-list>
+
+
 
     <app-teams-panel
       [teamA]="teamA"

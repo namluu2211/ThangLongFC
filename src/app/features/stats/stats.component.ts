@@ -2770,18 +2770,20 @@ export class StatsComponent implements OnInit, OnDestroy {
         assistB: match.assistB
       });
       
+      // Robust month key derivation: do NOT skip matches without valid date; categorize under 'unknown'
+      let monthKey: string;
       if (!match.date) {
-        console.warn('⚠️ Match has no date, skipping:', match);
-        continue;
+        console.warn('⚠️ Match has no date, assigning monthKey="unknown"');
+        monthKey = 'unknown';
+      } else {
+        const date = new Date(match.date);
+        if (isNaN(date.getTime())) {
+          console.warn('⚠️ Invalid date format, assigning monthKey="unknown" for date:', match.date);
+          monthKey = 'unknown';
+        } else {
+          monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+        }
       }
-      
-      const date = new Date(match.date);
-      if (isNaN(date.getTime())) {
-        console.warn('⚠️ Invalid date format, skipping match:', match.date);
-        continue;
-      }
-      
-      const monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
       console.log(`   Month key: ${monthKey}`);
       
       if (!matchesByMonth[monthKey]) {

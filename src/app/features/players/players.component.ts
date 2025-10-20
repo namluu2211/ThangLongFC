@@ -30,7 +30,7 @@ import { TeamsPanelComponent } from './components/teams-panel.component';
 interface PlayerStats { name:string; goals:number; assists:number; yellowCards:number; redCards:number; matches:number; }
 interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{ xanh:number; cam:number; balance:number } }
 interface RawPlayerJson { id?: number|string; firstName?: string; lastName?: string; position?: string; DOB?: number; dateOfBirth?: string|number; height?: number; weight?: number; avatar?: string; note?: string; notes?: string; }
-interface PlayerWithCoreId extends Player { coreId?: string; }
+interface PlayerWithCoreId extends Player { coreId?: string; avatar?: string; note?: string; }
 
 @Component({
   selector:'app-players',
@@ -91,6 +91,68 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private teamChange$=new Subject<void>();
   trackByPlayerId:TrackByFunction<Player>=(_:number,p:Player)=>p.id; trackByFactorName=(_:number,f:{name:string})=>f.name; Math=Math;
   // Legacy dynamic drag & drop removed (integrated directly in TeamsPanel)
+
+  // New player form state (avatar + note)
+  newPlayerFirstName='';
+  newPlayerLastName='';
+  newPlayerPosition='';
+  newPlayerAvatar='';
+  newPlayerNote='';
+  onNewAvatarError(){ this.newPlayerAvatar=''; }
+  resetNewPlayerForm(){
+    this.newPlayerFirstName='';
+    this.newPlayerLastName='';
+    this.newPlayerPosition='';
+    this.newPlayerAvatar='';
+    this.newPlayerNote='';
+  }
+
+  // Editing existing player state
+  editingPlayer: PlayerWithCoreId | null = null;
+  editFirstName='';
+  editLastName='';
+  editPosition='';
+  editAvatar='';
+  editNote='';
+  startEditPlayer(p:PlayerWithCoreId){
+    this.editingPlayer=p;
+    this.editFirstName=p.firstName;
+    this.editLastName=p.lastName||'';
+    this.editPosition=p.position||'';
+    // Attempt to find core record for richer fields
+    const coreId=p.coreId? p.coreId: p.id.toString();
+    const core=this.corePlayersData.find(c=>c.id===coreId);
+    this.editAvatar=core?.avatar||p.avatar||'';
+  this.editNote=(core?.notes || p.note || '') as string;
+  }
+  cancelPlayerEdit(){ this.editingPlayer=null; }
+  async applyPlayerEdits(){
+    if(!this.editingPlayer) return;
+    const target=this.editingPlayer;
+    const id= target.coreId? target.coreId: target.id.toString();
+    try{
+      const patch: Partial<PlayerInfo> = {
+        firstName: this.editFirstName.trim(),
+        lastName: this.editLastName.trim(),
+        position: this.editPosition.trim()||'Chưa xác định',
+        fullName: `${this.editFirstName.trim()} ${this.editLastName.trim()}`.trim(),
+        avatar: this.editAvatar.trim(),
+        notes: this.editNote.trim()
+      };
+      await this.simplePlayerService.updatePlayer(id, patch);
+      this.editingPlayer=null;
+      // local list soft update for immediate UI response
+      const local=this.allPlayers.find(p=>p.id===target.id);
+      if(local){
+        local.firstName=patch.firstName!;
+        local.lastName=patch.lastName!;
+        local.position=patch.position!;
+        local.avatar=patch.avatar;
+        local.note=patch.notes;
+      }
+      this.cdr.markForCheck();
+    }catch(e){ this.logger.errorDev('applyPlayerEdits failed', e); }
+  }
 
   ngOnInit(){
     this.loadRegisteredPlayers();
@@ -195,13 +257,16 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const { firstName, lastName='', position='Chưa xác định' }=payload;
     if(!firstName?.trim()) return;
     try{
+      const avatar=this.newPlayerAvatar?.trim()||'';
+      const notes=this.newPlayerNote?.trim()||'';
       await this.simplePlayerService.createPlayer({
-        firstName, lastName, position,
+        firstName, lastName, position: position||'Chưa xác định',
         fullName: `${firstName} ${lastName}`.trim(),
-        dateOfBirth: '', avatar: '', notes: '',
+        dateOfBirth: '', avatar, notes,
         isRegistered: true, status: undefined as never // will default internally
       });
-      // Re-sync occurs via realtime listener. Optionally trigger manual load fallback.
+      this.resetNewPlayerForm();
+      // Re-sync occurs via realtime listener.
     }catch(e){ this.logger.errorDev('create player failed',e); }
   }
 

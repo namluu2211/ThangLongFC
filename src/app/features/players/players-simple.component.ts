@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 
 import { PlayerService } from '../../core/services/player.service';
+import { AvatarUploadService } from './services/avatar-upload.service';
+import { ToastService } from '../../shared/toast.service';
+import { ToastContainerComponent } from '../../shared/toast-container.component';
 import { PlayerInfo, PlayerStatus } from '../../core/models/player.model';
 import { PerformanceService } from '../../services/performance.service';
 import { AssetOptimizationService } from '../../services/asset-optimization.service';
@@ -11,10 +14,11 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
 @Component({
   selector: 'app-players-simple',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ToastContainerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="players-container">
+      <app-toast-container></app-toast-container>
       <!-- Header Section -->
       <div class="header-section">
         <div class="title-text">
@@ -139,6 +143,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
               <td class="name-cell">
                 <div class="player-name">{{ getPlayerDisplayName(player) }}</div>
                 <div class="player-number">#{{ player.id }}</div>
+                <div class="note-indicator" *ngIf="player.notes" [title]="player.notes">📝</div>
               </td>
               <td class="position-cell">
                 <span class="position-badge">{{ player.position }}</span>
@@ -225,15 +230,22 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
             <div class="form-grid">
               <label><span>Tên *</span><input name="firstName" [(ngModel)]="createModel.firstName" required /></label>
               <label><span>Họ</span><input name="lastName" [(ngModel)]="createModel.lastName" /></label>
-              <label><span>Ngày sinh</span><input type="date" name="dateOfBirth" [(ngModel)]="createModel.dateOfBirth" /></label>
+              <label><span>Ngày sinh</span><input type="date" name="dateOfBirth" [(ngModel)]="createModel.dateOfBirth" (change)="onCreateDobChange($event)" /></label>
               <label><span>Vị trí</span><input name="position" [(ngModel)]="createModel.position" /></label>
-              <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="createModel.height" /></label>
-              <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="createModel.weight" /></label>
+                <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="createModel.height" (change)="onCreateHeightChange($event)" /></label>
+                <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="createModel.weight" (change)="onCreateWeightChange($event)" /></label>
+              <label><span>Avatar URL</span><input name="avatar" [(ngModel)]="createModel.avatar" maxlength="300" placeholder="https://..." /></label>
+              <label class="full"><span>Ghi chú</span><textarea name="notes" [(ngModel)]="createModel.notes" rows="2" maxlength="400" placeholder="Ghi chú nội bộ"></textarea></label>
+              <label class="full"><span>Chọn ảnh (tùy chọn)</span><input type="file" accept="image/*" (change)="onCreateAvatarFileChange($event)" /></label>
+            </div>
+            <div class="avatar-preview" *ngIf="createModel.avatar">
+              <img [src]="createModel.avatar" alt="avatar preview" (error)="createModel.avatar=''" />
             </div>
           </form>
         </div>
         <footer class="panel-footer">
-          <button class="primary-btn" [disabled]="createForm.invalid" type="submit" form="createPlayerForm">Lưu</button>
+          <div class="form-hint" *ngIf="!createModel.firstName" style="font-size:0.65rem; color:#d93025; flex:1;">Nhập tên để bật nút Lưu.</div>
+          <button class="primary-btn" [disabled]="!createValid" type="submit" form="createPlayerForm">Lưu</button>
           <button class="ghost-btn" type="button" (click)="closePanels()">Hủy</button>
         </footer>
       </section>
@@ -249,15 +261,21 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
             <div class="form-grid">
               <label><span>Tên *</span><input name="firstName" [(ngModel)]="editModel.firstName" required /></label>
               <label><span>Họ</span><input name="lastName" [(ngModel)]="editModel.lastName" /></label>
-              <label><span>Ngày sinh</span><input type="date" name="dateOfBirth" [(ngModel)]="editModel.dateOfBirth" /></label>
+              <label><span>Ngày sinh</span><input type="date" name="dateOfBirth" [(ngModel)]="editModel.dateOfBirth" (change)="onEditDobChange($event)" /></label>
               <label><span>Vị trí</span><input name="position" [(ngModel)]="editModel.position" /></label>
-              <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="editModel.height" /></label>
-              <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="editModel.weight" /></label>
+              <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="editModel.height" (change)="onEditHeightChange($event)" /></label>
+              <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="editModel.weight" (change)="onEditWeightChange($event)" /></label>
+              <label><span>Avatar URL</span><input name="avatar" [(ngModel)]="editModel.avatar" maxlength="300" placeholder="https://..." /></label>
+              <label class="full"><span>Ghi chú</span><textarea name="notes" [(ngModel)]="editModel.notes" rows="2" maxlength="400" placeholder="Ghi chú nội bộ"></textarea></label>
+              <label class="full"><span>Chọn ảnh mới</span><input type="file" accept="image/*" (change)="onEditAvatarFileChange($event)" /></label>
+            </div>
+            <div class="avatar-preview" *ngIf="editModel.avatar">
+              <img [src]="editModel.avatar" alt="avatar preview" (error)="editModel.avatar=''" />
             </div>
           </form>
         </div>
         <footer class="panel-footer">
-          <button class="primary-btn" [disabled]="editForm.invalid" type="submit" form="editPlayerForm">Cập nhật</button>
+          <button class="primary-btn" [disabled]="editForm.invalid || !editValid" type="submit" form="editPlayerForm">Cập nhật</button>
           <button class="ghost-btn" type="button" (click)="closePanels()">Hủy</button>
         </footer>
       </section>
@@ -709,6 +727,12 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       border-color: #667eea;
       box-shadow: 0 0 0 2px rgba(102,126,234,0.25);
     }
+    .form-grid label.full { grid-column:1 / -1; }
+    .avatar-preview { margin:10px 4px 0; padding:8px; border:1px solid #e2e5ec; border-radius:10px; background:#f9fafc; display:flex; align-items:center; }
+    .avatar-preview img { width:70px; height:70px; object-fit:cover; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+    .note-indicator { font-size:0.7rem; margin-top:4px; }
+  /* debug-info removed */
+  /* inline warnings removed; using toasts */
   @media (max-width:520px) { 
     .side-panel { width:90%; max-height:92vh; }
     .form-grid { grid-template-columns:1fr; }
@@ -738,6 +762,8 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   private readonly performanceService = inject(PerformanceService);
   private readonly assetService = inject(AssetOptimizationService);
   private readonly playerService = inject(PlayerService);
+  private readonly avatarUploadService = inject(AvatarUploadService);
+  private readonly toast = inject(ToastService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
   private readonly searchSubject$ = new Subject<string>();
@@ -754,6 +780,20 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   isEditOpen = false;
   createModel: Partial<PlayerInfo> = { firstName: '', lastName: '', position: '' };
   editModel: Partial<PlayerInfo> | null = null;
+  uploadingCreate = false;
+  uploadingEdit = false;
+  uploadError = '';
+  // Explicit validity override for create form (decoupled from template-driven form status)
+  readonly minHeight = 140; // cm
+  readonly maxHeight = 220; // cm
+  readonly minWeight = 40;  // kg
+  readonly maxWeight = 120; // kg
+  get createValid(): boolean {
+    return !!this.createModel.firstName?.trim() && this.isValidPhysical(this.createModel.height, this.createModel.weight);
+  }
+  get editValid(): boolean {
+    return !!this.editModel?.firstName?.trim() && this.isValidPhysical(this.editModel?.height, this.editModel?.weight);
+  }
   
   // Derived UI state
   get panelOpen(): boolean {
@@ -783,7 +823,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   trackByPageIndex = (index: number) => index;
   
   trackByPlayerId = (index: number, player: PlayerInfo): string => {
-    return player.id || `${player.firstName}-${index}`;
+    return (player.id || `${player.firstName}-${index}`) + ':' + (player.__rev || 0);
   };
 
   trackByPositionName = (index: number, position: string): string => {
@@ -805,6 +845,14 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     });
     
     this.loadPlayersFromService();
+
+    // Reactive subscription to player service for real-time updates
+    this.playerService.players$.pipe(takeUntil(this.destroy$)).subscribe(players => {
+      // Force immutability clone to help OnPush render updates
+      this.allPlayers = players.map(p => ({ ...p }));
+      this.processPlayersData();
+      this.cdr.markForCheck();
+    });
   }
 
   async testLoadPlayers() {
@@ -1027,52 +1075,176 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   resetCreateModel() {
-    this.createModel = { firstName: '', lastName: '', position: '', dateOfBirth: '' };
+    this.createModel = { firstName: '', lastName: '', position: '', dateOfBirth: '', avatar: '', notes: '' };
   }
 
   async submitCreate() {
     if (!this.createModel.firstName) return;
     try {
+      const rawDate = this.createModel.dateOfBirth || this.readRawFormDate('createPlayerForm');
       const base: Omit<PlayerInfo, 'id' | 'stats' | 'createdAt' | 'updatedAt'> = {
         firstName: this.createModel.firstName || '',
         lastName: this.createModel.lastName || '',
         fullName: `${this.createModel.firstName || ''} ${this.createModel.lastName || ''}`.trim(),
         position: this.createModel.position || 'Chưa xác định',
-        dateOfBirth: this.createModel.dateOfBirth || '',
-        height: this.createModel.height || 0,
-        weight: this.createModel.weight || 0,
+        dateOfBirth: this.normalizeDate(rawDate),
+        height: this.normalizeNumber(this.createModel.height),
+        weight: this.normalizeNumber(this.createModel.weight),
         isRegistered: true,
-  status: PlayerStatus.ACTIVE,
-        avatar: '',
-        notes: ''
+        status: PlayerStatus.ACTIVE,
+        avatar: this.createModel.avatar || '',
+        notes: this.createModel.notes || ''
       };
       await this.playerService.createPlayer(base);
-      this.loadPlayersFromService();
+  this.toast.success('Đã tạo cầu thủ mới');
+      // Rely on reactive subscription instead of manual reload
       this.closePanels();
     } catch (e) {
       console.error('Error creating player', e);
     }
   }
 
+  async onCreateAvatarFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || !input.files.length) return;
+    const file = input.files[0];
+    this.uploadError='';
+    this.uploadingCreate = true;
+    try {
+      const result = await this.avatarUploadService.uploadAvatar(file);
+      this.createModel.avatar = result.url;
+      // Auto-fill first name from file base name if empty
+      if (!this.createModel.firstName?.trim()) {
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+        this.createModel.firstName = this.extractNameFromFilename(baseName);
+      }
+    } catch (err) {
+      this.uploadError = (err as Error).message;
+    } finally {
+      this.uploadingCreate = false;
+      this.cdr.markForCheck();
+    }
+  }
+
   async submitEdit() {
     if (!this.editModel || !this.editModel.id) return;
     try {
+      const rawDate = this.editModel.dateOfBirth || this.readRawFormDate('editPlayerForm');
       const updates: Partial<PlayerInfo> = {
         firstName: this.editModel.firstName,
         lastName: this.editModel.lastName,
         fullName: `${this.editModel.firstName || ''} ${this.editModel.lastName || ''}`.trim(),
         position: this.editModel.position,
-        dateOfBirth: this.editModel.dateOfBirth,
-        height: this.editModel.height,
-        weight: this.editModel.weight
+        dateOfBirth: this.normalizeDate(rawDate),
+        height: this.normalizeNumber(this.editModel.height),
+        weight: this.normalizeNumber(this.editModel.weight),
+        avatar: this.editModel.avatar || '',
+        notes: this.editModel.notes || ''
       };
       await this.playerService.updatePlayer(this.editModel.id, updates);
-      this.loadPlayersFromService();
+  this.toast.success('Đã cập nhật cầu thủ');
+      // Rely on reactive subscription instead of manual reload
       this.closePanels();
     } catch (e) {
       console.error('Error updating player', e);
     }
   }
+
+  async onEditAvatarFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || !input.files.length || !this.editModel) return;
+    const file = input.files[0];
+    this.uploadError='';
+    this.uploadingEdit = true;
+    try {
+      const result = await this.avatarUploadService.uploadAvatar(file);
+      this.editModel.avatar = result.url;
+    } catch (err) {
+      this.uploadError = (err as Error).message;
+    } finally {
+      this.uploadingEdit = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private extractNameFromFilename(raw: string): string {
+    // Remove non letter/space chars, collapse spaces, capitalize first letter
+    const cleaned = raw
+      .replace(/[_-]+/g, ' ') // separators to space
+      .replace(/\d+/g, '') // numbers removed
+      .trim();
+    if (!cleaned) return '';
+    // Simple title case on first token
+    return cleaned.split(/\s+/).map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' ');
+  }
+
+  private normalizeNumber(value: unknown): number {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return isFinite(value) ? value : 0;
+    const parsed = parseFloat(String(value).trim());
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  private normalizeDate(value: unknown): string {
+    if (!value) return '';
+    let raw = String(value).trim();
+    // Replace slashes/spaces like '01 / 01 / 1989' -> '01/01/1989'
+    raw = raw.replace(/\s*\/\s*/g, '/');
+    // If pattern DD/MM/YYYY or YYYY-MM-DD
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const yyyymmdd = /^(\d{4})[-/](\d{2})[-/](\d{2})$/;
+    if (ddmmyyyy.test(raw)) {
+      const [,d,m,y] = raw.match(ddmmyyyy)!;
+      return `${y}-${m}-${d}`; // ISO format
+    }
+    if (yyyymmdd.test(raw)) {
+      const [,y,m,d] = raw.match(yyyymmdd)!;
+      return `${y}-${m}-${d}`;
+    }
+    // Try Date parse fallback
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth()+1).padStart(2,'0');
+      const d = String(parsed.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
+    return '';
+  }
+
+  onCreateDobChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.createModel.dateOfBirth = this.normalizeDate(input.value);
+  }
+
+  onEditDobChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (this.editModel) {
+      this.editModel.dateOfBirth = this.normalizeDate(input.value);
+    }
+  }
+
+  private readRawFormDate(formId: string): string {
+    const form = document.getElementById(formId) as HTMLFormElement | null;
+    if (!form) return '';
+    const dateInput = form.querySelector('input[name="dateOfBirth"]') as HTMLInputElement | null;
+    return dateInput?.value || '';
+  }
+
+  private isValidPhysical(height: unknown, weight: unknown): boolean {
+    const h = this.normalizeNumber(height);
+    const w = this.normalizeNumber(weight);
+    if (h && (h < this.minHeight || h > this.maxHeight)) return false;
+    if (w && (w < this.minWeight || w > this.maxWeight)) return false;
+    return true;
+  }
+  isHeightValid(h: unknown): boolean { const v = this.normalizeNumber(h); return !v || (v >= this.minHeight && v <= this.maxHeight); }
+  isWeightValid(w: unknown): boolean { const v = this.normalizeNumber(w); return !v || (v >= this.minWeight && v <= this.maxWeight); }
+
+  onCreateHeightChange(e: Event) { const v = (e.target as HTMLInputElement).value; this.createModel.height = this.normalizeNumber(v); if(!this.isHeightValid(this.createModel.height)) this.toast.error(`Chiều cao phải trong khoảng ${this.minHeight}-${this.maxHeight}`); }
+  onCreateWeightChange(e: Event) { const v = (e.target as HTMLInputElement).value; this.createModel.weight = this.normalizeNumber(v); if(!this.isWeightValid(this.createModel.weight)) this.toast.error(`Cân nặng phải trong khoảng ${this.minWeight}-${this.maxWeight}`); }
+  onEditHeightChange(e: Event) { if (!this.editModel) return; const v = (e.target as HTMLInputElement).value; this.editModel.height = this.normalizeNumber(v); if(!this.isHeightValid(this.editModel.height)) this.toast.error(`Chiều cao phải trong khoảng ${this.minHeight}-${this.maxHeight}`); }
+  onEditWeightChange(e: Event) { if (!this.editModel) return; const v = (e.target as HTMLInputElement).value; this.editModel.weight = this.normalizeNumber(v); if(!this.isWeightValid(this.editModel.weight)) this.toast.error(`Cân nặng phải trong khoảng ${this.minWeight}-${this.maxWeight}`); }
 
   ngOnDestroy() {
     this.destroy$.next();

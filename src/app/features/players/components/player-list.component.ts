@@ -34,6 +34,8 @@ import { Player } from '../player-utils';
             <div class="name" [title]="player.firstName + ' ' + player.lastName">{{ player.firstName }} {{ player.lastName }}</div>
             <div class="position">{{ player.position }}</div>
             <div class="reg-badge" *ngIf="isRegistered(player)" aria-label="Đã đăng ký">Đăng ký</div>
+            <button *ngIf="player.note || player.notes" type="button" class="note-indicator" (click)="editPlayer.emit(player)" [title]="(player.note||player.notes)||''">📝</button>
+            <button *ngIf="!player.note && !player.notes" type="button" class="note-add" (click)="editPlayer.emit(player)" title="Thêm ghi chú / avatar">＋</button>
           </div>
         </div>
       </div>
@@ -111,6 +113,7 @@ export class PlayerListComponent {
   @Output() viewPlayer = new EventEmitter<Player>();
   @Output() toggleList = new EventEmitter<void>();
   @Output() reload = new EventEmitter<void>();
+  @Output() editPlayer = new EventEmitter<Player>();
   // Delete removed from this context per design; keep emitter for backward compat optionally (deprecated)
   // @Output() deletePlayer = new EventEmitter<Player>();
 
