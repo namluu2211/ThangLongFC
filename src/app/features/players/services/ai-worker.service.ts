@@ -10,18 +10,13 @@ interface AIWorkerResult { prediction:{ predictedScore:{ xanh:number; cam:number
 @Injectable({ providedIn:'root' })
 export class AIWorkerService {
   private worker: Worker | null = null;
-  private readonly supportsWorker: boolean;
+  private readonly supportsWorker = typeof Worker !== 'undefined';
   // Fallback direct service (lazy loaded on demand) if Worker unsupported
   private fallbackService: AIAnalysisService | null = null;
-  private perf: { markStart(label:string): string; markEnd(label:string, startId:string): unknown };
-  // Test-friendly constructor allowing perfOverride injection when inject() context unavailable
-  // eslint-disable-next-line @angular-eslint/prefer-inject
-  constructor(forceFallback = false, perfOverride?: PerfMarksService | { markStart(label:string): string; markEnd(label:string, startId:string): unknown }){
-    this.supportsWorker = !forceFallback && typeof Worker !== 'undefined';
-  this.perf = perfOverride || inject(PerfMarksService);
-  }
+  private perf: { markStart(label:string): string; markEnd(label:string, startId:string): unknown } = inject(PerfMarksService);
+  // Removed custom constructor to fix Angular DI runtime error
   private ensureWorker(){
-    if(!this.supportsWorker) return;
+  if(!this.supportsWorker) return;
     if(!this.worker){
   // Worker initialization without import.meta for broader TS module compatibility
   this.worker = new Worker('./ai-analysis.worker.ts', { type:'module' });

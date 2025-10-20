@@ -1,7 +1,6 @@
 import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { ReadonlyBannerComponent } from '../../shared/readonly-banner.component';
 import { CanEditDirective } from '../../shared/can-edit.directive';
-import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
 import { PermissionService } from '../../core/services/permission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -32,7 +31,7 @@ interface FundSummary {
 @Component({
   selector: 'app-fund-clean',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReadonlyBannerComponent, CanEditDirective, DisableUnlessCanEditDirective],
+  imports: [CommonModule, FormsModule, ReadonlyBannerComponent, CanEditDirective],
   template: `
     <div class="fund-container">
       <!-- Header -->

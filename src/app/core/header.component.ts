@@ -1,13 +1,15 @@
 import { Component, EventEmitter, Output, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { NAV_LINKS, NavLink } from '../shared/navigation-links';
 import { AdminConfig } from '../config/admin.config';
 import { FirebaseAuthService } from '../services/firebase-auth.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
   <div class="header-container" role="banner" aria-label="Application header">
@@ -21,6 +23,14 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
           <span class="logo-subtitle">Team Management</span>
         </div>
       </div>
+
+      <!-- Navigation Links -->
+      <nav class="nav-links" aria-label="Điều hướng chính">
+        <a *ngFor="let link of navLinks" class="nav-link" [routerLink]="link.path" routerLinkActive="active" [routerLinkActiveOptions]="link.exact ? { exact: true } : {}" [attr.aria-label]="link.label">
+          <i *ngIf="link.icon" [class]="link.icon" aria-hidden="true"></i>
+          <span class="nav-text">{{link.label}}</span>
+        </a>
+      </nav>
 
       <!-- Login Section -->
   <div class="auth-section" role="navigation" aria-label="Tài khoản người dùng">
@@ -154,6 +164,41 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
       padding: 0;
       position: relative;
       width: 100%;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-left: 24px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-weight: 500;
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: background .3s, color .3s;
+      font-size: 14px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    .nav-link.active {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+    }
+
+    .nav-link i {
+      font-size: 14px;
     }
 
     /* Logo Section */
@@ -686,6 +731,7 @@ export class HeaderComponent implements OnInit {
   currentUserDisplayName = '';
   
   private readonly firebaseAuthService = inject(FirebaseAuthService);
+  navLinks: NavLink[] = NAV_LINKS;
 
   ngOnInit() {
     // Subscribe to Firebase auth state changes
