@@ -250,12 +250,13 @@ export class MatchService {
     const revenue = match.finances.revenue;
     const expenses = match.finances.expenses;
     // Revenue total should reflect totalRevenue (winner + loser + cards + other). Legacy field 'thu' previously used teamARevenue+teamBRevenue which are 0 in manual mode.
-    const thuTotal = match.finances.totalRevenue;
+  // Recompute total revenue defensively from primary categories to avoid legacy double-counting
+  const thuTotal = (revenue.winnerFees||0)+(revenue.loserFees||0)+(revenue.cardPenalties||0)+(revenue.otherRevenue||0);
     // Expenses total should not double count aggregated fields (fixed/variable). We only sum atomic expense fields: referee, field, water, transportation, food, equipment, other.
     // Access potential optional expense keys safely (transportation, food, equipment may not exist on interface yet)
     const extraKeys = ['transportation','food','equipment'] as const;
     const extraValues:number[] = extraKeys.map(k=>{
-      const dyn = expenses as unknown as { [key:string]: unknown };
+      const dyn = expenses as unknown as Record<string, unknown>;
       const v = dyn[k];
       return typeof v === 'number'? v: 0;
     });
