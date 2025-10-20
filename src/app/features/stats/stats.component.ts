@@ -2,7 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { takeUntil, finalize, take } from 'rxjs/operators';
+import { takeUntil, finalize } from 'rxjs/operators';
 import { Player } from '../players/player-utils';
 import { StatisticsService } from '../../core/services/statistics.service';
 import { MatchService } from '../../core/services/match.service';
@@ -2633,7 +2633,7 @@ export class StatsComponent implements OnInit, OnDestroy {
       // Use Firebase data like History component does
           console.log('🔄 Loading match history from Firebase (like History component)...');
       
-      this.firebaseService.history$.pipe(take(1)).subscribe({
+  this.firebaseService.history$.subscribe({
         next: (historyData) => {
           console.log('📊 Received Firebase history data:', historyData.length, 'matches');
           
@@ -2922,6 +2922,45 @@ export class StatsComponent implements OnInit, OnDestroy {
           }
         }
 
+        // Fallback / augmentation: if one of the team arrays is missing OR
+        // if stat fields contain players not listed in teamA/teamB, include them.
+        // This fixes cases where the last record has only teamA and scorerB like
+        // "Minh củi, Minh củi, Minh củi, Hiển" so their participation and stats are counted.
+        const extractNames = (field?: string): string[] => {
+          if (!field) return [];
+          return String(field)
+            .split(',')
+            .map(part => part.trim())
+            .filter(Boolean)
+            .map(part => part.replace(/\s*\(\d+\)$/,'').trim()); // remove (2) suffix
+        };
+        const statFieldNames = [
+          ...extractNames(match.scorerA),
+          ...extractNames(match.scorerB),
+          ...extractNames(match.assistA),
+          ...extractNames(match.assistB),
+          ...extractNames(match.yellowA),
+          ...extractNames(match.yellowB),
+          ...extractNames(match.redA),
+          ...extractNames(match.redB)
+        ];
+        for (const name of statFieldNames) {
+          if (!name) continue;
+          if (!matchPlayerNames.has(name)) {
+            matchPlayerNames.add(name);
+            if (!monthPlayerStats[name]) {
+              monthPlayerStats[name] = {
+                name,
+                goals: 0,
+                assists: 0,
+                yellowCards: 0,
+                redCards: 0,
+                matches: 0
+              };
+            }
+          }
+        }
+
         // Count participation and stats for each player
         matchPlayerNames.forEach(playerName => {
           monthPlayerStats[playerName].matches++;
@@ -3037,6 +3076,15 @@ export class StatsComponent implements OnInit, OnDestroy {
     }
   }
 
+  private normalizeName(name: string): string {
+    return name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
   private parsePlayerStatFromField(statField: string | undefined, playerName: string): number {
     if (!statField || !playerName) return 0;
     
@@ -3073,38 +3121,17 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   private isExactNameMatch(fieldName: string, playerName: string): boolean {
-    // Normalize names (trim and handle case)
-    const normalizedFieldName = fieldName.trim().toLowerCase();
-    const normalizedPlayerName = playerName.trim().toLowerCase();
-    
-    // 1. First try exact full name match
-    if (normalizedFieldName === normalizedPlayerName) {
-      return true;
-    }
-    
-    // 2. Try matching with first name only, but with strict boundary checking
-    const playerFirstName = normalizedPlayerName.split(' ')[0];
-    const fieldIsJustFirstName = !normalizedFieldName.includes(' ');
-    
-    // Only match first name if:
-    // - The field contains exactly the first name (no spaces)
-    // - AND the field name is exactly the same length as the first name
-    // This prevents "Trung" from matching "Trung Dybala"
-    if (fieldIsJustFirstName && normalizedFieldName === playerFirstName) {
-      return true;
-    }
-    
-    // 3. Handle cases where field might have partial name but we want exact match
-    // Split both names and compare each part
-    const fieldParts = normalizedFieldName.split(/\s+/);
-    const playerParts = normalizedPlayerName.split(/\s+/);
-    
-    // For exact matching, all parts of the field name must match parts of the player name
-    // and the field should not be a subset unless it's exactly the first name
+    const normalizedFieldName = this.normalizeName(fieldName);
+    const normalizedPlayerName = this.normalizeName(playerName);
+    if (normalizedFieldName === normalizedPlayerName) return true;
+    // Allow first-name only match if unique token
+    const playerFirst = normalizedPlayerName.split(' ')[0];
+    if (!normalizedFieldName.includes(' ') && normalizedFieldName === playerFirst) return true;
+    const fieldParts = normalizedFieldName.split(' ');
+    const playerParts = normalizedPlayerName.split(' ');
     if (fieldParts.length === playerParts.length) {
-      return fieldParts.every((part, index) => part === playerParts[index]);
+      return fieldParts.every((p, i) => p === playerParts[i]);
     }
-    
     return false;
   }
 
