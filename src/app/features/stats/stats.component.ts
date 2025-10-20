@@ -10,6 +10,7 @@ import { PlayerService } from '../../core/services/player.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo } from '../../core/models/player.model';
 import { MatchInfo } from '../../core/models/match.model';
+import { HistoryStatsService, HeadToHeadStats } from '../players/services/history-stats.service';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 
 interface MatchData {
@@ -200,6 +201,58 @@ interface MonthlyStats {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Head-to-Head Section -->
+      <div class="row mb-4" *ngIf="headToHead">
+        <div class="col-12">
+          <div class="h2h-card">
+            <div class="h2h-header">
+              <h5 class="mb-0">
+                <i class="fas fa-shield-alt me-2"></i>
+                🤝 Đối đầu Đội Xanh vs Đội Cam
+              </h5>
+            </div>
+            <div class="h2h-body">
+              <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                  <div class="h2h-metric xanh">Xanh thắng
+                    <span class="value">{{headToHead.xanhWins}}</span>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="h2h-metric cam">Cam thắng
+                    <span class="value">{{headToHead.camWins}}</span>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="h2h-metric draws">Hòa
+                    <span class="value">{{headToHead.draws}}</span>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="h2h-metric meetings">Tổng trận
+                    <span class="value">{{headToHead.totalMeetings}}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="stability-section mt-3" *ngIf="headToHead.totalMeetings">
+                <div class="stability-label">Ổn định đội hình: {{(headToHead.playerStabilityIndex*100)|number:'1.0-0'}}%</div>
+                <div class="stability-bar">
+                  <div class="stability-fill" [style.width.%]="headToHead.playerStabilityIndex*100"></div>
+                </div>
+              </div>
+              <div class="recent-form mt-3" *ngIf="headToHead.recentForm.sequence.length">
+                <div class="form-title">Phong độ gần đây:</div>
+                <div class="form-seq">
+                  <span *ngFor="let f of headToHead.recentForm.sequence; let i=index" class="form-item" [class.xanh]="f==='X'" [class.cam]="f==='C'" [class.draw]="f==='D'">
+                    {{f}}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -855,6 +908,27 @@ interface MonthlyStats {
     .status-badge.cards.low {
       background: #27ae60;
     }
+
+    .h2h-card { background:white; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,0.1); overflow:hidden; }
+    .h2h-header { background:#34495e; color:white; padding:1rem 1.5rem; }
+    .h2h-body { padding:1.25rem 1.5rem; }
+    .h2h-metric { background:#f8f9fa; border-radius:12px; padding:0.75rem 1rem; font-weight:600; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
+    .h2h-metric.xanh { border-left:4px solid #3498db; }
+    .h2h-metric.cam { border-left:4px solid #f39c12; }
+    .h2h-metric.draws { border-left:4px solid #7f8c8d; }
+    .h2h-metric.meetings { border-left:4px solid #2c3e50; }
+    .h2h-metric .value { font-size:1.2rem; font-weight:800; }
+    .stability-section { }
+    .stability-label { font-size:0.9rem; font-weight:600; color:#2c3e50; margin-bottom:0.25rem; }
+    .stability-bar { height:12px; background:#e9ecef; border-radius:6px; overflow:hidden; position:relative; }
+    .stability-fill { height:100%; background:linear-gradient(90deg,#27ae60,#2ecc71); transition:width 0.6s ease; }
+    .recent-form { }
+    .form-title { font-size:0.85rem; font-weight:700; text-transform:uppercase; color:#2c3e50; margin-bottom:0.25rem; }
+    .form-seq { display:flex; gap:4px; flex-wrap:wrap; }
+    .form-item { width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.75rem; background:#bdc3c7; color:#fff; }
+    .form-item.xanh { background:#3498db; }
+    .form-item.cam { background:#f39c12; }
+    .form-item.draw { background:#7f8c8d; }
 
     /* Filter Card - Simplified */
     .enhanced-filter-card {
@@ -2582,6 +2656,11 @@ export class StatsComponent implements OnInit, OnDestroy {
     try { this.firebaseService.attachStatisticsListener?.(); } catch { /* optional */ }
     this.loadCoreData();
     this.loadHistory();
+    // Subscribe to completed matches for head-to-head stats
+    this.matchService.completedMatches$.pipe(takeUntil(this.destroy$)).subscribe(matches=>{
+      this.coreMatchesData = matches || []; // keep core list fresh
+      this.computeHeadToHead();
+    });
   }
 
   ngOnDestroy(): void {
@@ -3549,6 +3628,19 @@ export class StatsComponent implements OnInit, OnDestroy {
     return this.corePlayersData.find(player => 
       `${player.firstName} ${player.lastName || ''}`.trim() === playerName
     );
+  }
+
+  private headToHead: HeadToHeadStats | null = null;
+  private readonly h2hService = inject(HistoryStatsService);
+
+  private computeHeadToHead(){
+    const matches = this.coreMatchesData;
+    if(!matches.length){ this.headToHead=null; return; }
+    const last = matches[matches.length-1];
+  const extractIds = (team: { players?: { id: string }[] } | undefined) => (team?.players||[]).map(p=> p.id.toString()).filter(x=> !!x);
+    const blueIds = extractIds(last.teamA);
+    const orangeIds = extractIds(last.teamB);
+    try { this.headToHead = this.h2hService.buildHeadToHead(matches, blueIds, orangeIds); } catch { this.headToHead=null; }
   }
 
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { POSITION_STRENGTH_BONUSES, BASE_STRENGTH } from '../players.constants';
+import type { HeadToHeadStats } from './history-stats.service';
 
 export interface AIAnalysisResult {
   teamComparison: {
@@ -15,6 +16,7 @@ export interface AIAnalysisResult {
     matchesAnalyzed: number;
     recentPerformance: { xanhWins: number; camWins: number; draws: number };
   };
+  headToHead?: HeadToHeadStats;
 }
 
 export interface Player {
@@ -44,7 +46,8 @@ export class AIAnalysisService {
   analyzeTeams(
     teamXanhPlayers: Player[],
     teamCamPlayers: Player[],
-    history: HistoryEntry[] = []
+    history: HistoryEntry[] = [],
+    headToHead?: HeadToHeadStats
   ): AIAnalysisResult {
     const cacheKey = this.generateCacheKey(teamXanhPlayers, teamCamPlayers);
     const cached = this.getCachedResult(cacheKey);
@@ -64,11 +67,12 @@ export class AIAnalysisService {
     const winProbability = this.calculateWinProbabilities(
       xanhStrength,
       camStrength,
-      historicalContext
+      historicalContext,
+      headToHead
     );
 
     // Predict score
-    const predictedScore = this.predictScore(xanhStrength, camStrength);
+  const predictedScore = this.predictScore(xanhStrength, camStrength, headToHead);
 
     // Identify key factors
     const keyFactors = this.identifyKeyFactors(
@@ -97,7 +101,8 @@ export class AIAnalysisService {
       historicalContext: {
         matchesAnalyzed: historicalContext.matchesAnalyzed,
         recentPerformance: historicalContext.stats
-      }
+      },
+      headToHead
     };
 
     this.cacheResult(cacheKey, result);
@@ -159,19 +164,28 @@ export class AIAnalysisService {
   private calculateWinProbabilities(
     xanhStrength: number,
     camStrength: number,
-    historical: { stats: { xanhWins: number; camWins: number; totalMatches: number } }
+    historical: { stats: { xanhWins: number; camWins: number; totalMatches: number } },
+    headToHead?: HeadToHeadStats
   ): { xanh: number; cam: number } {
     const strengthDiff = xanhStrength - camStrength;
     let xanhProb = 50 + strengthDiff;
 
-    // Apply historical adjustment (10% weight)
+    // Apply recent historical adjustment (10% weight)
     if (historical.stats.totalMatches > 0) {
       const historicalWinRate = (historical.stats.xanhWins / historical.stats.totalMatches) * 100;
       xanhProb = xanhProb * 0.9 + historicalWinRate * 0.1;
     }
 
-    // Clamp between 20-80%
-    xanhProb = Math.max(20, Math.min(80, xanhProb));
+    // Head-to-head deeper history adjustment if available
+    if (headToHead && headToHead.totalMeetings > 0) {
+      const hWinRate = (headToHead.xanhWins / headToHead.totalMeetings) * 100;
+      // Stability gives confidence in weighting historical performance
+      const stabilityWeight = Math.min(0.35, 0.15 + headToHead.playerStabilityIndex * 0.2); // up to 35%
+      xanhProb = xanhProb * (1 - stabilityWeight) + hWinRate * stabilityWeight;
+    }
+
+    // Clamp between 15-85% (slightly wider due to stronger historical signal)
+    xanhProb = Math.max(15, Math.min(85, xanhProb));
 
     return {
       xanh: Math.round(xanhProb),
@@ -182,9 +196,20 @@ export class AIAnalysisService {
   /**
    * Predict match score
    */
-  private predictScore(xanhStrength: number, camStrength: number): { xanh: number; cam: number } {
-    const xanhGoals = Math.max(0, Math.round((xanhStrength / 30) + Math.random() * 2));
-    const camGoals = Math.max(0, Math.round((camStrength / 30) + Math.random() * 2));
+  private predictScore(xanhStrength: number, camStrength: number, headToHead?: HeadToHeadStats): { xanh: number; cam: number } {
+    // Base expected goals from current strength
+    let baseX = xanhStrength / 30;
+    let baseC = camStrength / 30;
+
+    // Blend historical average goals if available (30% weight)
+    if (headToHead && headToHead.totalMeetings > 0) {
+      baseX = baseX * 0.7 + headToHead.averageGoalsXanh * 0.3;
+      baseC = baseC * 0.7 + headToHead.averageGoalsCam * 0.3;
+    }
+
+    // Random variance scaled modestly
+    const xanhGoals = Math.max(0, Math.round(baseX + Math.random() * 1.8));
+    const camGoals = Math.max(0, Math.round(baseC + Math.random() * 1.8));
 
     return { xanh: xanhGoals, cam: camGoals };
   }

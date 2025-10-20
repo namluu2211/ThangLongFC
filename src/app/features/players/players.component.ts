@@ -9,6 +9,7 @@ import { Player } from './player-utils'; // Augment to satisfy AIAnalysisService
 import { PlayerInfo } from '../../core/models/player.model';
 import { TeamComposition, TeamColor, MatchStatus, MatchInfo, MatchResult, MatchFinances, ExpenseBreakdown, RevenueBreakdown, MatchStatistics, GoalType, CardType, MatchEvent, EventType } from '../../core/models/match.model';
 import type { AIAnalysisResult } from './services/ai-analysis.service';
+import { HistoryStatsService } from './services/history-stats.service';
 import { MatchFinanceService } from './services/match-finance.service';
 // FirebasePlayerService removed from direct injection; facade handles backend mode
 // NOTE: Temporarily removing PlayerDataFacade usage due to bootstrap 'Error: invalid'.
@@ -59,6 +60,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private aiService: { analyze: (a: Player[], b: Player[], h: unknown[]) => AIAnalysisResult } | null = null;
   private aiWorker = inject(AIWorkerService);
   private readonly financeService=inject(MatchFinanceService);
+  private readonly historyStatsService = inject(HistoryStatsService);
+  private latestCompletedMatches: MatchInfo[] = [];
+  private latestHeadToHead: ReturnType<HistoryStatsService['buildHeadToHead']> | null = null;
 
   corePlayersData:PlayerInfo[]=[]; allPlayers:PlayerWithCoreId[]=[]; registeredPlayers:PlayerWithCoreId[]=[]; useRegistered=false;
   filterRegisteredOnly=false;
@@ -194,7 +198,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Subscribe to completed matches to derive player rankings dynamically
   private subscribeToCompletedMatches(){
     const sub=this.matchService.completedMatches$.pipe(takeUntil(this.destroy$),debounceTime(300)).subscribe({
-      next:matches=>{ void this.lazyUpdatePlayerRankings(matches); },
+      next:matches=>{ this.latestCompletedMatches = matches || []; this.recomputeHeadToHead(); void this.lazyUpdatePlayerRankings(matches); },
   error:err=>{ this.logger.warnDev('completed matches stream error',err); }
     });
     this.subs.push(sub);
@@ -390,7 +394,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     if(this.lastTeamCompositionHash===hash && this.aiAnalysisResults){ return; }
     this.isAnalyzing=true; this.cdr.markForCheck();
     // Use worker-based analysis (with builtin fallback when unsupported)
-    this.aiWorker.analyze(this.teamA, this.teamB).subscribe(res => {
+  // Ensure headToHead recomputed if teams changed since last calculation
+  this.recomputeHeadToHead();
+  this.aiWorker.analyze(this.teamA, this.teamB, this.latestHeadToHead || undefined).subscribe(res => {
       const calcStrength=(players:Player[])=>{
         if(!players.length) return 0;
         const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
@@ -638,5 +644,20 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private replaceTeam(team:'A'|'B', players:Player[]){
     const target= team==='A'? this.teamA: this.teamB;
     target.length=0; for(const p of players) target.push(p);
+  }
+
+  private recomputeHeadToHead(){
+    if(!this.teamA.length || !this.teamB.length){ this.latestHeadToHead=null; return; }
+    if(!this.latestCompletedMatches.length){ this.latestHeadToHead=null; return; }
+    // Map current numeric player ids back to coreIds (string) if available for stability matching
+  const mapToCoreIds=(team:Player[])=> team.map(p=> (p as PlayerWithCoreId).coreId ? (p as PlayerWithCoreId).coreId! : p.id.toString());
+    const blueIds = mapToCoreIds(this.teamA);
+    const orangeIds = mapToCoreIds(this.teamB);
+    try {
+      this.latestHeadToHead = this.historyStatsService.buildHeadToHead(this.latestCompletedMatches, blueIds, orangeIds);
+    } catch(e){
+      this.logger.warnDev('HeadToHead computation failed', e);
+      this.latestHeadToHead = null;
+    }
   }
 }

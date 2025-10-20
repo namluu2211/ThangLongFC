@@ -3,6 +3,12 @@ node_modules
 .firebase
 .firebaserc
 /dist
+/test-results
+/playwright-report
+/coverage
+.angular
+.firebase
+/jest-stubs
 
 # Generated Firebase rules
 scripts/firebase-rules.json
