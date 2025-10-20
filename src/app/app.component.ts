@@ -3,7 +3,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FirebaseService } from './services/firebase.service';
+import { FirebaseService, HistoryEntry } from './services/firebase.service';
 import { PerformanceService } from './services/performance.service';
 import { LazyLoadingService } from './services/lazy-loading.service';
 import { AssetOptimizationService } from './services/asset-optimization.service';
@@ -272,8 +272,9 @@ export class AppComponent implements OnInit, OnDestroy {
           this.firebaseService.history$
             .pipe(takeUntil(this.destroy$))
             .subscribe({
-              next: (history) => {
-                console.log('Real-time history update:', history?.length || 0, 'matches');
+              next: (history: HistoryEntry[]) => {
+                const count = Array.isArray(history) ? history.length : 0;
+                console.log('Real-time history update:', count, 'matches');
                 // Trigger data refresh when history updates
                 this.dataStore.refreshAllData().catch(error => {
                   console.warn('Data refresh after history update failed:', error);

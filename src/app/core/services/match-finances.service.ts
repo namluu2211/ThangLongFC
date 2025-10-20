@@ -11,7 +11,7 @@ export class MatchFinancesService {
 
   calculate(match: MatchInfo): MatchFinances {
     const rates = match.finances?.customRates || DEFAULT_FINANCIAL_RATES;
-  const revenue = this.calculateRevenue(match, rates);
+    const revenue = this.calculateRevenue(match, rates);
     const expenses = match.finances?.expenses || {
       referee: 0,
       field: 0,
