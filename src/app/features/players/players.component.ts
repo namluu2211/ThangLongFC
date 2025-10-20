@@ -314,7 +314,21 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
   canDivideTeams(){ return this.getDisplayPlayers().length>=2; }
 
-  shuffleTeams(){ const pool=this.getDisplayPlayers().slice(); if(pool.length<2) return; for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; } const half=Math.ceil(pool.length/2); this.replaceTeam('A', pool.slice(0,half)); this.replaceTeam('B', pool.slice(half)); this.triggerTeamChange(); }
+  shuffleTeams(){
+    const pool=this.getDisplayPlayers().slice();
+    if(pool.length<2){
+      this.matchSaveMessage='Cần ≥2 cầu thủ để chia đội';
+      setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
+      return;
+    }
+    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const half=Math.ceil(pool.length/2);
+    // Replace with new array references so OnPush notices immediately
+    this.teamA=[...pool.slice(0,half)];
+    this.teamB=[...pool.slice(half)];
+    this.triggerTeamChange();
+    this.cdr.markForCheck();
+  }
   // Drag-drop handled by lazy TeamDndComponent
   removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
   }
@@ -337,12 +351,17 @@ export class PlayersComponent implements OnInit, OnDestroy {
   clearTeams(){ this.teamA.length=0; this.teamB.length=0; this.triggerTeamChange(); localStorage.removeItem('persisted_teams'); }
   shuffleRegisteredTeams(){
     const pool=this.registeredPlayers.slice();
-    if(pool.length<2){ return; }
+    if(pool.length<2){
+      this.matchSaveMessage='Cần đăng ký ≥2 cầu thủ';
+      setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
+      return;
+    }
     for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
     const half=Math.ceil(pool.length/2);
-    this.replaceTeam('A', pool.slice(0,half));
-    this.replaceTeam('B', pool.slice(half));
+    this.teamA=[...pool.slice(0,half)];
+    this.teamB=[...pool.slice(half)];
     this.triggerTeamChange();
+    this.cdr.markForCheck();
   }
 
   async runAIAnalysis(){
@@ -559,12 +578,18 @@ export class PlayersComponent implements OnInit, OnDestroy {
       const raw=localStorage.getItem('persisted_teams'); if(!raw) return;
       const data=JSON.parse(raw) as {a:number[]; b:number[]};
       if(!data || !Array.isArray(data.a) || !Array.isArray(data.b)) return;
-      // Only restore if current teams empty to avoid overwriting deliberate setup
+      // Avoid overwriting if user already shuffled or manually set teams
       if(this.teamA.length||this.teamB.length) return;
+      if((!data.a.length)&&(!data.b.length)) return;
       const mapById=new Map(this.getDisplayPlayers().map(p=>[p.id,p]));
-      this.teamA=data.a.map(id=>mapById.get(id)).filter(Boolean) as Player[];
-      this.teamB=data.b.map(id=>mapById.get(id)).filter(Boolean) as Player[];
-      if(this.teamA.length || this.teamB.length){ this.triggerTeamChange(); this.cdr.markForCheck(); }
+      const restoredA=data.a.map(id=>mapById.get(id)).filter(Boolean) as Player[];
+      const restoredB=data.b.map(id=>mapById.get(id)).filter(Boolean) as Player[];
+      if(restoredA.length || restoredB.length){
+        this.teamA=[...restoredA];
+        this.teamB=[...restoredB];
+        this.triggerTeamChange();
+        this.cdr.markForCheck();
+      }
     }catch{/* ignore */}
   }
   addCard(type:'yellow'|'red', team:'A'|'B', playerId:number, minute:number){ const map={yellow:{A:this.yellowCardsA,B:this.yellowCardsB}, red:{A:this.redCardsA,B:this.redCardsB}} as const; map[type][team].push({playerId,minute}); }
