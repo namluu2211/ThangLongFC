@@ -3630,7 +3630,7 @@ export class StatsComponent implements OnInit, OnDestroy {
     );
   }
 
-  private headToHead: HeadToHeadStats | null = null;
+  headToHead: HeadToHeadStats | null = null; // public for template binding
   private readonly h2hService = inject(HistoryStatsService);
 
   private computeHeadToHead(){
