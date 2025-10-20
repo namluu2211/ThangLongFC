@@ -3008,8 +3008,34 @@ export class StatsComponent implements OnInit, OnDestroy {
 
       // Find top performers for the month
       const monthPlayers = Object.values(monthPlayerStats);
-      const topScorer = monthPlayers.filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals)[0] || null;
-      const topAssist = monthPlayers.filter(p => p.assists > 0).sort((a, b) => b.assists - a.assists)[0] || null;
+      // Tie-breaker logic for monthly leaders:
+      // Top Scorer: highest goals; if tie, higher assists; if still tie, fewer cards; if still tie, higher matches; final tie -> alphabetical.
+      const topScorer = monthPlayers
+        .filter(p => p.goals > 0)
+        .sort((a, b) => {
+          if (b.goals !== a.goals) return b.goals - a.goals;
+          if (b.assists !== a.assists) return b.assists - a.assists; // secondary contribution
+          const aCards = a.yellowCards + a.redCards * 2;
+          const bCards = b.yellowCards + b.redCards * 2;
+          if (aCards !== bCards) return aCards - bCards; // prefer better discipline (fewer cards)
+          if (b.matches !== a.matches) return b.matches - a.matches; // more participation
+          return a.name.localeCompare(b.name, 'vi');
+        })[0] || null;
+      // Top Assist: highest assists; tie-break by player score (overall impact) then goals then discipline then matches then alphabetical.
+      const topAssist = monthPlayers
+        .filter(p => p.assists > 0)
+        .sort((a, b) => {
+          if (b.assists !== a.assists) return b.assists - a.assists;
+          const scoreA = (a.goals * 2) + a.assists + a.matches - a.yellowCards - (a.redCards * 2);
+          const scoreB = (b.goals * 2) + b.assists + b.matches - b.yellowCards - (b.redCards * 2);
+          if (scoreB !== scoreA) return scoreB - scoreA; // higher overall score wins
+          if (b.goals !== a.goals) return b.goals - a.goals; // offensive contribution
+          const aCards = a.yellowCards + a.redCards * 2;
+          const bCards = b.yellowCards + b.redCards * 2;
+          if (aCards !== bCards) return aCards - bCards; // better discipline
+          if (b.matches !== a.matches) return b.matches - a.matches; // more participation
+          return a.name.localeCompare(b.name, 'vi');
+        })[0] || null;
 
       this.monthlyStats[monthKey] = {
         month: monthKey,
