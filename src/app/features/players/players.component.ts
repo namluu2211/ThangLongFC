@@ -7,7 +7,7 @@ import { AIWorkerService } from './services/ai-worker.service';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { Player } from './player-utils'; // Augment to satisfy AIAnalysisService Player index signature
 import { PlayerInfo } from '../../core/models/player.model';
-import { TeamComposition, TeamColor, MatchStatus, MatchInfo, MatchResult, MatchFinances, ExpenseBreakdown, RevenueBreakdown, MatchStatistics, GoalType, CardType, EventType, MatchEvent } from '../../core/models/match.model';
+import { TeamComposition, TeamColor, MatchStatus, MatchInfo, MatchResult, MatchFinances, ExpenseBreakdown, RevenueBreakdown, MatchStatistics, GoalType, CardType, MatchEvent, EventType } from '../../core/models/match.model';
 import type { AIAnalysisResult } from './services/ai-analysis.service';
 import { MatchFinanceService } from './services/match-finance.service';
 // FirebasePlayerService removed from direct injection; facade handles backend mode
@@ -30,7 +30,7 @@ import { TeamsPanelComponent } from './components/teams-panel.component';
 interface PlayerStats { name:string; goals:number; assists:number; yellowCards:number; redCards:number; matches:number; }
 interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{ xanh:number; cam:number; balance:number } }
 interface RawPlayerJson { id?: number|string; firstName?: string; lastName?: string; position?: string; DOB?: number; dateOfBirth?: string|number; height?: number; weight?: number; avatar?: string; note?: string; notes?: string; }
-interface PlayerWithCoreId extends Player { coreId?: string; }
+interface PlayerWithCoreId extends Player { coreId?: string; avatar?: string; note?: string; }
 
 @Component({
   selector:'app-players',
@@ -78,8 +78,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   _gaPlayerB:number|null=null; _gaAssistB:number|null=null; _gaMinuteB:number|null=null;
   _ycPlayerA:number|null=null; _ycMinuteA:number|null=null; _rcPlayerA:number|null=null; _rcMinuteA:number|null=null;
   _ycPlayerB:number|null=null; _ycMinuteB:number|null=null; _rcPlayerB:number|null=null; _rcMinuteB:number|null=null;
-  // Simple text input tracking for quick entry (as per screenshot variant)
-  goalsTextA=''; goalsTextB=''; assistsTextA=''; assistsTextB=''; yellowTextA=''; yellowTextB=''; redTextA=''; redTextB='';
+  // Legacy free-text event inputs removed (structured arrays only)
   // Finance getters removed (moved to dedicated fund tab)
   currentPage=PAGINATION.INITIAL_PAGE; pageSize=PAGINATION.DEFAULT_PAGE_SIZE; totalPages=0;
   private pagination= new PlayerPaginationController(this.pageSize);
@@ -91,6 +90,68 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private teamChange$=new Subject<void>();
   trackByPlayerId:TrackByFunction<Player>=(_:number,p:Player)=>p.id; trackByFactorName=(_:number,f:{name:string})=>f.name; Math=Math;
   // Legacy dynamic drag & drop removed (integrated directly in TeamsPanel)
+
+  // New player form state (avatar + note)
+  newPlayerFirstName='';
+  newPlayerLastName='';
+  newPlayerPosition='';
+  newPlayerAvatar='';
+  newPlayerNote='';
+  onNewAvatarError(){ this.newPlayerAvatar=''; }
+  resetNewPlayerForm(){
+    this.newPlayerFirstName='';
+    this.newPlayerLastName='';
+    this.newPlayerPosition='';
+    this.newPlayerAvatar='';
+    this.newPlayerNote='';
+  }
+
+  // Editing existing player state
+  editingPlayer: PlayerWithCoreId | null = null;
+  editFirstName='';
+  editLastName='';
+  editPosition='';
+  editAvatar='';
+  editNote='';
+  startEditPlayer(p:PlayerWithCoreId){
+    this.editingPlayer=p;
+    this.editFirstName=p.firstName;
+    this.editLastName=p.lastName||'';
+    this.editPosition=p.position||'';
+    // Attempt to find core record for richer fields
+    const coreId=p.coreId? p.coreId: p.id.toString();
+    const core=this.corePlayersData.find(c=>c.id===coreId);
+    this.editAvatar=core?.avatar||p.avatar||'';
+  this.editNote=(core?.notes || p.note || '') as string;
+  }
+  cancelPlayerEdit(){ this.editingPlayer=null; }
+  async applyPlayerEdits(){
+    if(!this.editingPlayer) return;
+    const target=this.editingPlayer;
+    const id= target.coreId? target.coreId: target.id.toString();
+    try{
+      const patch: Partial<PlayerInfo> = {
+        firstName: this.editFirstName.trim(),
+        lastName: this.editLastName.trim(),
+        position: this.editPosition.trim()||'Chưa xác định',
+        fullName: `${this.editFirstName.trim()} ${this.editLastName.trim()}`.trim(),
+        avatar: this.editAvatar.trim(),
+        notes: this.editNote.trim()
+      };
+      await this.simplePlayerService.updatePlayer(id, patch);
+      this.editingPlayer=null;
+      // local list soft update for immediate UI response
+      const local=this.allPlayers.find(p=>p.id===target.id);
+      if(local){
+        local.firstName=patch.firstName!;
+        local.lastName=patch.lastName!;
+        local.position=patch.position!;
+        local.avatar=patch.avatar;
+        local.note=patch.notes;
+      }
+      this.cdr.markForCheck();
+    }catch(e){ this.logger.errorDev('applyPlayerEdits failed', e); }
+  }
 
   ngOnInit(){
     this.loadRegisteredPlayers();
@@ -195,13 +256,16 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const { firstName, lastName='', position='Chưa xác định' }=payload;
     if(!firstName?.trim()) return;
     try{
+      const avatar=this.newPlayerAvatar?.trim()||'';
+      const notes=this.newPlayerNote?.trim()||'';
       await this.simplePlayerService.createPlayer({
-        firstName, lastName, position,
+        firstName, lastName, position: position||'Chưa xác định',
         fullName: `${firstName} ${lastName}`.trim(),
-        dateOfBirth: '', avatar: '', notes: '',
+        dateOfBirth: '', avatar, notes,
         isRegistered: true, status: undefined as never // will default internally
       });
-      // Re-sync occurs via realtime listener. Optionally trigger manual load fallback.
+      this.resetNewPlayerForm();
+      // Re-sync occurs via realtime listener.
     }catch(e){ this.logger.errorDev('create player failed',e); }
   }
 
@@ -249,7 +313,21 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
   canDivideTeams(){ return this.getDisplayPlayers().length>=2; }
 
-  shuffleTeams(){ const pool=this.getDisplayPlayers().slice(); if(pool.length<2) return; for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; } const half=Math.ceil(pool.length/2); this.replaceTeam('A', pool.slice(0,half)); this.replaceTeam('B', pool.slice(half)); this.triggerTeamChange(); }
+  shuffleTeams(){
+    const pool=this.getDisplayPlayers().slice();
+    if(pool.length<2){
+      this.matchSaveMessage='Cần ≥2 cầu thủ để chia đội';
+      setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
+      return;
+    }
+    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const half=Math.ceil(pool.length/2);
+    // Replace with new array references so OnPush notices immediately
+    this.teamA=[...pool.slice(0,half)];
+    this.teamB=[...pool.slice(half)];
+    this.triggerTeamChange();
+    this.cdr.markForCheck();
+  }
   // Drag-drop handled by lazy TeamDndComponent
   removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
   }
@@ -272,12 +350,17 @@ export class PlayersComponent implements OnInit, OnDestroy {
   clearTeams(){ this.teamA.length=0; this.teamB.length=0; this.triggerTeamChange(); localStorage.removeItem('persisted_teams'); }
   shuffleRegisteredTeams(){
     const pool=this.registeredPlayers.slice();
-    if(pool.length<2){ return; }
+    if(pool.length<2){
+      this.matchSaveMessage='Cần đăng ký ≥2 cầu thủ';
+      setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
+      return;
+    }
     for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
     const half=Math.ceil(pool.length/2);
-    this.replaceTeam('A', pool.slice(0,half));
-    this.replaceTeam('B', pool.slice(half));
+    this.teamA=[...pool.slice(0,half)];
+    this.teamB=[...pool.slice(half)];
     this.triggerTeamChange();
+    this.cdr.markForCheck();
   }
 
   async runAIAnalysis(){
@@ -361,7 +444,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       yellowCardsB:cardMap(this.yellowCardsB,CardType.YELLOW),
       redCardsA:cardMap(this.redCardsA,CardType.RED),
       redCardsB:cardMap(this.redCardsB,CardType.RED),
-      events:this.buildTextMatchEvents()
+      events:this.buildStructuredEvents(rawResult)
     };
 
     // Finance removed from Đội hình tab – use zeroed placeholder structure
@@ -403,76 +486,61 @@ export class PlayersComponent implements OnInit, OnDestroy {
     };
   }
   /**
-   * Build MatchEvent entries from the raw comma-separated text inputs (goals / assists / cards)
-   * without attempting to deduplicate against structured goal/card arrays.
-   * Each name becomes one event with a generated id and timestamp.
+   * Build MatchEvent entries from structured arrays only.
+   * Each goal generates a GOAL event and an ASSIST event (if assistId provided).
+   * Each card generates YELLOW_CARD or RED_CARD event.
    */
-  private buildTextMatchEvents():MatchEvent[]{
+  private buildStructuredEvents(result:MatchResult):MatchEvent[]{
     const events:MatchEvent[]=[];
-    const now=Date.now();
-    let counter=0;
-    const timestamp=()=> new Date().toISOString();
-    const parse=(text:string)=> text.split(/[\n,;]/).map(s=>s.trim()).filter(Boolean);
-    // Extract minute if pattern 'Name 23' or 'Name 23'' or 'Name 23p'
-    const extractMinute=(token:string)=>{
-      const m=token.match(/(.+?)\s+(\d{1,3})(?:'|p)?$/i);
-      if(m){
-        const minute=parseInt(m[2],10);
-        if(!isNaN(minute)) return { name:m[1].trim(), minute };
-      }
-      return { name:token, minute:undefined as number|undefined };
-    };
-    const normalize=(s:string)=>s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
-    const tokenScore=(input:string, candidate:Player)=>{
-      const full=`${candidate.firstName} ${candidate.lastName||''}`.trim();
-      const nIn=normalize(input);
-      const nFirst=normalize(candidate.firstName);
-      const nFull=normalize(full);
-      if(nIn===nFull) return 1;
-      if(nIn===nFirst) return 0.95;
-      if(nFull.startsWith(nIn)) return 0.9;
-      if(nFirst.startsWith(nIn)) return 0.85;
-      // Partial subsequence score
-      let matchCount=0; let j=0;
-      for(const ch of nIn){ while(j<nFull.length && nFull[j]!==ch) j++; if(j<nFull.length && nFull[j]===ch){ matchCount++; j++; } }
-      const subseqRatio=matchCount/nIn.length;
-      if(subseqRatio>0.6) return 0.6+subseqRatio*0.2; // up to 0.8
-      return 0;
-    };
-    const findPlayer=(name:string, team:Player[]):Player|undefined=>{
-      const scored=team.map(p=>({p, s:tokenScore(name,p)})).filter(r=>r.s>0.55).sort((a,b)=>b.s-a.s);
-      return scored.length? scored[0].p: undefined;
-    };
-    const pushEvents=(names:string[], type:EventType, teamId:'A'|'B', prefix:string, teamPlayers:Player[])=>{
-      for(const n of names){
-        const { name, minute } = extractMinute(n);
-        const player=findPlayer(name, teamPlayers);
-        events.push({
-          id:`e_${now}_${counter++}`,
-          type,
-          description:`${prefix} ${name}`.trim() + (minute!==undefined? ` (${minute}')`:'') ,
-          playerId: player? (player.id.toString()): undefined,
-          teamId,
-          minute,
-          timestamp: timestamp()
-        });
-      }
-    };
-    // Goals
-    pushEvents(parse(this.goalsTextA), EventType.GOAL, 'A', 'Ghi bàn:', this.teamA);
-    pushEvents(parse(this.goalsTextB), EventType.GOAL, 'B', 'Ghi bàn:', this.teamB);
-    // Assists now dedicated ASSIST EventType
-    pushEvents(parse(this.assistsTextA), EventType.ASSIST, 'A', 'Kiến tạo:', this.teamA);
-    pushEvents(parse(this.assistsTextB), EventType.ASSIST, 'B', 'Kiến tạo:', this.teamB);
-    // Yellow cards
-    pushEvents(parse(this.yellowTextA), EventType.YELLOW_CARD, 'A', 'Thẻ vàng:', this.teamA);
-    pushEvents(parse(this.yellowTextB), EventType.YELLOW_CARD, 'B', 'Thẻ vàng:', this.teamB);
-    // Red cards
-    pushEvents(parse(this.redTextA), EventType.RED_CARD, 'A', 'Thẻ đỏ:', this.teamA);
-    pushEvents(parse(this.redTextB), EventType.RED_CARD, 'B', 'Thẻ đỏ:', this.teamB);
+    let counter=0; const now=Date.now(); const ts=()=> new Date().toISOString();
+    const push=(e:Omit<MatchEvent,'id'|'timestamp'>)=> events.push({...e, id:`e_${now}_${counter++}`, timestamp:ts()});
+    for(const g of result.goalsA){
+      push({ type:EventType.GOAL, description:`Ghi bàn: ${g.playerName}`+(g.minute!==undefined? ` (${g.minute}')`:''), minute:g.minute, playerId:g.playerId, teamId:'A' });
+      if(g.assistedBy){ push({ type:EventType.ASSIST, description:`Kiến tạo: ${g.assistedBy}`+(g.minute!==undefined? ` (${g.minute}')`:''), minute:g.minute, playerId: undefined, teamId:'A' }); }
+    }
+    for(const g of result.goalsB){
+      push({ type:EventType.GOAL, description:`Ghi bàn: ${g.playerName}`+(g.minute!==undefined? ` (${g.minute}')`:''), minute:g.minute, playerId:g.playerId, teamId:'B' });
+      if(g.assistedBy){ push({ type:EventType.ASSIST, description:`Kiến tạo: ${g.assistedBy}`+(g.minute!==undefined? ` (${g.minute}')`:''), minute:g.minute, playerId: undefined, teamId:'B' }); }
+    }
+    for(const c of result.yellowCardsA){ push({ type:EventType.YELLOW_CARD, description:`Thẻ vàng: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'A' }); }
+    for(const c of result.yellowCardsB){ push({ type:EventType.YELLOW_CARD, description:`Thẻ vàng: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'B' }); }
+    for(const c of result.redCardsA){ push({ type:EventType.RED_CARD, description:`Thẻ đỏ: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'A' }); }
+    for(const c of result.redCardsB){ push({ type:EventType.RED_CARD, description:`Thẻ đỏ: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'B' }); }
     return events;
   }
-  private async convertToTeamComposition(players:Player[], color:TeamColor):Promise<TeamComposition>{ const infos:PlayerInfo[]=[]; for(const p of players){ const cp=this.corePlayersData.find(c=>c.id===p.id.toString()); if(cp) infos.push(cp);} return { name: color===TeamColor.BLUE? 'Đội Xanh':'Đội Cam', players:infos, teamColor:color, formation:'4-4-2' }; }
+  private async convertToTeamComposition(players:Player[], color:TeamColor):Promise<TeamComposition>{
+    const infos:PlayerInfo[]=[];
+    for(const p of players){
+      let cp:PlayerInfo|undefined;
+      if((p as PlayerWithCoreId).coreId){
+        cp=this.corePlayersData.find(c=>c.id===(p as PlayerWithCoreId).coreId);
+      }
+      if(!cp){
+        // Fallback match by full name (case-insensitive, diacritic-insensitive)
+        const normalize=(s:string)=> s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+        const first=normalize(p.firstName);
+        const last=normalize(p.lastName||'');
+        cp=this.corePlayersData.find(c=> normalize(c.firstName)===first && normalize(c.lastName||'')===last);
+      }
+      if(cp){
+        infos.push(cp);
+      } else {
+        // Create minimal placeholder PlayerInfo so roster still shows in match record
+        infos.push({
+          id: (p as PlayerWithCoreId).coreId? (p as PlayerWithCoreId).coreId: p.id.toString(),
+          firstName: p.firstName,
+          lastName: p.lastName||'',
+          fullName: `${p.firstName} ${p.lastName||''}`.trim(),
+          position: p.position || 'Chưa xác định',
+          dateOfBirth: '',
+          avatar: (p as PlayerWithCoreId).avatar || 'assets/images/default-avatar.svg',
+          notes: (p as PlayerWithCoreId).note || '',
+          stats: { totalMatches:0, winRate:0, averageGoalsPerMatch:0, averageAssistsPerMatch:0 }
+        } as PlayerInfo);
+      }
+    }
+    return { name: color===TeamColor.BLUE? 'Đội Xanh':'Đội Cam', players:infos, teamColor:color, formation:'4-4-2' };
+  }
   private async addMatchFundTransaction(match:{date:string}){ try{ const total=this.teamA.length+this.teamB.length; const base=total*30000; await this.dataStore.addFundTransaction({ type:'income', amount:base, description:`Thu nhập trận ${match.date}`, category:'match_fee', date:match.date, createdBy:'system'}); } catch(e){ this.logger.warnDev('Fund transaction failed',e); } }
 
   savePlayers(){ localStorage.setItem('players', JSON.stringify(this.allPlayers)); this.saveMessage='Đã lưu thay đổi'; setTimeout(()=>this.saveMessage='',2000); }
@@ -494,12 +562,18 @@ export class PlayersComponent implements OnInit, OnDestroy {
       const raw=localStorage.getItem('persisted_teams'); if(!raw) return;
       const data=JSON.parse(raw) as {a:number[]; b:number[]};
       if(!data || !Array.isArray(data.a) || !Array.isArray(data.b)) return;
-      // Only restore if current teams empty to avoid overwriting deliberate setup
+      // Avoid overwriting if user already shuffled or manually set teams
       if(this.teamA.length||this.teamB.length) return;
+      if((!data.a.length)&&(!data.b.length)) return;
       const mapById=new Map(this.getDisplayPlayers().map(p=>[p.id,p]));
-      this.teamA=data.a.map(id=>mapById.get(id)).filter(Boolean) as Player[];
-      this.teamB=data.b.map(id=>mapById.get(id)).filter(Boolean) as Player[];
-      if(this.teamA.length || this.teamB.length){ this.triggerTeamChange(); this.cdr.markForCheck(); }
+      const restoredA=data.a.map(id=>mapById.get(id)).filter(Boolean) as Player[];
+      const restoredB=data.b.map(id=>mapById.get(id)).filter(Boolean) as Player[];
+      if(restoredA.length || restoredB.length){
+        this.teamA=[...restoredA];
+        this.teamB=[...restoredB];
+        this.triggerTeamChange();
+        this.cdr.markForCheck();
+      }
     }catch{/* ignore */}
   }
   addCard(type:'yellow'|'red', team:'A'|'B', playerId:number, minute:number){ const map={yellow:{A:this.yellowCardsA,B:this.yellowCardsB}, red:{A:this.redCardsA,B:this.redCardsB}} as const; map[type][team].push({playerId,minute}); }
@@ -507,30 +581,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
   getPlayerName(id:number){ const p=this.allPlayers.find(pl=>pl.id===id); return p? p.firstName: ('#'+id); }
   profit(){ const rev=(this._revWinner||0)+(this._revLoser||0)+(this._revCards||0)+(this._revOther||0); const exp=(this._expWater||0)+(this._expField||0)+(this._expRef||0)+(this._expOther||0); return rev-exp; }
   // (handlers overridden below with persistence-enabled versions)
-  private persistDraftEvents(){
-    try{
-      const payload={ gA:this.goalsTextA, gB:this.goalsTextB, aA:this.assistsTextA, aB:this.assistsTextB, yA:this.yellowTextA, yB:this.yellowTextB, rA:this.redTextA, rB:this.redTextB, ts:Date.now() };
-      localStorage.setItem('draft_match_events', JSON.stringify(payload));
-    }catch{/* ignore */}
-  }
-  private restoreDraftEvents(){
-    interface DraftPayload { gA?:string; gB?:string; aA?:string; aB?:string; yA?:string; yB?:string; rA?:string; rB?:string; ts?:number }
-    try{
-      const raw=localStorage.getItem('draft_match_events'); if(!raw) return;
-      const d=JSON.parse(raw) as DraftPayload;
-      if(d){
-        this.goalsTextA=d.gA||''; this.goalsTextB=d.gB||'';
-        this.assistsTextA=d.aA||''; this.assistsTextB=d.aB||'';
-        this.yellowTextA=d.yA||''; this.yellowTextB=d.yB||'';
-        this.redTextA=d.rA||''; this.redTextB=d.rB||'';
-      }
-    }catch{/* ignore */}
-  }
+  // Draft free-text events deprecated – methods removed
   // Hook persistence into zone stable updates (simple approach: debounce typing via setTimeout in handlers optional future)
-  onGoalsTextChange(e:{team:'A'|'B'; text:string}){ this[e.team==='A'?'goalsTextA':'goalsTextB']=e.text; this.persistDraftEvents(); }
-  onAssistsTextChange(e:{team:'A'|'B'; text:string}){ this[e.team==='A'?'assistsTextA':'assistsTextB']=e.text; this.persistDraftEvents(); }
-  onYellowTextChange(e:{team:'A'|'B'; text:string}){ this[e.team==='A'?'yellowTextA':'yellowTextB']=e.text; this.persistDraftEvents(); }
-  onRedTextChange(e:{team:'A'|'B'; text:string}){ this[e.team==='A'?'redTextA':'redTextB']=e.text; this.persistDraftEvents(); }
+  // Text change handlers removed
 
   /* ===== Impact stats aggregation ===== */
   computeImpactStats(){
@@ -541,23 +594,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
     // Cards structured
     for(const c of [...this.yellowCardsA,...this.yellowCardsB]){ const p=this.allPlayers.find(pl=>pl.id===c.playerId); if(p){ ensure(p).yellow++; } }
     for(const c of [...this.redCardsA,...this.redCardsB]){ const p=this.allPlayers.find(pl=>pl.id===c.playerId); if(p){ ensure(p).red++; } }
-    // Text assist / goal fallback (names that didn't map structurally)
-    const parseNames=(txt:string)=> txt.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean);
-    const addByName=(names:string[], field:'goals'|'assists'|'yellow'|'red')=>{
-      for(const raw of names){
-        const name=raw.replace(/\s+\d{1,3}(?:'|p)?$/,'').trim();
-        const player=this.allPlayers.find(p=> p.firstName.toLowerCase()===name.toLowerCase());
-        if(player){ const s=ensure(player); s[field]++; }
-      }
-    };
-    addByName(parseNames(this.goalsTextA), 'goals');
-    addByName(parseNames(this.goalsTextB), 'goals');
-    addByName(parseNames(this.assistsTextA), 'assists');
-    addByName(parseNames(this.assistsTextB), 'assists');
-    addByName(parseNames(this.yellowTextA), 'yellow');
-    addByName(parseNames(this.yellowTextB), 'yellow');
-    addByName(parseNames(this.redTextA), 'red');
-    addByName(parseNames(this.redTextB), 'red');
     // Score formula (simple weighting)
     for(const s of stats.values()){ s.score = s.goals*4 + s.assists*3 - s.yellow*0.5 - s.red*3; }
     return Array.from(stats.values()).sort((a,b)=> b.score - a.score);

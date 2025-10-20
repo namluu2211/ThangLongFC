@@ -30,8 +30,9 @@
       </div>
       <div class="toolbar-right">
         <button class="tl-btn" (click)="shuffleRegisteredTeams()" [disabled]="registeredPlayers.length < 2"><i class="fas fa-shuffle"></i> Chia đội</button>
-        <button class="tl-btn" (click)="clearTeams()" [disabled]="!teamA.length && !teamB.length"><i class="fas fa-rotate-left"></i></button>
+        <button class="tl-btn" (click)="clearTeams()" [disabled]="!teamA.length && !teamB.length" title="Xóa đội hình"><i class="fas fa-rotate-left"></i></button>
         <button class="tl-btn" (click)="runAIAnalysis()" [disabled]="!teamA.length || !teamB.length" title="Phân tích AI"><i class="fas fa-robot"></i></button>
+        <button class="tl-btn primary" (click)="saveMatchInfo()" [disabled]="!teamA.length || !teamB.length" aria-label="Lưu trận đấu" title="Lưu trận đấu"><i class="fas fa-save"></i> Lưu trận đấu</button>
       </div>
     </section>
 
@@ -51,7 +52,10 @@
       (toggleList)="togglePlayerListView()"
       (reload)="loadPlayers()"
       (deletePlayer)="deletePlayer($event)"
+      (editPlayer)="startEditPlayer($event)"
     ></app-player-list>
+
+
 
     <app-teams-panel
       [teamA]="teamA"
@@ -227,3 +231,4 @@
 
 
   </div>
+  <div class="save-status-inline" *ngIf="matchSaveMessage">{{ matchSaveMessage }}</div>

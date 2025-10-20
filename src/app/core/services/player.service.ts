@@ -181,9 +181,9 @@ export class PlayerService {
       firstName: playerData.firstName || '',
       lastName: playerData.lastName || '',
   fullName: playerData.fullName || `${playerData.firstName || ''} ${playerData.lastName || ''}`.trim(),
-      position: playerData.position || 'Chưa xác định',
-      height: playerData.height || 0,
-      weight: playerData.weight || 0,
+  position: playerData.position || 'Chưa xác định',
+  height: this.coerceNumber(playerData.height),
+  weight: this.coerceNumber(playerData.weight),
   dateOfBirth: (playerData.dateOfBirth || playerData.DOB || '') as string,
       avatar: playerData.avatar || '',
   notes: (playerData.notes || playerData.note || '') as string,
@@ -197,10 +197,20 @@ export class PlayerService {
       
       // Metadata
       createdAt: playerData.createdAt || now,
-      updatedAt: playerData.updatedAt || now
+      updatedAt: playerData.updatedAt || now,
+      __rev: typeof (playerData as unknown as { __rev?: unknown }).__rev === 'number'
+        ? (playerData as unknown as { __rev?: number }).__rev!
+        : 0
     };
 
     return migrated;
+  }
+
+  private coerceNumber(val: unknown): number {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return isFinite(val) ? val : 0;
+    const parsed = parseFloat(String(val).trim());
+    return isNaN(parsed) ? 0 : parsed;
   }
 
   // Generate unique ID
@@ -236,18 +246,24 @@ export class PlayerService {
         id: this.generateId(),
         stats: { ...DEFAULT_PLAYER_STATS },
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        __rev: 0
       };
+      // Ensure numeric fields after spread
+      newPlayer.height = this.coerceNumber(newPlayer.height);
+      newPlayer.weight = this.coerceNumber(newPlayer.weight);
 
       // Add to current map
       const currentMap = new Map(this._players$.value);
       currentMap.set(newPlayer.id, newPlayer);
       this._players$.next(currentMap);
 
+      const persistList = Array.from(currentMap.values()).map(p => this.stripInternalFields(p));
       if (this.realtimeEnabled && this.db) {
-        await this.writePlayerRealtime(newPlayer);
+        await this.writePlayerRealtime(this.stripInternalFields(newPlayer));
+        this.saveToLocalStorage(persistList);
       } else {
-        this.saveToLocalStorage(Array.from(currentMap.values()));
+        this.saveToLocalStorage(persistList);
       }
 
       console.log('✅ Created new player:', newPlayer.firstName);
@@ -275,19 +291,24 @@ export class PlayerService {
         ...existingPlayer,
         ...updates,
         id, // Ensure ID doesn't change
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        __rev: (existingPlayer.__rev || 0) + 1
       };
+      updatedPlayer.height = this.coerceNumber(updatedPlayer.height);
+      updatedPlayer.weight = this.coerceNumber(updatedPlayer.weight);
 
       currentMap.set(id, updatedPlayer);
       this._players$.next(currentMap);
 
+      const persistList = Array.from(currentMap.values()).map(p => this.stripInternalFields(p));
       if (this.realtimeEnabled && this.db) {
-        await this.writePlayerRealtime(updatedPlayer);
+        await this.writePlayerRealtime(this.stripInternalFields(updatedPlayer));
+        this.saveToLocalStorage(persistList);
       } else {
-        this.saveToLocalStorage(Array.from(currentMap.values()));
+        this.saveToLocalStorage(persistList);
       }
 
-      console.log('✅ Updated player:', updatedPlayer.firstName);
+  console.log('✅ Updated player:', updatedPlayer.firstName, 'height:', updatedPlayer.height, 'weight:', updatedPlayer.weight);
       return updatedPlayer;
     } catch (error) {
       console.error('❌ Error updating player:', error);
@@ -330,7 +351,7 @@ export class PlayerService {
   private async writePlayerRealtime(player: PlayerInfo) {
     if (!this.db) return;
     const playerRef = ref(this.db, `players/${player.id}`);
-    const payload: PlayerInfo & { avatarURL?: string } = { ...player };
+  const payload: PlayerInfo & { avatarURL?: string } = { ...player };
     // Avatar versioning logic: if avatar changed, append new version entry
     if (player.avatar) {
       const avatarMetaRef = ref(this.db, `playerAvatars/${player.id}`);
@@ -350,6 +371,11 @@ export class PlayerService {
       payload.avatarURL = player.avatar;
     }
     await set(playerRef, payload);
+  }
+  private stripInternalFields(player: PlayerInfo): PlayerInfo {
+    const clone: PlayerInfo = { ...player };
+    delete (clone as Partial<PlayerInfo>).__rev;
+    return clone;
   }
 
   // Public API to add gallery media metadata (client-side uploads not implemented here)

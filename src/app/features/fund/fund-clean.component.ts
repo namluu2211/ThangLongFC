@@ -93,25 +93,25 @@ interface FundSummary {
           <form (ngSubmit)="addTransaction()">
             <div class="form-row">
               <div class="form-group">
-                <label>Loại giao dịch</label>
-                <select [(ngModel)]="newTransaction.type" name="type" required>
+                <label for="tx-type">Loại giao dịch</label>
+                <select id="tx-type" [(ngModel)]="newTransaction.type" name="type" required>
                   <option value="income">📈 Thu nhập</option>
                   <option value="expense">📉 Chi phí</option>
                 </select>
               </div>
               <div class="form-group">
-                <label>Số tiền (VND)</label>
-                <input type="number" [(ngModel)]="newTransaction.amount" name="amount" placeholder="0" required>
+                <label for="tx-amount">Số tiền (VND)</label>
+                <input id="tx-amount" type="number" [(ngModel)]="newTransaction.amount" name="amount" placeholder="0" required>
               </div>
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Danh mục</label>
-                <input type="text" [(ngModel)]="newTransaction.category" name="category" placeholder="Ví dụ: Thuê sân, Đóng góp...">
+                <label for="tx-category">Danh mục</label>
+                <input id="tx-category" type="text" [(ngModel)]="newTransaction.category" name="category" placeholder="Ví dụ: Thuê sân, Đóng góp...">
               </div>
               <div class="form-group">
-                <label>Mô tả</label>
-                <input type="text" [(ngModel)]="newTransaction.description" name="description" placeholder="Mô tả chi tiết...">
+                <label for="tx-desc">Mô tả</label>
+                <input id="tx-desc" type="text" [(ngModel)]="newTransaction.description" name="description" placeholder="Mô tả chi tiết...">
               </div>
             </div>
             <div class="form-actions">
@@ -613,7 +613,7 @@ export class FundCleanComponent implements OnInit, OnDestroy {
   }
 
   private subscribeToMatchHistory() {
-    this.subscription = this.firebaseService.history$.subscribe(matchHistory => {
+    this.subscription = this.firebaseService.history$.subscribe((matchHistory: HistoryEntry[]) => {
       this.matchHistory = matchHistory;
       this.matchCount = matchHistory.length;
       this.calculateMatchHistoryBalance();

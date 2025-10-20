@@ -6,7 +6,7 @@ import { Injectable, inject } from '@angular/core';
 type FirebaseAppLike = object;
 type FirebaseDatabaseLike = object;
 import { BehaviorSubject } from 'rxjs';
-import { shareReplay, distinctUntilChanged } from 'rxjs';
+import { shareReplay, distinctUntilChanged, map } from 'rxjs';
 import { FirebaseCoreService } from './firebase-core.service';
 type FirebaseCoreDiagnosticsCapable = FirebaseCoreService & {
   logDiagnostics?: (context?: string) => void;
@@ -90,6 +90,12 @@ export interface HistoryEntry {
   yellowB?: string;
   redA?: string;
   redB?: string;
+  // New roster persistence fields (added 2025-10): preserve player ids & minimal snapshots so we can reconstruct teams
+  // for analytics/history without depending solely on display names. Optional for backward compatibility.
+  teamA_ids?: (string|number)[];
+  teamB_ids?: (string|number)[];
+  teamA_full?: { id?: string|number; firstName?: string; lastName?: string; position?: string }[];
+  teamB_full?: { id?: string|number; firstName?: string; lastName?: string; position?: string }[];
   
   // Financial data - Revenue (Thu)
   thu?: number;
@@ -156,6 +162,15 @@ export class FirebaseService {
   
   public history$ = this.historySubject.asObservable().pipe(
     distinctUntilChanged(),
+    map((list: HistoryEntry[]): HistoryEntry[] => list.map((entry: HistoryEntry) => {
+      if ((!entry.teamA_ids || !entry.teamA_ids.length) && Array.isArray(entry.teamA_full) && entry.teamA_full.length) {
+        entry.teamA_ids = entry.teamA_full.map(p => p.id!).filter(Boolean);
+      }
+      if ((!entry.teamB_ids || !entry.teamB_ids.length) && Array.isArray(entry.teamB_full) && entry.teamB_full.length) {
+        entry.teamB_ids = entry.teamB_full.map(p => p.id!).filter(Boolean);
+      }
+      return entry;
+    })),
     shareReplay({ bufferSize: 1, refCount: true })
   );
 

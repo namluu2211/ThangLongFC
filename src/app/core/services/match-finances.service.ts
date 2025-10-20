@@ -23,7 +23,8 @@ export class MatchFinancesService {
       fixed: 0,
       variable: 0
     };
-    const totalRevenue = Object.values(revenue).reduce((sum, val) => sum + val, 0);
+  // Only sum primary revenue categories, exclude internal detail fields (teamARevenue, teamBRevenue, penaltyRevenue which is duplicate of cardPenalties)
+  const totalRevenue = revenue.winnerFees + revenue.loserFees + revenue.cardPenalties + revenue.otherRevenue;
     const totalExpenses = Object.values(expenses).reduce((sum, val) => sum + val, 0);
     return {
       revenue,
@@ -60,9 +61,11 @@ export class MatchFinancesService {
       teamBRevenue += drawFee * match.teamB.players.length;
     }
     const penaltyRevenue = (result.yellowCardsA.length + result.yellowCardsB.length) * yellowFee + (result.redCardsA.length + result.redCardsB.length) * redFee;
+    const winnerFees = teamARevenue > teamBRevenue ? teamARevenue : teamBRevenue;
+    const loserFees = teamARevenue < teamBRevenue ? teamARevenue : teamBRevenue;
     return {
-      winnerFees: teamARevenue > teamBRevenue ? teamARevenue : teamBRevenue,
-      loserFees: teamARevenue < teamBRevenue ? teamARevenue : teamBRevenue,
+      winnerFees,
+      loserFees,
       cardPenalties: penaltyRevenue,
       otherRevenue: 0,
       teamARevenue,

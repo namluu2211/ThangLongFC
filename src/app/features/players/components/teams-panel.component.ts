@@ -21,32 +21,14 @@ import { Player } from '../player-utils';
               <span class="strength-badge" title="Sức mạnh tương đối">⚡ {{ teamStrength(teamA) }}</span>
             </h3>
             <div class="right-meta">
-              <div class="pill-stat goals" title="Số bàn (tự tính từ ô Ghi bàn)">⚽ {{ autoGoalsA }}</div>
-              <div class="pill-stat yc" title="Thẻ vàng">🟨 {{ autoYellowA }}</div>
-              <div class="pill-stat rc" title="Thẻ đỏ">🟥 {{ autoRedA }}</div>
+              <div class="pill-stat goals" title="Số bàn (từ sự kiện đã nhập)">⚽ {{ goalsCountA }}</div>
+              <div class="pill-stat yc" title="Thẻ vàng (từ sự kiện đã nhập)">🟨 {{ yellowCountA }}</div>
+              <div class="pill-stat rc" title="Thẻ đỏ (từ sự kiện đã nhập)">🟥 {{ redCountA }}</div>
               <label class="score-label" for="scoreA">Tỉ số:</label>
               <input id="scoreA" type="number" [(ngModel)]="scoreA" (change)="scoreAChange.emit(scoreA)" class="score-input" min="0" />
             </div>
           </div>
           <div class="team-content">
-            <div class="inline-events-row">
-              <div class="inline-field">
-                <label for="gaA">Ghi bàn</label>
-                <input id="gaA" type="text" list="teamAPlayers" [(ngModel)]="goalsTextA" (input)="emitAndParse('A')" placeholder="Tên, Tên..." />
-              </div>
-              <div class="inline-field">
-                <label for="asA">Kiến tạo</label>
-                <input id="asA" type="text" list="teamAPlayers" [(ngModel)]="assistsTextA" (blur)="assistsTextChange.emit({team:'A', text:assistsTextA})" placeholder="Tên, Tên" />
-              </div>
-              <div class="inline-field">
-                <label for="ycA">Thẻ vàng</label>
-                <input id="ycA" type="text" class="yellow" list="teamAPlayers" [(ngModel)]="yellowTextA" (input)="emitAndParse('A')" placeholder="Tên, Tên" />
-              </div>
-              <div class="inline-field">
-                <label for="rcA">Thẻ đỏ</label>
-                <input id="rcA" type="text" class="red" list="teamAPlayers" [(ngModel)]="redTextA" (input)="emitAndParse('A')" placeholder="Tên, Tên" />
-              </div>
-            </div>
             <h4 class="section-title players-title">Cầu thủ</h4>
             <div cdkDropList id="teamAList" [cdkDropListData]="teamA" [cdkDropListConnectedTo]="['teamBList']" (cdkDropListDropped)="dropped($event)" class="players-row team-players" aria-label="Khu vực Đội Xanh">
               <div class="placeholder" *ngIf="!teamA.length">Kéo cầu thủ vào đây</div>
@@ -72,32 +54,14 @@ import { Player } from '../player-utils';
               <span class="strength-badge" title="Sức mạnh tương đối">⚡ {{ teamStrength(teamB) }}</span>
             </h3>
             <div class="right-meta">
-              <div class="pill-stat goals" title="Số bàn (tự tính từ ô Ghi bàn)">⚽ {{ autoGoalsB }}</div>
-              <div class="pill-stat yc" title="Thẻ vàng">🟨 {{ autoYellowB }}</div>
-              <div class="pill-stat rc" title="Thẻ đỏ">🟥 {{ autoRedB }}</div>
+              <div class="pill-stat goals" title="Số bàn (từ sự kiện đã nhập)">⚽ {{ goalsCountB }}</div>
+              <div class="pill-stat yc" title="Thẻ vàng (từ sự kiện đã nhập)">🟨 {{ yellowCountB }}</div>
+              <div class="pill-stat rc" title="Thẻ đỏ (từ sự kiện đã nhập)">🟥 {{ redCountB }}</div>
               <label class="score-label" for="scoreB">Tỉ số:</label>
               <input id="scoreB" type="number" [(ngModel)]="scoreB" (change)="scoreBChange.emit(scoreB)" class="score-input" min="0" />
             </div>
           </div>
           <div class="team-content">
-            <div class="inline-events-row">
-              <div class="inline-field">
-                <label for="gaB">Ghi bàn</label>
-                <input id="gaB" type="text" list="teamBPlayers" [(ngModel)]="goalsTextB" (input)="emitAndParse('B')" placeholder="Tên, Tên..." />
-              </div>
-              <div class="inline-field">
-                <label for="asB">Kiến tạo</label>
-                <input id="asB" type="text" list="teamBPlayers" [(ngModel)]="assistsTextB" (blur)="assistsTextChange.emit({team:'B', text:assistsTextB})" placeholder="Tên, Tên" />
-              </div>
-              <div class="inline-field">
-                <label for="ycB">Thẻ vàng</label>
-                <input id="ycB" type="text" class="yellow" list="teamBPlayers" [(ngModel)]="yellowTextB" (input)="emitAndParse('B')" placeholder="Tên, Tên" />
-              </div>
-              <div class="inline-field">
-                <label for="rcB">Thẻ đỏ</label>
-                <input id="rcB" type="text" class="red" list="teamBPlayers" [(ngModel)]="redTextB" (input)="emitAndParse('B')" placeholder="Tên, Tên" />
-              </div>
-            </div>
             <h4 class="section-title players-title">Cầu thủ</h4>
             <div cdkDropList id="teamBList" [cdkDropListData]="teamB" [cdkDropListConnectedTo]="['teamAList']" (cdkDropListDropped)="dropped($event)" class="players-row team-players" aria-label="Khu vực Đội Cam">
               <div class="placeholder" *ngIf="!teamB.length">Kéo cầu thủ vào đây</div>
@@ -117,12 +81,6 @@ import { Player } from '../player-utils';
         </div>
       </div>
     </div>
-    <datalist id="teamAPlayers">
-      <option *ngFor="let p of teamA" [value]="p.firstName"></option>
-    </datalist>
-    <datalist id="teamBPlayers">
-      <option *ngFor="let p of teamB" [value]="p.firstName"></option>
-    </datalist>
   `,
   styles: [`
     .team-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-radius:12px 12px 0 0; }
@@ -180,16 +138,16 @@ export class TeamsPanelComponent {
   @Input() teamB: Player[] = [];
   @Input() scoreA = 0;
   @Input() scoreB = 0;
-  @Input() goalsTextA=''; @Input() goalsTextB='';
-  @Input() assistsTextA=''; @Input() assistsTextB='';
-  @Input() yellowTextA=''; @Input() yellowTextB='';
-  @Input() redTextA=''; @Input() redTextB='';
+  // Structured event inputs (provided by parent PlayersComponent)
+  @Input() goalsA: {playerId:number;assistId?:number;minute:number}[] = [];
+  @Input() goalsB: {playerId:number;assistId?:number;minute:number}[] = [];
+  @Input() yellowCardsA: {playerId:number;minute:number}[] = [];
+  @Input() yellowCardsB: {playerId:number;minute:number}[] = [];
+  @Input() redCardsA: {playerId:number;minute:number}[] = [];
+  @Input() redCardsB: {playerId:number;minute:number}[] = [];
   @Output() scoreAChange = new EventEmitter<number>();
   @Output() scoreBChange = new EventEmitter<number>();
-  @Output() goalsTextChange = new EventEmitter<{team:'A'|'B'; text:string}>();
-  @Output() assistsTextChange = new EventEmitter<{team:'A'|'B'; text:string}>();
-  @Output() yellowTextChange = new EventEmitter<{team:'A'|'B'; text:string}>();
-  @Output() redTextChange = new EventEmitter<{team:'A'|'B'; text:string}>();
+  // Legacy text change outputs removed – events now entered via structured UI in parent
   @Output() removePlayer = new EventEmitter<{player: Player; team: 'A'|'B'}>();
   @Output() teamDrop = new EventEmitter<CdkDragDrop<Player[]>>();
 
@@ -208,45 +166,24 @@ export class TeamsPanelComponent {
     const diff=Math.abs(a-b);
     return Math.max(0, 100 - Math.min(100,diff*5));
   }
-  get autoGoalsA(){ return this.countList(this.goalsTextA); }
-  get autoGoalsB(){ return this.countList(this.goalsTextB); }
-  get autoYellowA(){ return this.countList(this.yellowTextA); }
-  get autoYellowB(){ return this.countList(this.yellowTextB); }
-  get autoRedA(){ return this.countList(this.redTextA); }
-  get autoRedB(){ return this.countList(this.redTextB); }
-  private countList(text:string){ if(!text) return 0; return text.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).length; }
-  emitAndParse(team:'A'|'B'){
-    if(team==='A'){ this.goalsTextChange.emit({team:'A', text:this.goalsTextA}); this.yellowTextChange.emit({team:'A', text:this.yellowTextA}); this.redTextChange.emit({team:'A', text:this.redTextA}); this.scoreA = this.autoGoalsA; this.scoreAChange.emit(this.scoreA); }
-    else { this.goalsTextChange.emit({team:'B', text:this.goalsTextB}); this.yellowTextChange.emit({team:'B', text:this.yellowTextB}); this.redTextChange.emit({team:'B', text:this.redTextB}); this.scoreB = this.autoGoalsB; this.scoreBChange.emit(this.scoreB); }
-  }
+  // Derived counters from structured arrays
+  get goalsCountA(){ return this.goalsA.length; }
+  get goalsCountB(){ return this.goalsB.length; }
+  get yellowCountA(){ return this.yellowCardsA.length; }
+  get yellowCountB(){ return this.yellowCardsB.length; }
+  get redCountA(){ return this.redCardsA.length; }
+  get redCountB(){ return this.redCardsB.length; }
   miniImpact(team:Player[]){
-    // Simple parsing: count occurrences of firstName in goals/assists/yellow/red text inputs
-    const texts = {
-      goalsA: this.goalsTextA, goalsB:this.goalsTextB,
-      assistsA:this.assistsTextA, assistsB:this.assistsTextB,
-      yellowA:this.yellowTextA, yellowB:this.yellowTextB,
-      redA:this.redTextA, redB:this.redTextB
-    };
-    const isTeamA = team===this.teamA;
-    const goalsTxt = isTeamA? texts.goalsA: texts.goalsB;
-    const assistsTxt = isTeamA? texts.assistsA: texts.assistsB;
-    const yellowTxt = isTeamA? texts.yellowA: texts.yellowB;
-    const redTxt = isTeamA? texts.redA: texts.redB;
-    const tokenize=(t:string)=> t.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean);
-    const tokens={
-      g:tokenize(goalsTxt), a:tokenize(assistsTxt), y:tokenize(yellowTxt), r:tokenize(redTxt)
-    };
+    // Structured impact: goals (4), assists (3), yellow (-0.5), red (-3)
     const scoreMap = new Map<number,{p:Player; g:number; a:number; y:number; r:number; s:number}>();
-    const add=(name:string, kind:'g'|'a'|'y'|'r')=>{
-      const lower=name.toLowerCase();
-      const player=team.find(pl=>pl.firstName.toLowerCase()===lower);
-      if(!player) return;
-      if(!scoreMap.has(player.id)) scoreMap.set(player.id,{p:player,g:0,a:0,y:0,r:0,s:0});
-      const rec=scoreMap.get(player.id)!; rec[kind]++; };
-    for(const n of tokens.g) add(n,'g');
-    for(const n of tokens.a) add(n,'a');
-    for(const n of tokens.y) add(n,'y');
-    for(const n of tokens.r) add(n,'r');
+    const ensure=(p:Player)=>{ if(!scoreMap.has(p.id)) scoreMap.set(p.id,{p,g:0,a:0,y:0,r:0,s:0}); return scoreMap.get(p.id)!; };
+    const isTeamA = team===this.teamA;
+    const goals = isTeamA? this.goalsA: this.goalsB;
+    for(const g of goals){ const pl=team.find(p=>p.id===g.playerId); if(pl){ ensure(pl).g++; } if(g.assistId){ const aPl=team.find(p=>p.id===g.assistId); if(aPl){ ensure(aPl).a++; } } }
+    const yCards = isTeamA? this.yellowCardsA: this.yellowCardsB;
+    for(const c of yCards){ const pl=team.find(p=>p.id===c.playerId); if(pl){ ensure(pl).y++; } }
+    const rCards = isTeamA? this.redCardsA: this.redCardsB;
+    for(const c of rCards){ const pl=team.find(p=>p.id===c.playerId); if(pl){ ensure(pl).r++; } }
     for(const rec of scoreMap.values()){ rec.s = rec.g*4 + rec.a*3 - rec.y*0.5 - rec.r*3; }
     return Array.from(scoreMap.values())
       .sort((a,b)=>b.s-a.s)

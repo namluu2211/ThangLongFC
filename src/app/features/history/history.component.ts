@@ -1195,8 +1195,21 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   // Team methods
-  getTeamSize(team: string[] | undefined): number {
-    return team ? team.length : 0;
+  getTeamSize(team: string[] | undefined, match?: HistoryEntry, side?: 'A'|'B'): number {
+    if (Array.isArray(team) && team.length) return team.length;
+    if (match && side) {
+      // Narrow match to extended shape without using any
+      type ExtendedHistory = HistoryEntry & {
+        teamA_ids?: (string|number)[]; teamB_ids?: (string|number)[];
+        teamA_full?: { id?: string|number }[]; teamB_full?: { id?: string|number }[];
+      };
+      const ext = match as ExtendedHistory;
+      const ids = side==='A'? ext.teamA_ids : ext.teamB_ids;
+      if (Array.isArray(ids) && ids.length) return ids.length;
+      const full = side==='A'? ext.teamA_full : ext.teamB_full;
+      if (Array.isArray(full) && full.length) return full.length;
+    }
+    return 0;
   }
 
   getGoalScorers(match: HistoryEntry, team: 'A' | 'B'): string {

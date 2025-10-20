@@ -42,6 +42,8 @@ export interface PlayerInfo {
   updatedAt: string;
   createdBy?: string;
   updatedBy?: string;
+  // Internal revision for UI change detection (not persisted in legacy assets JSON)
+  __rev?: number;
 }
 
 export interface PlayerStats {
