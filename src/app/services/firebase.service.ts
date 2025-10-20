@@ -8,6 +8,10 @@ type FirebaseDatabaseLike = object;
 import { BehaviorSubject } from 'rxjs';
 import { shareReplay, distinctUntilChanged } from 'rxjs';
 import { FirebaseCoreService } from './firebase-core.service';
+type FirebaseCoreDiagnosticsCapable = FirebaseCoreService & {
+  logDiagnostics?: (context?: string) => void;
+  ensureInitialized?: () => Promise<boolean>;
+};
 import { AdminConfig } from '../config/admin.config';
 
 export interface MatchResult {
@@ -193,6 +197,11 @@ export class FirebaseService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private fb(): any { return (this as any)._fb; }
 
+  // Track which realtime listeners have been successfully attached to avoid duplicates
+  private attachedListeners = new Set<string>();
+  // Track which listeners were requested before core initialization completed so we can attach them later
+  private pendingListeners = new Set<string>();
+
   constructor() {
     // Defer Firebase core initialization until idle; can be forced earlier via ensureCoreReady()
     this.deferInit();
@@ -243,6 +252,25 @@ export class FirebaseService {
       this.setupConnectionMonitoring();
       this.enableOfflineSupport();
       console.log('✅ Firebase service listeners attached (core split)');
+
+      // Attach any listeners that were requested before initialization finished
+      if (this.pendingListeners.size) {
+        console.log('🔄 Attaching deferred listeners:', [...this.pendingListeners]);
+        this.pendingListeners.forEach(path => {
+          switch (path) {
+            case 'history':
+              this.setupListener('history', this.historySubject);
+              break;
+            case 'fundTransactions':
+              this.setupListener('fundTransactions', this.fundTransactionsSubject);
+              break;
+            case 'statistics':
+              this.setupListener('statistics', this.statisticsSubject);
+              break;
+          }
+        });
+        this.pendingListeners.clear();
+      }
     } else {
       console.log('⚠️ Firebase core not enabled; skipping listeners');
     }
@@ -254,46 +282,100 @@ export class FirebaseService {
     this.setupListener('playerStats', this.playerStatsSubject);
   }
 
-  // Deferred listeners (feature routes will call these)
-  attachHistoryListener() { this.setupListener('history', this.historySubject); }
-  attachFundListener() { this.setupListener('fundTransactions', this.fundTransactionsSubject); }
-  attachStatisticsListener() { this.setupListener('statistics', this.statisticsSubject); }
-
-  private setupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
+  // Deferred listeners (feature routes will call these). Each ensures core is ready first to avoid race condition where
+  // listener attempt occurs before firebase core initialization -> leading to permanent missing data (root cause of
+  // "unable to load history DB" when Sync clicked early).
+  async attachHistoryListener(): Promise<void> {
+    console.log('[HistoryListener] Request received. CoreReady:', this.coreReady, 'Enabled:', this.isEnabled);
+    const coreDiag = this.core as FirebaseCoreDiagnosticsCapable;
+    if (typeof coreDiag.logDiagnostics === 'function') {
+      coreDiag.logDiagnostics('pre-history');
+    }
+    await this.ensureCoreReady();
+    console.log('[HistoryListener] After ensureCoreReady -> CoreReady:', this.coreReady, 'Enabled:', this.isEnabled, 'Database exists:', !!this.database);
     if (!this.isEnabled || !this.database) {
-      console.log(`⚠️ Skipping ${path} listener - Firebase not available`);
+      console.warn('[HistoryListener] Core still not enabled or database missing after ensureCoreReady. Forcing core.initialize again...');
+      // Force another initialization attempt in case of transient failure
+      try {
+        await coreDiag.ensureInitialized?.();
+        if (typeof coreDiag.logDiagnostics === 'function') {
+          coreDiag.logDiagnostics('forced-retry');
+        }
+      } catch (e) {
+        console.error('[HistoryListener] Forced retry failed:', e);
+      }
+    }
+    this.requestOrSetupListener('history', this.historySubject);
+  }
+  async attachFundListener(): Promise<void> {
+    await this.ensureCoreReady();
+    this.requestOrSetupListener('fundTransactions', this.fundTransactionsSubject);
+  }
+  async attachStatisticsListener(): Promise<void> {
+    await this.ensureCoreReady();
+    this.requestOrSetupListener('statistics', this.statisticsSubject);
+  }
+
+  private requestOrSetupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
+    if (this.attachedListeners.has(path)) {
+      return; // already active
+    }
+    // Guard: ensure firebase functions object exists
+    const hasFb = Boolean((this as unknown as { _fb?: unknown })._fb);
+    if (!this.isEnabled || !this.database || !hasFb) {
+      // Core not fully ready even after ensureCoreReady (edge) -> queue
+      this.pendingListeners.add(path);
+      console.log(`⏳ Queued listener '${path}' until Firebase core ready`);
       return;
     }
-    
-  // Access dynamic firebase functions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fb: any = (this as any)._fb;
-  const dbRef = fb.ref(this.database, path);
-    
+    this.setupListener(path, subject);
+  }
+
+  private setupListener<T>(path: string, subject: BehaviorSubject<T[]>) {
+    if (this.attachedListeners.has(path)) {
+      return;
+    }
+    if (!this.isEnabled || !this.database) {
+      console.log(`⚠️ Skipping ${path} listener - Firebase not available`);
+      this.pendingListeners.add(path);
+      return;
+    }
+
+    // Access dynamic firebase functions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fb: any = (this as any)._fb;
+    const dbRef = fb.ref(this.database, path);
+
     const retryListener = (retryCount = 0) => {
-  fb.onValue(dbRef, 
-        (snapshot) => {
+      fb.onValue(dbRef,
+        (snapshot: unknown) => {
           try {
-            const data = snapshot.val();
-            const items: T[] = data ? Object.keys(data).map(key => ({
-              id: key,
-              ...data[key]
-            })) : [];
-            
+            // snapshot from firebase has val() method; narrow type
+            const snap = snapshot as { val: () => unknown };
+            const data = snap.val() as Record<string, unknown> | null;
+            const items: T[] = data ? Object.keys(data).map(key => {
+              const value = data[key] as Record<string, unknown> | null;
+              return {
+                id: key,
+                ...(value || {})
+              } as unknown as T;
+            }) : [];
             // Cache the data
             this.setCache(path, items);
             subject.next(items);
-            
+            if (!this.attachedListeners.has(path)) {
+              console.log(`📌 Listener attached: ${path}`);
+              this.attachedListeners.add(path);
+            }
             console.log(`📊 Firebase ${path} updated:`, items.length, 'items');
           } catch (error) {
             console.error(`❌ Error processing ${path}:`, error);
             this.loadFromCache(path, subject);
           }
         },
-        (error) => {
+        (error: unknown) => {
           console.error(`❌ Firebase ${path} listener error:`, error);
           this.connectionStatus.next(false);
-          
           // Retry with exponential backoff
           if (retryCount < 3) {
             const delay = Math.pow(2, retryCount) * 1000;
@@ -601,6 +683,33 @@ export class FirebaseService {
 
   getPerformanceMetrics() {
     return { ...this.performanceMetrics };
+  }
+
+  // Listener / service status helpers (for debug UI)
+  getAttachedListeners(): string[] {
+    return [...this.attachedListeners];
+  }
+
+  isHistoryListenerAttached(): boolean {
+    return this.attachedListeners.has('history');
+  }
+
+  async forceRefreshHistory(): Promise<void> {
+    console.log('🔄 Forced history refresh requested');
+    // Clear cache entry so next update repopulates
+    this.cache.delete('history');
+    // If listener already attached, just trigger a health check
+    if (this.isHistoryListenerAttached()) {
+      console.log('♻️ History listener already active; waiting for next onValue emission');
+      return;
+    }
+    // Reattach listener explicitly
+    await this.attachHistoryListener();
+  }
+
+  getCoreDiagnostics() {
+    // surface FirebaseCoreService diagnostics
+    return (this.core as FirebaseCoreService).getDiagnostics?.();
   }
 
   // Performance tracking

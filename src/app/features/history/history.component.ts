@@ -1,9 +1,8 @@
-import { Component, OnInit, inject, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { FormsModule } from '@angular/forms';
-import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-history',
@@ -11,6 +10,16 @@ import { take } from 'rxjs/operators';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="history-container">
+      <!-- Status / Debug Bar -->
+      <div class="status-bar" *ngIf="showStatusBar">
+        <span class="listener-status" [class.active]="historyListenerActive">📡 Listener: {{ historyListenerActive ? 'Active' : 'Pending' }}</span>
+        <span class="record-count">🧾 Records: {{ matches.length }}</span>
+        <button class="force-refresh-btn" (click)="forceRefreshHistory()">🔄 Force Refresh</button>
+        <button class="toggle-debug-btn" (click)="toggleDebugPanel()">{{ showDebugPanel ? 'Hide Debug' : 'Show Debug' }}</button>
+      </div>
+      <div class="debug-panel" *ngIf="showDebugPanel">
+        <pre class="debug-output">{{ getDebugInfo() }}</pre>
+      </div>
       <!-- Header Section -->
       <div class="header-section">
         <div class="header-content">
@@ -148,7 +157,7 @@ import { take } from 'rxjs/operators';
           <h2 class="section-title">Kết quả trận đấu</h2>
         </div>
 
-        <div class="matches-list" *ngIf="filteredMatches.length > 0; else noMatches">
+  <div class="matches-list" *ngIf="!loading && filteredMatches.length > 0; else loadingOrEmpty">
           <!-- Date Groups -->
           <div class="date-group" *ngFor="let dateGroup of getMatchesByDate(); trackBy: trackByDateGroup">
             <!-- Date Group Header -->
@@ -358,9 +367,16 @@ import { take } from 'rxjs/operators';
           </div>
         </div>
 
-        <!-- Empty State -->
-        <ng-template #noMatches>
-          <div class="empty-state">
+        <!-- Loading / Empty State -->
+        <ng-template #loadingOrEmpty>
+          <div *ngIf="loading" class="skeleton-list">
+            <div class="skeleton-card" *ngFor="let s of skeletonArray">
+              <div class="skeleton-line w-40"></div>
+              <div class="skeleton-line w-60"></div>
+              <div class="skeleton-line w-30"></div>
+            </div>
+          </div>
+          <div *ngIf="!loading" class="empty-state">
             <div class="empty-icon">🏆</div>
             <h3>Chưa có lịch sử trận đấu</h3>
             <p>Bắt đầu thi đấu để xem lịch sử và phân tích tài chính tại đây.</p>
@@ -793,6 +809,54 @@ import { take } from 'rxjs/operators';
       box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
       animation: slideInDown 0.5s ease-out;
     }
+
+    /* Status & Debug */
+    .status-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 12px;
+      background: #f1f3f5;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .listener-status {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #adb5bd;
+      color: #fff;
+      font-weight: 500;
+    }
+    .listener-status.active { background: #28a745; }
+    .force-refresh-btn, .toggle-debug-btn {
+      background: #0d6efd;
+      color: #fff;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .force-refresh-btn:hover, .toggle-debug-btn:hover { opacity: .85; }
+    .debug-panel { margin-bottom: 16px; }
+    .debug-output {
+      background: #212529;
+      color: #f8f9fa;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-height: 300px;
+      overflow: auto;
+      line-height: 1.4;
+    }
+    /* Skeleton */
+    .skeleton-list { display: grid; gap: 12px; }
+    .skeleton-card { background:#fff; border:1px solid #e9ecef; padding:16px; border-radius:8px; }
+    .skeleton-line { height:12px; background:linear-gradient(90deg,#e9ecef 25%,#f8f9fa 50%,#e9ecef 75%); background-size:200% 100%; animation:shimmer 1.2s infinite; border-radius:4px; margin-bottom:10px; }
+    .skeleton-line.w-40{width:40%;} .skeleton-line.w-60{width:60%;} .skeleton-line.w-30{width:30%;}
+    @keyframes shimmer { from{background-position:200% 0;} to{background-position:-200% 0;} }
     
     .sync-message {
       white-space: pre-line;
@@ -928,7 +992,7 @@ import { take } from 'rxjs/operators';
     }
   `]
 })
-export class HistoryComponent implements OnInit {
+export class HistoryComponent implements OnInit, OnDestroy {
   private firebaseService = inject(FirebaseService);
   private dataStore = inject(DataStoreService);
   
@@ -959,43 +1023,91 @@ export class HistoryComponent implements OnInit {
   dateCollapseStates: Record<string, boolean> = {};
   private readonly COLLAPSE_STATES_KEY = 'history_date_collapse_states';
 
+  // Debug / status UI
+  showStatusBar = true;
+  showDebugPanel = false;
+  skeletonArray = Array.from({ length: 5 });
+  get historyListenerActive(): boolean { return this.firebaseService.isHistoryListenerAttached?.() ?? false; }
+
+  forceRefreshHistory(): void {
+    console.log('🧪 Force refresh triggered from HistoryComponent');
+    void this.firebaseService.forceRefreshHistory?.();
+  }
+
+  toggleDebugPanel(): void {
+    this.showDebugPanel = !this.showDebugPanel;
+  }
+
+  getDebugInfo(): string {
+    const listeners = this.firebaseService.getAttachedListeners?.() ?? [];
+    const perf = this.firebaseService.getPerformanceMetrics?.();
+    const cacheStats = this.firebaseService.getCacheStats?.();
+    const coreDiag = this.firebaseService.getCoreDiagnostics?.();
+    return [
+      'History Debug Info',
+      '===================',
+      `Listener Active: ${this.historyListenerActive}`,
+      `Attached Listeners: ${listeners.join(', ') || 'none'}`,
+      `Records Loaded: ${this.matches.length}`,
+      `Filtered Records: ${this.filteredMatches.length}`,
+      `Loading: ${this.loading}`,
+      coreDiag ? `Core Enabled: ${coreDiag.enabled}` : '',
+      coreDiag ? `Config Valid: ${coreDiag.configValid}` : '',
+      coreDiag && !coreDiag.enabled ? `Failure Reason: ${coreDiag.failureReason}` : '',
+      coreDiag ? `DB URL Snippet: ${(coreDiag.dbUrl || '').split('.').slice(0,2).join('.')}…` : '',
+      perf ? `Avg Response Time: ${perf.averageResponseTime.toFixed(2)}ms` : '',
+      perf ? `Operation Count: ${perf.operationCount}` : '',
+      cacheStats ? `Cache Size: ${cacheStats.totalEntries}` : '',
+      cacheStats ? `Cache Hit Rate: ${cacheStats.hitRate?.toFixed?.(2)}%` : ''
+    ].filter(Boolean).join('\n');
+  }
+
   ngOnInit(): void {
     // Deferred Firebase listeners: ensure history listener is attached only when History route is active
-    this.firebaseService.attachHistoryListener();
-    this.loadMatches();
+    // Await async attachment to avoid race with lazy core initialization
+    (async () => {
+      try {
+        await this.firebaseService.attachHistoryListener();
+        await this.loadMatches();
+      } catch (e) {
+        console.error('❌ Failed to initialize history listener:', e);
+      }
+    })();
     this.loadCollapseStates();
   }
+
+  private historySub: ReturnType<typeof this.firebaseService.history$.subscribe> | null = null;
 
   async loadMatches(): Promise<void> {
     try {
       this.loading = true;
-      console.log('🔄 Loading fresh match history from Firebase...');
-      
-      // Subscribe to history observable to get real-time updates
-      this.firebaseService.history$.pipe(take(1)).subscribe({
+      console.log('🔄 Subscribing to live match history stream...');
+      if (this.historySub) {
+        this.historySub.unsubscribe();
+      }
+      this.historySub = this.firebaseService.history$.subscribe({
         next: (historyData) => {
-          console.log('📊 Received history data:', historyData.length, 'matches');
-          console.log('📋 Match data:', historyData);
-          
-          this.matches = [...historyData]; // Create a copy
-          this.matches.sort((a, b) => {
-            const dateA = new Date(a.date || '').getTime();
-            const dateB = new Date(b.date || '').getTime();
-            return dateB - dateA;
-          });
-          
-          this.applyFilters(); // Apply search and filters
-          console.log('✅ Match history loaded and sorted successfully');
+          console.log('📊 Live history update:', historyData.length, 'matches');
+          this.matches = [...historyData];
+          this.matches.sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
+          this.applyFilters();
           this.loading = false;
         },
         error: (error) => {
-          console.error('❌ Error loading matches:', error);
+          console.error('❌ History stream error:', error);
           this.loading = false;
         }
       });
     } catch (error) {
-      console.error('❌ Error in loadMatches:', error);
+      console.error('❌ Error initializing history subscription:', error);
       this.loading = false;
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.historySub) {
+      this.historySub.unsubscribe();
+      this.historySub = null;
     }
   }
 
