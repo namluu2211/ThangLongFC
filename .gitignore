@@ -3,6 +3,9 @@ node_modules
 .firebase
 .firebaserc
 /dist
+/src/test/*
+.angular
+.firebase
 
 # Generated Firebase rules
 scripts/firebase-rules.json

@@ -494,6 +494,7 @@ This makes it explicit which backend is currently powering the list.
 - **Performance Prediction**: Player performance forecasting
 - **Financial Analytics**: Automated insights and trend analysis
 - **Pattern Recognition**: Match outcome predictions
+ - **Historical Head-to-Head Integration**: Stability-weighted blending of roster strength with long-term matchup history (see [AI Historical Analysis](./AI-HISTORICAL-ANALYSIS.md))
 
 ### Responsive Design
 - Mobile-first approach with responsive layouts
