@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { FormsModule } from '@angular/forms';
+import { PermissionService } from '../../core/services/permission.service';
+import { CanEditDirective } from '../../shared/can-edit.directive';
 import { AdminConfig } from '../../config/admin.config';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
 import { DevFirebaseAuthService } from '../../services/dev-firebase-auth.service';
@@ -11,7 +13,7 @@ import { Router } from '@angular/router';
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CanEditDirective],
   template: `
     <div class="history-container">
       <!-- Header Section -->
@@ -29,7 +31,7 @@ import { Router } from '@angular/router';
             class="fund-sync-btn" 
             (click)="syncFundFromHistory()" 
             [disabled]="isSyncingFund"
-            *ngIf="canEdit">
+            *appCanEdit>
             {{ isSyncingFund ? '🔄 Đang sync...' : '💰 Sync Fund' }}
           </button>
           <button class="export-btn" (click)="exportData()">📤 Xuất dữ liệu</button>
@@ -190,7 +192,7 @@ import { Router } from '@angular/router';
             <!-- Match Date -->
             <div class="match-date-header">
               <span class="date-text">{{ formatMatchDate(match.date) }}</span>
-              <div class="match-actions" *ngIf="canEdit">
+              <div class="match-actions" *appCanEdit>
                 <button class="action-btn edit" (click)="editMatch(match)" title="Chỉnh sửa trận đấu">✏️</button>
                 <button class="action-btn delete" (click)="confirmDeleteMatch(match)" title="Xóa trận đấu">🗑️</button>
               </div>
@@ -379,7 +381,7 @@ import { Router } from '@angular/router';
       </div>
       
       <!-- Edit Match Modal -->
-      <div class="modal-overlay" *ngIf="showEditModal" (click)="cancelEdit()" tabindex="0" (keydown)="onOverlayKey($event)">
+  <div class="modal-overlay" *ngIf="showEditModal && canEdit" (click)="cancelEdit()" tabindex="0" (keydown)="onOverlayKey($event)">
         <div class="modal-content edit-modal" (click)="$event.stopPropagation()" tabindex="0" (keydown)="onModalKey($event)">
           <div class="modal-header">
             <h3>✏️ Chỉnh sửa trận đấu</h3>
@@ -505,7 +507,7 @@ import { Router } from '@angular/router';
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div class="modal-overlay" *ngIf="showDeleteModal" (click)="cancelDelete()" tabindex="0" (keydown)="onOverlayKey($event)">
+  <div class="modal-overlay" *ngIf="showDeleteModal && canEdit" (click)="cancelDelete()" tabindex="0" (keydown)="onOverlayKey($event)">
         <div class="modal-content delete-modal" (click)="$event.stopPropagation()" tabindex="0" (keydown)="onModalKey($event)">
           <div class="modal-header">
             <h3>🗑️ Xác nhận xóa</h3>
@@ -992,6 +994,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   private firebaseAuth = inject(FirebaseAuthService);
   private devAuth = inject(DevFirebaseAuthService);
   private router = inject(Router);
+  private permission = inject(PermissionService);
   
   // Removed external canEdit input; compute internally based on admin roles.
   // canEdit true for admin or superadmin with write permission
@@ -1026,7 +1029,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
   skeletonArray = Array.from({ length: 5 });
 
   ngOnInit(): void {
-    this.evaluatePermissions();
+    // Centralized permission subscription only
+    this.permission.canEditChanges().subscribe(can => this.canEdit = can);
     // Deferred Firebase listeners: ensure history listener is attached only when History route is active
     // Await async attachment to avoid race with lazy core initialization
     (async () => {
@@ -1040,36 +1044,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.loadCollapseStates();
   }
 
-  private evaluatePermissions(): void {
-    try {
-      // Query param override for debugging
-      const qp = this.router.parseUrl(this.router.url).queryParams;
-      if (qp['forceEdit'] === '1') {
-        this.canEdit = true;
-        console.log('[HistoryPermissions] forceEdit query param detected -> canEdit = true');
-        return;
-      }
-      // Prefer real Firebase auth user if available
-      const authEmail = this.firebaseAuth.getCurrentUserEmail?.();
-      let email = authEmail;
-      if (!email) {
-        // Fallback to dev auth service
-        email = this.devAuth.getCurrentUserEmail?.();
-      }
-      if (!email) {
-        console.log('[HistoryPermissions] No authenticated email found; canEdit = false');
-        this.canEdit = false;
-        return;
-      }
-      const isAdmin = AdminConfig.isAdminEmail(email) || AdminConfig.isSuperAdminEmail(email);
-      const hasWrite = AdminConfig.hasPermission(email, 'write');
-      this.canEdit = isAdmin && hasWrite;
-      console.log('[HistoryPermissions] Evaluated permissions for', email, '-> isAdmin:', isAdmin, 'hasWrite:', hasWrite, 'canEdit:', this.canEdit);
-    } catch (e) {
-      console.warn('[HistoryPermissions] Error evaluating permissions:', e);
-      this.canEdit = false;
-    }
-  }
+  // Legacy evaluatePermissions removed in favor of centralized PermissionService.
 
   private historySub: ReturnType<typeof this.firebaseService.history$.subscribe> | null = null;
 

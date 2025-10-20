@@ -49,7 +49,7 @@ export class OfflinePlayerQueueService {
             if(item.attempts >= this.MAX_ATTEMPTS){
               console.warn('Dropping player CRUD op after max attempts:', item.op);
               this.queue = this.queue.filter(q => q !== item);
-              break; // give up
+              break; // give up (do not increment processed)
             } else {
               const delay = this.BACKOFF_MS[Math.min(item.attempts-1, this.BACKOFF_MS.length-1)];
               if(delay > 0){

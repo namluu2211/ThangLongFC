@@ -1,7 +1,10 @@
 import { Component, OnInit, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CanEditDirective } from '../../shared/can-edit.directive';
+import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
+import { PermissionService } from '../../core/services/permission.service';
 import { Subscription } from 'rxjs';
 import {
   FUND_CURRENCY,
@@ -36,7 +39,7 @@ interface FundSummary {
 @Component({
   selector: 'app-fund',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CanEditDirective, DisableUnlessCanEditDirective],
   template: `
     <div class="fund-dashboard">
       <!-- Modern Header -->
@@ -49,12 +52,15 @@ interface FundSummary {
             </h1>
             <p class="dashboard-subtitle">Theo dõi tài chính và quản lý thu chi hiệu quả</p>
           </div>
-          <div class="header-actions">
+          <div class="header-actions" *appCanEdit; else readOnlyBanner>
             <button class="btn-primary" (click)="showAddTransaction = true">
               <span class="btn-icon">➕</span>
               Thêm giao dịch
             </button>
           </div>
+          <ng-template #readOnlyBanner>
+            <div class="readonly-note">Chế độ xem (đăng nhập để thêm giao dịch)</div>
+          </ng-template>
         </div>
       </div>
 
@@ -125,11 +131,11 @@ interface FundSummary {
           Thao tác nhanh
         </h2>
         <div class="quick-actions-grid">
-          <button class="quick-action-btn income-action" (click)="quickAddIncome()">
+          <button class="quick-action-btn income-action" (click)="quickAddIncome()" appDisableUnlessCanEdit>
             <span class="action-icon">💰</span>
             <span class="action-text">Thêm thu nhập</span>
           </button>
-          <button class="quick-action-btn expense-action" (click)="quickAddExpense()">
+          <button class="quick-action-btn expense-action" (click)="quickAddExpense()" appDisableUnlessCanEdit>
             <span class="action-icon">💸</span>
             <span class="action-text">Thêm chi phí</span>
           </button>
@@ -137,7 +143,7 @@ interface FundSummary {
             <span class="action-icon">📋</span>
             <span class="action-text">Báo cáo</span>
           </button>
-          <button class="quick-action-btn sync-action" (click)="syncWithMatches()">
+          <button class="quick-action-btn sync-action" (click)="syncWithMatches()" appDisableUnlessCanEdit>
             <span class="action-icon">🔄</span>
             <span class="action-text">Đồng bộ trận đấu</span>
           </button>
@@ -186,10 +192,10 @@ interface FundSummary {
               </div>
             </div>
             <div class="transaction-actions">
-              <button class="action-btn edit" (click)="editTransaction(transaction)" title="Chỉnh sửa">
+              <button class="action-btn edit" *appCanEdit (click)="editTransaction(transaction)" title="Chỉnh sửa">
                 ✏️
               </button>
-              <button class="action-btn delete" (click)="deleteTransaction(transaction)" title="Xóa">
+              <button class="action-btn delete" *appCanEdit (click)="deleteTransaction(transaction)" title="Xóa">
                 🗑️
               </button>
             </div>
@@ -200,7 +206,7 @@ interface FundSummary {
           <div class="empty-icon">📊</div>
           <h3 class="empty-title">Chưa có giao dịch nào</h3>
           <p class="empty-text">Bắt đầu bằng cách thêm giao dịch đầu tiên của bạn</p>
-          <button class="btn-primary" (click)="showAddTransaction = true">
+          <button class="btn-primary" *appCanEdit (click)="showAddTransaction = true">
             <span class="btn-icon">➕</span>
             Thêm giao dịch đầu tiên
           </button>
@@ -208,7 +214,8 @@ interface FundSummary {
       </div>
 
       <!-- Add Transaction Modal -->
-      <div *ngIf="showAddTransaction" class="modal-overlay" tabindex="0" (click)="showAddTransaction = false" (keyup.escape)="showAddTransaction = false">
+  <ng-container *appCanEdit>
+  <div *ngIf="showAddTransaction" class="modal-overlay" tabindex="0" (click)="showAddTransaction = false" (keyup.escape)="showAddTransaction = false">
         <div class="modal-content" tabindex="0" (click)="$event.stopPropagation()" (keyup.escape)="closeTransactionModal()">
           <div class="modal-header">
             <h3 class="modal-title">
@@ -291,7 +298,8 @@ interface FundSummary {
             </div>
           </form>
         </div>
-      </div>
+    </div>
+  </ng-container>
     </div>
   `,
   styles: [`
@@ -940,6 +948,8 @@ export class FundComponent implements OnInit, OnDestroy {
   private fundTransactionService = inject(FundTransactionService);
   private logger = inject(LoggerService);
   private subscription?: Subscription;
+  private permission = inject(PermissionService);
+  canEdit = false;
 
   // Data properties
   transactions: Transaction[] = [];
@@ -981,6 +991,7 @@ export class FundComponent implements OnInit, OnDestroy {
     this.firebaseService.attachStatisticsListener();
     this.loadData();
     this.subscribeToMatchHistory();
+    this.permission.canEditChanges().subscribe(can=>{ this.canEdit=can; });
   }
 
   ngOnDestroy() {
@@ -1079,6 +1090,7 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   quickAddIncome() {
+    if(!this.canEdit) return;
     this.transactionForm = {
       type: 'income',
       date: new Date().toISOString().split('T')[0],
@@ -1090,6 +1102,7 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   quickAddExpense() {
+    if(!this.canEdit) return;
     this.transactionForm = {
       type: 'expense',
       date: new Date().toISOString().split('T')[0],
@@ -1116,6 +1129,7 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   saveTransaction() {
+    if(!this.canEdit) return;
     if (!this.transactionForm.category || !this.transactionForm.description || !this.transactionForm.amount) {
       this.logger.warn('Transaction form is incomplete', this.transactionForm);
       return;
@@ -1147,12 +1161,14 @@ export class FundComponent implements OnInit, OnDestroy {
   }
 
   editTransaction(transaction: Transaction) {
+    if(!this.canEdit) return;
     this.editingTransaction = transaction;
     this.transactionForm = { ...transaction };
     this.showAddTransaction = true;
   }
 
   deleteTransaction(transaction: Transaction) {
+    if(!this.canEdit) return;
     if (confirm('Bạn có chắc muốn xóa giao dịch này?')) {
       try {
         this.transactions = this.fundTransactionService.deleteTransaction(this.transactions, transaction.id);

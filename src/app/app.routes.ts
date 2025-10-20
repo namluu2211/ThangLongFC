@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+// editPermissionGuard intentionally not applied to allow viewer access to Fund (UI already gated)
+// import { editPermissionGuard } from './core/guards/edit-permission.guard';
 
 export const appRoutes: Routes = [
   { path: '', redirectTo: 'players', pathMatch: 'full' },

@@ -1,4 +1,8 @@
 import { Component, OnInit, inject, OnDestroy } from '@angular/core';
+import { ReadonlyBannerComponent } from '../../shared/readonly-banner.component';
+import { CanEditDirective } from '../../shared/can-edit.directive';
+import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
+import { PermissionService } from '../../core/services/permission.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
@@ -28,7 +32,7 @@ interface FundSummary {
 @Component({
   selector: 'app-fund-clean',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReadonlyBannerComponent, CanEditDirective, DisableUnlessCanEditDirective],
   template: `
     <div class="fund-container">
       <!-- Header -->
@@ -79,15 +83,16 @@ interface FundSummary {
       </div>
 
       <!-- Add Transaction -->
-      <div class="add-transaction-section">
+  <div class="add-transaction-section" *appCanEdit>
         <button class="add-btn" (click)="showAddForm = !showAddForm">
           <span class="btn-icon">➕</span>
           Thêm giao dịch mới
         </button>
       </div>
+  <app-readonly-banner [canEdit]="canEdit" />
 
       <!-- Transaction Form -->
-      @if (showAddForm) {
+  @if (showAddForm) {
         <div class="transaction-form">
           <h3>Thêm giao dịch mới</h3>
           <form (ngSubmit)="addTransaction()">
@@ -148,7 +153,7 @@ interface FundSummary {
                 <div class="transaction-amount" [class]="transaction.type">
                   {{transaction.type === 'income' ? '+' : '-'}}{{formatCurrency(Math.abs(transaction.amount))}}
                 </div>
-                <button class="delete-btn" (click)="deleteTransaction(transaction)" title="Xóa">
+                <button class="delete-btn" *appCanEdit (click)="deleteTransaction(transaction)" title="Xóa">
                   🗑️
                 </button>
               </div>
@@ -593,10 +598,14 @@ export class FundCleanComponent implements OnInit, OnDestroy {
   };
 
   private subscription?: Subscription;
+  canEdit = false;
+  private permission = inject(PermissionService);
 
   ngOnInit() {
     this.loadData();
     this.subscribeToMatchHistory();
+    // Subscribe to permission changes
+    this.permission.canEditChanges().subscribe(can => { this.canEdit = can; });
   }
 
   ngOnDestroy() {

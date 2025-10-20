@@ -1,4 +1,6 @@
-import { Component, ChangeDetectionStrategy, Input, OnInit, ChangeDetectorRef, Type, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Input, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, Type, inject, OnDestroy, AfterViewInit } from '@angular/core';
+import { PermissionService } from '../../core/services/permission.service';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -36,15 +38,37 @@ import { CommonModule } from '@angular/common';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PlayersShellComponent implements OnInit {
+export class PlayersShellComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @Input() canEdit = false;
   playersComponent: Type<unknown> | null = null;
   loaded = false;
   componentInputs: Record<string, unknown> = {};
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly permission = inject(PermissionService);
+  private permSub?: Subscription;
   error=false; errorMessage='';
 
   async ngOnInit() { await this.load(); }
+
+  ngAfterViewInit(){
+    // Subscribe after initial load to minimize flashes
+    this.permSub = this.permission.canEditChanges().subscribe(can => {
+      this.canEdit = can;
+      if(this.loaded){
+        this.componentInputs = { ...this.componentInputs, canEdit: can };
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges){
+    // If canEdit input changed, propagate to loaded component inputs
+    if('canEdit' in changes && this.loaded){
+      this.componentInputs = { ...this.componentInputs, canEdit: this.canEdit };
+    }
+    // propagate updated canEdit to dynamically loaded component
+    if(this.loaded){ this.cdr.markForCheck(); }
+  }
 
   private async load(){
     this.error=false; this.errorMessage='';
@@ -68,4 +92,6 @@ export class PlayersShellComponent implements OnInit {
   }
 
   retry(){ this.loaded=false; this.playersComponent=null; void this.load(); }
+
+  ngOnDestroy(){ this.permSub?.unsubscribe(); }
 }

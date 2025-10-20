@@ -112,8 +112,31 @@ export class PlayerService {
         console.log('🌐 Loaded', list.length, 'players from Realtime DB');
         this.updatePlayersMap(list);
       } else {
-        console.log('🌐 No players found in Realtime DB');
-        this.updatePlayersMap([]);
+        console.log('🌐 /players node empty. Attempting fallback scan for legacy root player_* nodes...');
+        const rootSnap = await get(ref(this.db, '/'));
+        if (rootSnap.exists()) {
+          const rootVal = rootSnap.val();
+          const fallback: PlayerInfo[] = [];
+          Object.keys(rootVal || {}).forEach(key => {
+            if (/^player_/.test(key) && rootVal[key] && typeof rootVal[key] === 'object') {
+              try {
+                const migrated = this.migratePlayerData({ id: key, ...(rootVal[key] as Record<string, unknown>) });
+                fallback.push(migrated);
+              } catch (e) {
+                console.warn('⚠️ Failed to migrate fallback player node', key, e);
+              }
+            }
+          });
+          if (fallback.length) {
+            console.log('🌐 Fallback root scan recovered', fallback.length, 'players (please move them under /players/{id}).');
+            this.updatePlayersMap(fallback);
+          } else {
+            console.log('🌐 No player_* nodes found at root.');
+            this.updatePlayersMap([]);
+          }
+        } else {
+          this.updatePlayersMap([]);
+        }
       }
     } catch (e) {
       console.error('❌ Realtime DB load error:', e);

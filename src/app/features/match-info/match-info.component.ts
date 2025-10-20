@@ -1,6 +1,8 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, inject, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
+import { CanEditDirective } from '../../shared/can-edit.directive';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil, take } from 'rxjs/operators';
@@ -46,7 +48,7 @@ interface AIAnalysisResult {
 @Component({
   selector: 'app-match-info',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DisableUnlessCanEditDirective, CanEditDirective],
   template: `
     <div class="match-info-container">
       <!-- Header -->
@@ -130,36 +132,36 @@ interface AIAnalysisResult {
                         </div>
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.scorer" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.scorer" 
+           appDisableUnlessCanEdit
                                class="stat-input goals"
                                min="0" 
                                max="10"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.assist" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.assist" 
+           appDisableUnlessCanEdit
                                class="stat-input assists"
                                min="0" 
                                max="10"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.yellow" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.yellow" 
+           appDisableUnlessCanEdit
                                class="stat-input yellow"
                                min="0" 
                                max="3"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.red" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.red" 
+           appDisableUnlessCanEdit
                                class="stat-input red"
                                min="0" 
                                max="1"
@@ -211,36 +213,36 @@ interface AIAnalysisResult {
                         </div>
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.scorer" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.scorer" 
+           appDisableUnlessCanEdit
                                class="stat-input goals"
                                min="0" 
                                max="10"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.assist" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.assist" 
+           appDisableUnlessCanEdit
                                class="stat-input assists"
                                min="0" 
                                max="10"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.yellow" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.yellow" 
+           appDisableUnlessCanEdit
                                class="stat-input yellow"
                                min="0" 
                                max="3"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
-                        <input type="number" 
-                               [(ngModel)]="player.red" 
-                               [disabled]="!canEdit"
+         <input type="number" 
+           [(ngModel)]="player.red" 
+           appDisableUnlessCanEdit
                                class="stat-input red"
                                min="0" 
                                max="1"
@@ -315,10 +317,10 @@ interface AIAnalysisResult {
                   <i class="fas fa-coins me-1"></i>
                   Phí sân:
                 </label>
-                <input id="matchFeeInput"
-                       type="number" 
-                       [(ngModel)]="matchFee" 
-                       [disabled]="!canEdit"
+      <input id="matchFeeInput"
+        type="number" 
+        [(ngModel)]="matchFee" 
+        appDisableUnlessCanEdit
                        class="financial-input"
                        min="0"
                        placeholder="0">
@@ -330,10 +332,10 @@ interface AIAnalysisResult {
                   <i class="fas fa-glass-cheers me-1"></i>
                   Tiền nước:
                 </label>
-                <input id="drinkingInput"
-                       type="number" 
-                       [(ngModel)]="drinking" 
-                       [disabled]="!canEdit"
+      <input id="drinkingInput"
+        type="number" 
+        [(ngModel)]="drinking" 
+        appDisableUnlessCanEdit
                        class="financial-input"
                        min="0"
                        placeholder="0">
@@ -345,10 +347,10 @@ interface AIAnalysisResult {
                   <i class="fas fa-whistle me-1"></i>
                   Trọng tài:
                 </label>
-                <input id="refereeInput"
-                       type="number" 
-                       [(ngModel)]="referee" 
-                       [disabled]="!canEdit"
+      <input id="refereeInput"
+        type="number" 
+        [(ngModel)]="referee" 
+        appDisableUnlessCanEdit
                        class="financial-input"
                        min="0"
                        placeholder="0">
@@ -389,7 +391,7 @@ interface AIAnalysisResult {
                   [disabled]="!canEdit || isSaving"
                   [class.disabled]="!canEdit">
             <i [class]="isSaving ? 'fas fa-spinner fa-spin' : 'fas fa-save'" class="me-2"></i>
-            {{isSaving ? 'Đang lưu...' : '💾 Lưu trận đấu'}}
+            {{isSaving ? 'Đang lưu...' : (canEdit ? '💾 Lưu trận đấu':'👁️ Chế độ xem')}}
           </button>
         </div>
       </div>
