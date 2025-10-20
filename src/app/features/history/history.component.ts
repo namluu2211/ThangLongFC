@@ -1,8 +1,12 @@
-import { Component, OnInit, OnDestroy, inject, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { FormsModule } from '@angular/forms';
+import { AdminConfig } from '../../config/admin.config';
+import { FirebaseAuthService } from '../../services/firebase-auth.service';
+import { DevFirebaseAuthService } from '../../services/dev-firebase-auth.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-history',
@@ -10,16 +14,6 @@ import { FormsModule } from '@angular/forms';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="history-container">
-      <!-- Status / Debug Bar -->
-      <div class="status-bar" *ngIf="showStatusBar">
-        <span class="listener-status" [class.active]="historyListenerActive">📡 Listener: {{ historyListenerActive ? 'Active' : 'Pending' }}</span>
-        <span class="record-count">🧾 Records: {{ matches.length }}</span>
-        <button class="force-refresh-btn" (click)="forceRefreshHistory()">🔄 Force Refresh</button>
-        <button class="toggle-debug-btn" (click)="toggleDebugPanel()">{{ showDebugPanel ? 'Hide Debug' : 'Show Debug' }}</button>
-      </div>
-      <div class="debug-panel" *ngIf="showDebugPanel">
-        <pre class="debug-output">{{ getDebugInfo() }}</pre>
-      </div>
       <!-- Header Section -->
       <div class="header-section">
         <div class="header-content">
@@ -995,8 +989,13 @@ import { FormsModule } from '@angular/forms';
 export class HistoryComponent implements OnInit, OnDestroy {
   private firebaseService = inject(FirebaseService);
   private dataStore = inject(DataStoreService);
+  private firebaseAuth = inject(FirebaseAuthService);
+  private devAuth = inject(DevFirebaseAuthService);
+  private router = inject(Router);
   
-  @Input() canEdit = false;
+  // Removed external canEdit input; compute internally based on admin roles.
+  // canEdit true for admin or superadmin with write permission
+  canEdit = false;
   
   matches: HistoryEntry[] = [];
   filteredMatches: HistoryEntry[] = [];
@@ -1023,46 +1022,11 @@ export class HistoryComponent implements OnInit, OnDestroy {
   dateCollapseStates: Record<string, boolean> = {};
   private readonly COLLAPSE_STATES_KEY = 'history_date_collapse_states';
 
-  // Debug / status UI
-  showStatusBar = true;
-  showDebugPanel = false;
+  // Skeleton loading placeholder
   skeletonArray = Array.from({ length: 5 });
-  get historyListenerActive(): boolean { return this.firebaseService.isHistoryListenerAttached?.() ?? false; }
-
-  forceRefreshHistory(): void {
-    console.log('🧪 Force refresh triggered from HistoryComponent');
-    void this.firebaseService.forceRefreshHistory?.();
-  }
-
-  toggleDebugPanel(): void {
-    this.showDebugPanel = !this.showDebugPanel;
-  }
-
-  getDebugInfo(): string {
-    const listeners = this.firebaseService.getAttachedListeners?.() ?? [];
-    const perf = this.firebaseService.getPerformanceMetrics?.();
-    const cacheStats = this.firebaseService.getCacheStats?.();
-    const coreDiag = this.firebaseService.getCoreDiagnostics?.();
-    return [
-      'History Debug Info',
-      '===================',
-      `Listener Active: ${this.historyListenerActive}`,
-      `Attached Listeners: ${listeners.join(', ') || 'none'}`,
-      `Records Loaded: ${this.matches.length}`,
-      `Filtered Records: ${this.filteredMatches.length}`,
-      `Loading: ${this.loading}`,
-      coreDiag ? `Core Enabled: ${coreDiag.enabled}` : '',
-      coreDiag ? `Config Valid: ${coreDiag.configValid}` : '',
-      coreDiag && !coreDiag.enabled ? `Failure Reason: ${coreDiag.failureReason}` : '',
-      coreDiag ? `DB URL Snippet: ${(coreDiag.dbUrl || '').split('.').slice(0,2).join('.')}…` : '',
-      perf ? `Avg Response Time: ${perf.averageResponseTime.toFixed(2)}ms` : '',
-      perf ? `Operation Count: ${perf.operationCount}` : '',
-      cacheStats ? `Cache Size: ${cacheStats.totalEntries}` : '',
-      cacheStats ? `Cache Hit Rate: ${cacheStats.hitRate?.toFixed?.(2)}%` : ''
-    ].filter(Boolean).join('\n');
-  }
 
   ngOnInit(): void {
+    this.evaluatePermissions();
     // Deferred Firebase listeners: ensure history listener is attached only when History route is active
     // Await async attachment to avoid race with lazy core initialization
     (async () => {
@@ -1074,6 +1038,37 @@ export class HistoryComponent implements OnInit, OnDestroy {
       }
     })();
     this.loadCollapseStates();
+  }
+
+  private evaluatePermissions(): void {
+    try {
+      // Query param override for debugging
+      const qp = this.router.parseUrl(this.router.url).queryParams;
+      if (qp['forceEdit'] === '1') {
+        this.canEdit = true;
+        console.log('[HistoryPermissions] forceEdit query param detected -> canEdit = true');
+        return;
+      }
+      // Prefer real Firebase auth user if available
+      const authEmail = this.firebaseAuth.getCurrentUserEmail?.();
+      let email = authEmail;
+      if (!email) {
+        // Fallback to dev auth service
+        email = this.devAuth.getCurrentUserEmail?.();
+      }
+      if (!email) {
+        console.log('[HistoryPermissions] No authenticated email found; canEdit = false');
+        this.canEdit = false;
+        return;
+      }
+      const isAdmin = AdminConfig.isAdminEmail(email) || AdminConfig.isSuperAdminEmail(email);
+      const hasWrite = AdminConfig.hasPermission(email, 'write');
+      this.canEdit = isAdmin && hasWrite;
+      console.log('[HistoryPermissions] Evaluated permissions for', email, '-> isAdmin:', isAdmin, 'hasWrite:', hasWrite, 'canEdit:', this.canEdit);
+    } catch (e) {
+      console.warn('[HistoryPermissions] Error evaluating permissions:', e);
+      this.canEdit = false;
+    }
   }
 
   private historySub: ReturnType<typeof this.firebaseService.history$.subscribe> | null = null;
