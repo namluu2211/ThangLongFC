@@ -12,6 +12,7 @@ import { FooterComponent } from './shared/footer.component';
 import { Subject } from 'rxjs';
 import { environment } from '../environments/environment';
 import { takeUntil, debounceTime } from 'rxjs/operators';
+import { PermissionService } from './core/services/permission.service';
 
 
 @Component({
@@ -78,6 +79,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly performanceService = inject(PerformanceService, { optional: true });
   private readonly lazyLoadingService = inject(LazyLoadingService, { optional: true });
   private readonly assetOptimizationService = inject(AssetOptimizationService, { optional: true });
+  private readonly permissionService = inject(PermissionService);
 
   ngOnInit() {
     // App component initialization
@@ -304,14 +306,11 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
       this.loggedIn = event.loggedIn;
       this.role = event.role;
-      this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
+  this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
+  this.permissionService.setAuthState({ loggedIn: this.loggedIn, role: this.role });
       
       // Store role in localStorage for history component
-      if (this.role) {
-        localStorage.setItem('role', this.role);
-      } else {
-        localStorage.removeItem('role');
-      }
+      // (Role persistence moved into PermissionService)
       
       // Trigger change detection
       this.cdr.markForCheck();

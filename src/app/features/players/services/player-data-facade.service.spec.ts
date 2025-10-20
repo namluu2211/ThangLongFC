@@ -1,5 +1,10 @@
+import { TestBed } from '@angular/core/testing';
 import { PlayerDataFacade } from './player-data-facade.service';
 import { BehaviorSubject } from 'rxjs';
+import { DynamicPlayerFacadeLoader } from './player-facade.dynamic';
+import { FirebaseFeatureLoaderService } from './firebase-feature-loader.service';
+import { FilePlayerCrudService } from './file-player-crud.service';
+import { OfflinePlayerQueueService } from './offline-player-queue.service';
 
 // Mocks
 interface PlayerFileRecord { id: number; firstName?: string; lastName?: string; position?: string }
@@ -29,6 +34,18 @@ class MockDynamicPlayerFacadeLoader {
 jest.mock('../../../../environments/environment', () => ({ environment: { features: { fileCrud: true }, firebase: { apiKey:'test', authDomain:'test', databaseURL:'https://local.test', projectId:'test', storageBucket:'test', messagingSenderId:'test', appId:'test' } } }));
 
 describe('PlayerDataFacade', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        PlayerDataFacade,
+        { provide: FilePlayerCrudService, useClass: MockFilePlayerCrudService },
+        { provide: OfflinePlayerQueueService, useClass: MockOfflinePlayerQueueService },
+        { provide: FirebaseFeatureLoaderService, useClass: MockFirebaseFeatureLoaderService },
+        { provide: DynamicPlayerFacadeLoader, useClass: MockDynamicPlayerFacadeLoader }
+      ]
+    });
+  });
+
   it('initializes in file mode and can switch to firebase mode triggering dynamic facade load', async () => {
     // Provide minimal window/navigator mocks for online checks
   interface MockWin { addEventListener: (ev:string, cb:()=>void)=>void }
@@ -36,13 +53,8 @@ describe('PlayerDataFacade', () => {
   const g = globalThis as unknown as { window?: MockWin; navigator?: MockNav };
   if(!g.window) g.window = { addEventListener: () => void 0 };
   if(!g.navigator) g.navigator = { onLine: true };
-    const facade = new PlayerDataFacade();
-    // Monkey patch injected services
-  (facade as unknown as { file: MockFilePlayerCrudService }).file = new MockFilePlayerCrudService();
-  (facade as unknown as { offlineQueue: MockOfflinePlayerQueueService }).offlineQueue = new MockOfflinePlayerQueueService();
-  (facade as unknown as { firebaseLoader: MockFirebaseFeatureLoaderService }).firebaseLoader = new MockFirebaseFeatureLoaderService();
-    const dynamicLoader = new MockDynamicPlayerFacadeLoader();
-  (facade as unknown as { dynamicFirebaseLoader: MockDynamicPlayerFacadeLoader }).dynamicFirebaseLoader = dynamicLoader;
+    const facade = TestBed.inject(PlayerDataFacade);
+    const dynamicLoader = TestBed.inject(DynamicPlayerFacadeLoader) as unknown as MockDynamicPlayerFacadeLoader;
 
     // Start in file mode (environment.features.fileCrud = true)
     expect(facade.useFileMode).toBe(true);

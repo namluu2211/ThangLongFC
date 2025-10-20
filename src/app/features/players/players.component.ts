@@ -24,6 +24,8 @@ import { PAGINATION, STORAGE_KEYS } from './players.constants';
 import { PlayerPaginationController } from './utils/pagination.utils';
 import { PlayerListComponent } from './components/player-list.component';
 import { TeamsPanelComponent } from './components/teams-panel.component';
+import { CanEditDirective } from '../../shared/can-edit.directive';
+import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
 // AIAnalysisComponent will be lazy loaded dynamically
 // Removed FinancePanelComponent & PlayerRankingsComponent from Đội hình tab
 
@@ -35,7 +37,7 @@ interface PlayerWithCoreId extends Player { coreId?: string; avatar?: string; no
 @Component({
   selector:'app-players',
   standalone:true,
-  imports:[CommonModule,FormsModule,PlayerListComponent,TeamsPanelComponent],
+  imports:[CommonModule,FormsModule,PlayerListComponent,TeamsPanelComponent,CanEditDirective,DisableUnlessCanEditDirective],
   templateUrl:'./players.component.html',
   styleUrls:['./players.component.css'],
   changeDetection:ChangeDetectionStrategy.OnPush
@@ -79,6 +81,15 @@ export class PlayersComponent implements OnInit, OnDestroy {
   _ycPlayerA:number|null=null; _ycMinuteA:number|null=null; _rcPlayerA:number|null=null; _rcMinuteA:number|null=null;
   _ycPlayerB:number|null=null; _ycMinuteB:number|null=null; _rcPlayerB:number|null=null; _rcMinuteB:number|null=null;
   // Legacy free-text event inputs removed (structured arrays only)
+  /**
+   * Migration Note (2025-10-20):
+   * Free-text match event inputs (goalsTextA/goalsTextB/etc.) were deprecated in favor of
+   * structured arrays (goalsA/goalsB, yellowCardsA/B, redCardsA/B). This improves data integrity,
+   * eliminates ambiguous name matching and simplifies persistence. Historical matches that used
+   * textual events still retain their 'events' array produced at save time; new matches generate
+   * events solely from structured arrays via buildStructuredEvents(). LocalStorage key
+   * 'draft_match_events' is no longer written or read.
+   */
   // Finance getters removed (moved to dedicated fund tab)
   currentPage=PAGINATION.INITIAL_PAGE; pageSize=PAGINATION.DEFAULT_PAGE_SIZE; totalPages=0;
   private pagination= new PlayerPaginationController(this.pageSize);
@@ -161,8 +172,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.teamChange$.pipe(takeUntil(this.destroy$),debounceTime(250)).subscribe(()=>this.runAIAnalysis());
     // Attempt restore of persisted teams after players load (delayed to ensure players available)
     setTimeout(()=>this.restorePersistedTeams(), 600);
-    // Restore draft event inputs
-    this.restoreDraftEvents();
+  // Draft free-text event inputs deprecated – no restoration needed
   }
   ngOnDestroy(){ this.subs.forEach(s=>!s.closed&&s.unsubscribe()); this.destroy$.next(); this.destroy$.complete(); }
 
@@ -233,7 +243,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private loadRegisteredPlayers(){ try{ const saved=localStorage.getItem(STORAGE_KEYS.REGISTERED_PLAYERS); if(saved) this.registeredPlayers=JSON.parse(saved); } catch { this.registeredPlayers=[]; } }
   // Convert core PlayerInfo[] into legacy Player[] with stable numeric display id while preserving original coreId
   private convertCorePlayers(core:PlayerInfo[]){
-    const unique=Array.from(new Map(core.map(p=>[`${p.firstName.toLowerCase()}_${(p.lastName||'').toLowerCase()}`,p])).values());
+    // Use player id as uniqueness key to avoid dropping distinct players sharing same name
+    const unique=Array.from(new Map(core.map(p=>[p.id,p])).values());
     this.allPlayers=unique.map(p=>({
       id: (typeof p.id==='string') ? Math.abs(this.hashId(p.id)) : (Number(p.id)||Math.floor(Math.random()*10000)),
       coreId: p.id,
@@ -327,6 +338,10 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.teamB=[...pool.slice(half)];
     this.triggerTeamChange();
     this.cdr.markForCheck();
+    // Auto-run AI analysis for viewers if both teams exist
+    if(!this.canEdit && this.teamA.length && this.teamB.length){
+      setTimeout(()=> this.runAIAnalysis(), 50);
+    }
   }
   // Drag-drop handled by lazy TeamDndComponent
   removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
@@ -349,9 +364,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
   clearTeams(){ this.teamA.length=0; this.teamB.length=0; this.triggerTeamChange(); localStorage.removeItem('persisted_teams'); }
   shuffleRegisteredTeams(){
-    const pool=this.registeredPlayers.slice();
+    // Allow viewer fallback: if not enough registered players, use full player list as pool
+    const basePool = this.registeredPlayers.length>=2 ? this.registeredPlayers : this.allPlayers;
+    const pool=basePool.slice();
     if(pool.length<2){
-      this.matchSaveMessage='Cần đăng ký ≥2 cầu thủ';
+      this.matchSaveMessage='Cần ≥2 cầu thủ';
       setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
       return;
     }
@@ -413,7 +430,23 @@ export class PlayersComponent implements OnInit, OnDestroy {
   getPlayerAvatarByName(name:string){ return `assets/images/avatar_players/${name.replace(/\s+/g,'_')}.png`; }
   togglePlayerRankings(){ this.showPlayerRankings=!this.showPlayerRankings; }
 
-  async saveMatchInfo(){ if(!this.teamA.length && !this.teamB.length){ this.matchSaveMessage='Chia đội trước!'; setTimeout(()=>this.matchSaveMessage='',2400); return; } const matchData=await this.createMatchData(); await this.matchService.createMatch(matchData); await this.addMatchFundTransaction({date:matchData.date}); this.matchSaveMessage='Đã lưu trận đấu'; setTimeout(()=>this.matchSaveMessage='',2400); }
+  async saveMatchInfo(){
+    if(!this.canEdit){
+      this.matchSaveMessage='Chế độ xem: không thể lưu';
+      setTimeout(()=>this.matchSaveMessage='',2400);
+      return;
+    }
+    if(!this.teamA.length && !this.teamB.length){
+      this.matchSaveMessage='Chia đội trước!';
+      setTimeout(()=>this.matchSaveMessage='',2400);
+      return;
+    }
+    const matchData=await this.createMatchData();
+    await this.matchService.createMatch(matchData);
+    await this.addMatchFundTransaction({date:matchData.date});
+    this.matchSaveMessage='Đã lưu trận đấu';
+    setTimeout(()=>this.matchSaveMessage='',2400);
+  }
   private async createMatchData():Promise<Omit<MatchInfo,'id'|'createdAt'|'updatedAt'|'version'>>{
     const teamACore=await this.convertToTeamComposition(this.teamA,TeamColor.BLUE);
     const teamBCore=await this.convertToTeamComposition(this.teamB,TeamColor.ORANGE);
@@ -434,18 +467,18 @@ export class PlayersComponent implements OnInit, OnDestroy {
       minute: c.minute,
       cardType: type
     }));
-    const rawResult:MatchResult={
+    const rawResultPartial: Omit<MatchResult,'events'> = {
       scoreA:this.scoreA,
       scoreB:this.scoreB,
       winner: this.scoreA===this.scoreB? 'draw': (this.scoreA>this.scoreB? 'A':'B'),
-  goalsA:goalMap(this.goalsA),
-  goalsB:goalMap(this.goalsB),
+      goalsA:goalMap(this.goalsA),
+      goalsB:goalMap(this.goalsB),
       yellowCardsA:cardMap(this.yellowCardsA,CardType.YELLOW),
       yellowCardsB:cardMap(this.yellowCardsB,CardType.YELLOW),
       redCardsA:cardMap(this.redCardsA,CardType.RED),
-      redCardsB:cardMap(this.redCardsB,CardType.RED),
-      events:this.buildStructuredEvents(rawResult)
+      redCardsB:cardMap(this.redCardsB,CardType.RED)
     };
+    const rawResult:MatchResult = { ...rawResultPartial, events: this.buildStructuredEvents(rawResultPartial as MatchResult) };
 
     // Finance removed from Đội hình tab – use zeroed placeholder structure
   const revenueTotalWinner=this._revWinner||0;
@@ -548,8 +581,10 @@ export class PlayersComponent implements OnInit, OnDestroy {
   viewPlayer(_p:Player){ /* reserved for future player detail drawer */ }
 
   /* ===== Event manipulation helpers (simplified forms) ===== */
-  addGoal(team:'A'|'B', playerId:number, minute:number, assistId?:number){ const target=team==='A'?this.goalsA:this.goalsB; target.push({playerId,minute,assistId}); this.updateScoreFromGoals(); }
-  removeGoal(team:'A'|'B', index:number){ const target=team==='A'?this.goalsA:this.goalsB; if(index>-1) target.splice(index,1); this.updateScoreFromGoals(); }
+  addGoal(team:'A'|'B', playerId:number, minute:number, assistId?:number){
+    if(!this.canEdit) return; const target=team==='A'?this.goalsA:this.goalsB; target.push({playerId,minute,assistId}); this.updateScoreFromGoals();
+  }
+  removeGoal(team:'A'|'B', index:number){ if(!this.canEdit) return; const target=team==='A'?this.goalsA:this.goalsB; if(index>-1) target.splice(index,1); this.updateScoreFromGoals(); }
   private updateScoreFromGoals(){ this.scoreA=this.goalsA.length; this.scoreB=this.goalsB.length; }
   private persistTeams(){
     try{
@@ -576,9 +611,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
       }
     }catch{/* ignore */}
   }
-  addCard(type:'yellow'|'red', team:'A'|'B', playerId:number, minute:number){ const map={yellow:{A:this.yellowCardsA,B:this.yellowCardsB}, red:{A:this.redCardsA,B:this.redCardsB}} as const; map[type][team].push({playerId,minute}); }
-  removeCard(type:'yellow'|'red', team:'A'|'B', idx:number){ const map={yellow:{A:this.yellowCardsA,B:this.yellowCardsB}, red:{A:this.redCardsA,B:this.redCardsB}} as const; const arr=map[type][team]; if(idx>-1) arr.splice(idx,1); }
-  getPlayerName(id:number){ const p=this.allPlayers.find(pl=>pl.id===id); return p? p.firstName: ('#'+id); }
+  addCard(type:'yellow'|'red', team:'A'|'B', playerId:number, minute:number){ if(!this.canEdit) return; const map={yellow:{A:this.yellowCardsA,B:this.yellowCardsB}, red:{A:this.redCardsA,B:this.redCardsB}} as const; map[type][team].push({playerId,minute}); }
+  removeCard(type:'yellow'|'red', team:'A'|'B', idx:number){ if(!this.canEdit) return; const map={yellow:{A:this.yellowCardsA,B:this.yellowCardsB}, red:{A:this.redCardsA,B:this.redCardsB}} as const; const arr=map[type][team]; if(idx>-1) arr.splice(idx,1); }
+  getPlayerName(id:number){ const p=this.allPlayers.find(pl=>pl.id===id); return p? p.firstName: ''; }
   profit(){ const rev=(this._revWinner||0)+(this._revLoser||0)+(this._revCards||0)+(this._revOther||0); const exp=(this._expWater||0)+(this._expField||0)+(this._expRef||0)+(this._expOther||0); return rev-exp; }
   // (handlers overridden below with persistence-enabled versions)
   // Draft free-text events deprecated – methods removed

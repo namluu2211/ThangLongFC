@@ -26,6 +26,7 @@ import { Player } from '../player-utils';
             <div class="avatar-small" (click)="viewPlayer.emit(player)" tabindex="0" (keyup)="onPlayerInfoKey($event, player)">
               <img appAvatarFallback [fallbackSrc]="'assets/images/default-avatar.svg'" [src]="player.avatar || 'assets/images/default-avatar.svg'" [alt]="player.firstName" loading="lazy">
             </div>
+            <!-- Allow viewers to mark registered for team shuffle; keep styling identical -->
             <button class="register-toggle" (click)="toggleRegistration.emit(player)" [attr.aria-pressed]="isRegistered(player)" [title]="isRegistered(player)?'Hủy đăng ký':'Đăng ký'">
               <i class="fas" [class.fa-circle-plus]="!isRegistered(player)" [class.fa-circle-check]="isRegistered(player)"></i>
             </button>
@@ -34,8 +35,10 @@ import { Player } from '../player-utils';
             <div class="name" [title]="player.firstName + ' ' + player.lastName">{{ player.firstName }} {{ player.lastName }}</div>
             <div class="position">{{ player.position }}</div>
             <div class="reg-badge" *ngIf="isRegistered(player)" aria-label="Đã đăng ký">Đăng ký</div>
-            <button *ngIf="player.note || player.notes" type="button" class="note-indicator" (click)="editPlayer.emit(player)" [title]="(player.note||player.notes)||''">📝</button>
-            <button *ngIf="!player.note && !player.notes" type="button" class="note-add" (click)="editPlayer.emit(player)" title="Thêm ghi chú / avatar">＋</button>
+            <ng-container *ngIf="canEdit">
+              <button *ngIf="player.note || player.notes" type="button" class="note-indicator" (click)="editPlayer.emit(player)" [title]="(player.note||player.notes)||''">📝</button>
+              <button *ngIf="!player.note && !player.notes" type="button" class="note-add" (click)="editPlayer.emit(player)" title="Thêm ghi chú / avatar">＋</button>
+            </ng-container>
           </div>
         </div>
       </div>
@@ -106,6 +109,7 @@ export class PlayerListComponent {
   @Input() totalPages = 0;
   @Input() registeredPlayers: Player[] = [];
   @Input() loading = false;
+  @Input() canEdit = false; // gate interactive controls
   @Output() toggleRegistration = new EventEmitter<Player>();
   @Output() previousPage = new EventEmitter<void>();
   @Output() nextPage = new EventEmitter<void>();

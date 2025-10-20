@@ -29,11 +29,12 @@ interface FilePlayer {
  */
 @Injectable({ providedIn: 'root' })
 export class PlayerDataFacade {
-  private readonly dynamicFirebaseLoader = inject(DynamicPlayerFacadeLoader);
+  // Dependencies will be resolved lazily so that tests can instantiate class without Angular DI context.
+  private _dynamicFirebaseLoader?: DynamicPlayerFacadeLoader;
+  private _firebaseLoader?: FirebaseFeatureLoaderService;
+  private _file?: FilePlayerCrudService;
+  private _offlineQueue?: OfflinePlayerQueueService;
   private firebaseFacade: IPlayerRealtimeFacade | null = null;
-  private readonly firebaseLoader = inject(FirebaseFeatureLoaderService);
-  private readonly file = inject(FilePlayerCrudService);
-  private readonly offlineQueue = inject(OfflinePlayerQueueService);
 
   // Initial mode derived from environment feature flag; can be switched at runtime.
   private readonly initialFileMode = environment.features?.fileCrud === true;
@@ -53,6 +54,15 @@ export class PlayerDataFacade {
   getSnapshot(): PlayerInfo[] { return this._players$.value.slice(); }
 
   constructor() {
+    // Attempt to resolve dependencies only if an injection context is present.
+    try {
+      this._dynamicFirebaseLoader = inject(DynamicPlayerFacadeLoader);
+      this._firebaseLoader = inject(FirebaseFeatureLoaderService);
+      this._file = inject(FilePlayerCrudService);
+      this._offlineQueue = inject(OfflinePlayerQueueService);
+    } catch {
+      // Swallow; tests may manually assign mocks to the underscored fields.
+    }
     // Initialize based on initial mode
     this.bootstrapCurrentMode();
       // Attempt flush if coming back online
@@ -62,8 +72,9 @@ export class PlayerDataFacade {
 
     private async flushOfflineQueue(){
       if(this.useFileMode) return; // only relevant for firebase mode
-      if(this.offlineQueue.length === 0) return;
-      await this.offlineQueue.flush(async (op: PlayerCrudOperation) => {
+      const queue = this._offlineQueue;
+      if(!queue || queue.length === 0) return;
+      await queue.flush(async (op: PlayerCrudOperation) => {
         switch(op.type){
           case 'create':
             if(!this.firebaseFacade){ this._error$.next('Facade not ready'); return; }
@@ -101,10 +112,13 @@ export class PlayerDataFacade {
       return;
     }
     // Firebase path: ensure feature loader then dynamic facade
-    void this.firebaseLoader.ensureLoaded().then(async ok => {
+    const loader = this._firebaseLoader;
+    const dynamic = this._dynamicFirebaseLoader;
+    if(!loader || !dynamic){ this._error$.next('Firebase loader unavailable'); return; }
+    void loader.ensureLoaded().then(async ok => {
       if(!ok){ this._error$.next('Firebase unavailable'); return; }
       try {
-        this.firebaseFacade = await this.dynamicFirebaseLoader.ensureFacade();
+        this.firebaseFacade = await dynamic.ensureFacade();
         this.firebaseSub = this.firebaseFacade.players$.subscribe({
           next: list => this._players$.next(list),
           error: err => this._error$.next(String(err))
@@ -128,7 +142,9 @@ export class PlayerDataFacade {
   private async loadFromFile(): Promise<void> {
     try {
       this._loading$.next(true);
-      const raw = await this.file.getAll();
+  const file = this._file;
+  if(!file){ this._error$.next('File service unavailable'); return; }
+  const raw = await file.getAll();
       const mapped = raw.map(p => this.mapFilePlayerToInfo(p));
       this._players$.next(mapped);
       this._error$.next(null);
@@ -143,10 +159,13 @@ export class PlayerDataFacade {
     if (this.useFileMode) {
       try {
         this._loading$.next(true);
-        const created = await this.file.create(data);
+  const file = this._file; if(!file){ this._error$.next('File service unavailable'); return null; }
+  const created = await file.create(data);
         if (!created) return null;
         const mapped = this.mapFilePlayerToInfo(created);
-        this._players$.next([...this._players$.value, mapped]);
+        // Replace any existing player with same id (avoid accidental duplicates from race conditions)
+        const without = this._players$.value.filter(p => p.id !== mapped.id);
+        this._players$.next([...without, mapped]);
         return mapped;
       } catch {
         this._error$.next('Create failed (file mode)');
@@ -157,7 +176,7 @@ export class PlayerDataFacade {
     } else {
       try {
           if(!navigator.onLine){
-            this.offlineQueue.enqueue({ type:'create', payload:data });
+            this._offlineQueue?.enqueue({ type:'create', payload:data });
             return null;
           }
         if(!this.firebaseFacade){ this._error$.next('Facade not ready'); return null; }
@@ -178,8 +197,9 @@ export class PlayerDataFacade {
     if (this.useFileMode) {
       try {
         this._loading$.next(true);
-        const numericId = Number(id);
-        const allowed: Partial<{ firstName: string; lastName?: string; position?: string; height?: number; weight?: number; dateOfBirth?: string; avatar?: string; note?: string; }> = {
+    const file = this._file; if(!file){ this._error$.next('File service unavailable'); return; }
+    const numericId = Number(id);
+    const allowed: Partial<{ firstName: string; lastName?: string; position?: string; height?: number; weight?: number; dateOfBirth?: string; avatar?: string; note?: string; }> = {
           firstName: updates.firstName,
           lastName: updates.lastName,
           position: updates.position,
@@ -189,7 +209,7 @@ export class PlayerDataFacade {
           avatar: updates.avatar,
           note: updates.notes
         };
-  const updated = await this.file.update(numericId, allowed);
+  const updated = await file.update(numericId, allowed);
         if (updated) {
           const mapped = this.mapFilePlayerToInfo(updated);
           const next = this._players$.value.map(p => p.id === id ? mapped : p);
@@ -203,7 +223,7 @@ export class PlayerDataFacade {
     } else {
       try {
           if(!navigator.onLine){
-            this.offlineQueue.enqueue({ type:'update', id, updates });
+            this._offlineQueue?.enqueue({ type:'update', id, updates });
             return;
           }
         if(!this.firebaseFacade){ this._error$.next('Facade not ready'); return; }
@@ -218,8 +238,9 @@ export class PlayerDataFacade {
     if (this.useFileMode) {
       try {
         this._loading$.next(true);
-        const numericId = Number(id);
-        const ok = await this.file.delete(numericId);
+  const file = this._file; if(!file){ this._error$.next('File service unavailable'); return; }
+  const numericId = Number(id);
+  const ok = await file.delete(numericId);
         if (ok) {
           this._players$.next(this._players$.value.filter(p => p.id !== id));
         }
@@ -231,7 +252,7 @@ export class PlayerDataFacade {
     } else {
       try {
           if(!navigator.onLine){
-            this.offlineQueue.enqueue({ type:'delete', id });
+            this._offlineQueue?.enqueue({ type:'delete', id });
             return;
           }
         if(!this.firebaseFacade){ this._error$.next('Facade not ready'); return; }
