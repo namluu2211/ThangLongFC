@@ -228,7 +228,77 @@ export class MatchService {
   // ---------- Private Helpers ----------
   private async initializeMatchData(): Promise<void> { try { this._loading$.next(true); await this.loadMatchesFromStorage(); } catch (e) { console.error('Failed to init matches', e); this._error$.next('Failed to load match data'); } finally { this._loading$.next(false); } }
   private async loadMatchesFromStorage(): Promise<void> { try { const raw = localStorage.getItem('matchHistory'); const mapRef = new Map<string, MatchInfo>(); if (raw) { (JSON.parse(raw) as MatchInfo[]).forEach(m => { try { const migrated = this.migrateMatchData(m); mapRef.set(migrated.id, migrated); } catch { /* skip */ } }); } this._matches$.next(mapRef); } catch (e) { console.error('Load storage error', e); } }
-  private async saveMatchToStorage(match: MatchInfo): Promise<void> { const list = Array.from(this._matches$.value.values()).filter(m => m.id !== match.id); list.push(match); localStorage.setItem('matchHistory', JSON.stringify(list)); const namesA = match.teamA.players.map(p => `${p.firstName} ${p.lastName}`.trim()); const namesB = match.teamB.players.map(p => `${p.firstName} ${p.lastName}`.trim()); const historyEntry = { date: match.date, description: `Trận đấu ngày ${match.date}`, teamA: namesA, teamB: namesB, teamA_names: namesA, teamB_names: namesB, scoreA: match.result.scoreA, scoreB: match.result.scoreB, scorerA: match.result.goalsA.map(g => g.playerName).join(', '), scorerB: match.result.goalsB.map(g => g.playerName).join(', '), assistA: match.result.goalsA.map(g => g.assistedBy).filter(Boolean).join(', '), assistB: match.result.goalsB.map(g => g.assistedBy).filter(Boolean).join(', '), yellowA: match.result.yellowCardsA.map(c => c.playerName).join(', '), yellowB: match.result.yellowCardsB.map(c => c.playerName).join(', '), redA: match.result.redCardsA.map(c => c.playerName).join(', '), redB: match.result.redCardsB.map(c => c.playerName).join(', '), thu: (match.finances.revenue.teamARevenue || 0) + (match.finances.revenue.teamBRevenue || 0), thuMode: 'auto' as const, chi_total: Object.values(match.finances.expenses).filter(v => typeof v === 'number').reduce((s,v)=>s+(v as number),0), chi_nuoc: match.finances.expenses.water || 0, chi_san: match.finances.expenses.field || 0, chi_trongtai: match.finances.expenses.referee || 0, createdAt: match.createdAt, updatedAt: match.updatedAt, lastSaved: new Date().toISOString() }; await this.firebaseService.addHistoryEntry(historyEntry); }
+  private async saveMatchToStorage(match: MatchInfo): Promise<void> {
+    // Persist full structured matches locally (includes full player objects inside teamA/teamB)
+    const list = Array.from(this._matches$.value.values()).filter(m => m.id !== match.id);
+    list.push(match);
+    localStorage.setItem('matchHistory', JSON.stringify(list));
+
+    // Build lightweight history entry for legacy History tab + Firebase. Previously we only stored display names (teamA/teamB)
+    // which meant after saving from Đội hình tab we lost the roster (no way to reconstruct reliably later).
+    // New fields:
+    //  - teamA_ids / teamB_ids: stable player id list
+    //  - teamA_full / teamB_full: optional minimal player object snapshot (id, firstName, lastName, position) for future analytics without full MatchInfo fetch
+    // Kept legacy fields teamA / teamB (names array) for backward compatibility with existing UI and old records.
+    const namesA = match.teamA.players.map(p => `${p.firstName} ${p.lastName}`.trim());
+    const namesB = match.teamB.players.map(p => `${p.firstName} ${p.lastName}`.trim());
+    const idsA = match.teamA.players.map(p => p.id!);
+    const idsB = match.teamB.players.map(p => p.id!);
+    const fullA = match.teamA.players.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName || '', position: p.position || '' }));
+    const fullB = match.teamB.players.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName || '', position: p.position || '' }));
+
+    const revenue = match.finances.revenue;
+    const expenses = match.finances.expenses;
+    // Revenue total should reflect totalRevenue (winner + loser + cards + other). Legacy field 'thu' previously used teamARevenue+teamBRevenue which are 0 in manual mode.
+    const thuTotal = match.finances.totalRevenue;
+    // Expenses total should not double count aggregated fields (fixed/variable). We only sum atomic expense fields: referee, field, water, transportation, food, equipment, other.
+    // Access potential optional expense keys safely (transportation, food, equipment may not exist on interface yet)
+    const extraKeys = ['transportation','food','equipment'] as const;
+    const extraValues:number[] = extraKeys.map(k=>{
+      const dyn = expenses as unknown as { [key:string]: unknown };
+      const v = dyn[k];
+      return typeof v === 'number'? v: 0;
+    });
+    const chiAtomic = [expenses.referee, expenses.field, expenses.water, ...extraValues, expenses.other]
+      .filter(v => typeof v === 'number') as number[];
+    const chiTotal = chiAtomic.reduce((s,v)=>s+v,0);
+    const historyEntry = {
+      date: match.date,
+      description: `Trận đấu ngày ${match.date}`,
+      teamA: namesA, // legacy
+      teamB: namesB, // legacy
+      teamA_names: namesA, // legacy alias
+      teamB_names: namesB, // legacy alias
+      teamA_ids: idsA,
+      teamB_ids: idsB,
+      teamA_full: fullA,
+      teamB_full: fullB,
+      scoreA: match.result.scoreA,
+      scoreB: match.result.scoreB,
+      scorerA: match.result.goalsA.map(g => g.playerName).join(', '),
+      scorerB: match.result.goalsB.map(g => g.playerName).join(', '),
+      assistA: match.result.goalsA.map(g => g.assistedBy).filter(Boolean).join(', '),
+      assistB: match.result.goalsB.map(g => g.assistedBy).filter(Boolean).join(', '),
+      yellowA: match.result.yellowCardsA.map(c => c.playerName).join(', '),
+      yellowB: match.result.yellowCardsB.map(c => c.playerName).join(', '),
+      redA: match.result.redCardsA.map(c => c.playerName).join(', '),
+      redB: match.result.redCardsB.map(c => c.playerName).join(', '),
+      thu: thuTotal,
+      thuMode: 'manual' as const,
+      thu_main: (revenue.winnerFees||0)+(revenue.loserFees||0),
+      thu_penalties: revenue.cardPenalties || 0,
+      thu_other: revenue.otherRevenue || 0,
+      chi_total: chiTotal,
+      chi_nuoc: expenses.water || 0,
+      chi_san: expenses.field || 0,
+      chi_trongtai: expenses.referee || 0,
+      createdAt: match.createdAt,
+      updatedAt: match.updatedAt,
+      lastSaved: new Date().toISOString()
+    };
+
+    await this.firebaseService.addHistoryEntry(historyEntry as never);
+  }
   private async removeMatchFromStorage(id: string): Promise<void> { const list = Array.from(this._matches$.value.values()).filter(m => m.id !== id); localStorage.setItem('matchHistory', JSON.stringify(list)); }
   private filterMatches(matches: MatchInfo[], c: MatchSearchCriteria): MatchInfo[] { return matches.filter(m => { if (c.dateFrom && m.date < c.dateFrom) return false; if (c.dateTo && m.date > c.dateTo) return false; if (c.status && m.status !== c.status) return false; if (c.teamPlayer) { const q = c.teamPlayer.toLowerCase(); const has = m.teamA.players.some(p => p.firstName.toLowerCase().includes(q)) || m.teamB.players.some(p => p.firstName.toLowerCase().includes(q)); if (!has) return false; } return true; }); }
   private sortMatches(matches: MatchInfo[], sort: MatchSortOptions): MatchInfo[] { return matches.sort((a,b)=>{ let av: number|string = a[sort.field as keyof MatchInfo] as string|number; let bv: number|string = b[sort.field as keyof MatchInfo] as string|number; if (sort.field === 'totalGoals') { av = a.result.scoreA + a.result.scoreB; bv = b.result.scoreA + b.result.scoreB; } else if (sort.field === 'profit') { av = a.finances.netProfit; bv = b.finances.netProfit; } const comp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv)); return sort.direction === 'desc' ? -comp : comp; }); }

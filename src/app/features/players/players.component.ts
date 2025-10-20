@@ -556,7 +556,39 @@ export class PlayersComponent implements OnInit, OnDestroy {
     pushEvents(parse(this.redTextB), EventType.RED_CARD, 'B', 'Thẻ đỏ:', this.teamB);
     return events;
   }
-  private async convertToTeamComposition(players:Player[], color:TeamColor):Promise<TeamComposition>{ const infos:PlayerInfo[]=[]; for(const p of players){ const cp=this.corePlayersData.find(c=>c.id===p.id.toString()); if(cp) infos.push(cp);} return { name: color===TeamColor.BLUE? 'Đội Xanh':'Đội Cam', players:infos, teamColor:color, formation:'4-4-2' }; }
+  private async convertToTeamComposition(players:Player[], color:TeamColor):Promise<TeamComposition>{
+    const infos:PlayerInfo[]=[];
+    for(const p of players){
+      let cp:PlayerInfo|undefined;
+      if((p as PlayerWithCoreId).coreId){
+        cp=this.corePlayersData.find(c=>c.id===(p as PlayerWithCoreId).coreId);
+      }
+      if(!cp){
+        // Fallback match by full name (case-insensitive, diacritic-insensitive)
+        const normalize=(s:string)=> s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+        const first=normalize(p.firstName);
+        const last=normalize(p.lastName||'');
+        cp=this.corePlayersData.find(c=> normalize(c.firstName)===first && normalize(c.lastName||'')===last);
+      }
+      if(cp){
+        infos.push(cp);
+      } else {
+        // Create minimal placeholder PlayerInfo so roster still shows in match record
+        infos.push({
+          id: (p as PlayerWithCoreId).coreId? (p as PlayerWithCoreId).coreId: p.id.toString(),
+          firstName: p.firstName,
+          lastName: p.lastName||'',
+          fullName: `${p.firstName} ${p.lastName||''}`.trim(),
+          position: p.position || 'Chưa xác định',
+          dateOfBirth: '',
+          avatar: (p as PlayerWithCoreId).avatar || 'assets/images/default-avatar.svg',
+          notes: (p as PlayerWithCoreId).note || '',
+          stats: { totalMatches:0, winRate:0, averageGoalsPerMatch:0, averageAssistsPerMatch:0 }
+        } as PlayerInfo);
+      }
+    }
+    return { name: color===TeamColor.BLUE? 'Đội Xanh':'Đội Cam', players:infos, teamColor:color, formation:'4-4-2' };
+  }
   private async addMatchFundTransaction(match:{date:string}){ try{ const total=this.teamA.length+this.teamB.length; const base=total*30000; await this.dataStore.addFundTransaction({ type:'income', amount:base, description:`Thu nhập trận ${match.date}`, category:'match_fee', date:match.date, createdBy:'system'}); } catch(e){ this.logger.warnDev('Fund transaction failed',e); } }
 
   savePlayers(){ localStorage.setItem('players', JSON.stringify(this.allPlayers)); this.saveMessage='Đã lưu thay đổi'; setTimeout(()=>this.saveMessage='',2000); }
