@@ -27,7 +27,7 @@ import {
   DEFAULT_MATCH_STATISTICS
 } from '../models/match.model';
 import { PlayerInfo } from '../models/player.model';
-import { PlayerService } from './player.service';
+import { PlayerService, TeamBalanceResult } from './player.service';
 import { FirebaseService } from '../../services/firebase.service';
 import { MatchFinancesService } from './match-finances.service';
 import { MatchValidationService } from './match-validation.service';
@@ -138,12 +138,24 @@ export class MatchService {
     return { name: this.getTeamNameByColor(teamColor), players, teamColor, formation: this.suggestFormation(players.length) };
   }
 
-  getTeamBalance(teamA: TeamComposition, teamB: TeamComposition): Observable<{ isBalanced: boolean; recommendations: string[]; balanceScore: number; }> {
+  getTeamBalance(teamA: TeamComposition, teamB: TeamComposition): Observable<{ isBalanced: boolean; recommendations: string[]; balanceScore: number; balanceScoreFinal: number; swapSuggestions: NonNullable<TeamBalanceResult['swapSuggestions']>; metrics: Omit<TeamBalanceResult, 'recommendation' | 'recommendations' | 'teamAPlayers' | 'teamBPlayers' | 'balanceScore' | 'balanceScoreFinal' | 'swapSuggestions'>; }> {
     return this.playerService.getTeamBalanceRecommendations([
       ...teamA.players.map(p => p.id!),
       ...teamB.players.map(p => p.id!)
     ]).pipe(
-      map(b => ({ isBalanced: b.balanceScore > 75, recommendations: b.recommendations, balanceScore: b.balanceScore }))
+      map((b: TeamBalanceResult) => ({
+        isBalanced: b.balanceScoreFinal > 70,
+        recommendations: b.recommendations,
+        balanceScore: b.balanceScore,
+        balanceScoreFinal: b.balanceScoreFinal,
+        swapSuggestions: b.swapSuggestions || [],
+        metrics: {
+          sizeScore: b.sizeScore,
+          skillVarianceScore: b.skillVarianceScore,
+          experienceParityScore: b.experienceParityScore,
+          positionDiversityScore: b.positionDiversityScore
+        }
+      }))
     );
   }
 

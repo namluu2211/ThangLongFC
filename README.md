@@ -34,6 +34,44 @@
 - Predictive team balancing
 - Comprehensive financial analytics
 - Performance trend analysis
+- Experimental balance score metric (stats.balanceScore) assessing positional distribution & contribution consistency.
+ - Enhanced team balance composite scoring (size, skill variance, experience parity, position diversity).
+
+#### Team Balance Composite
+The service computes a richer balance analysis:
+```
+sizeScore                # Player count parity (penalizes >1 diff)
+skillVarianceScore       # Lower variance in per-player (goals+assists) proxy => higher score
+experienceParityScore    # Difference in avg totalMatches between teams (lower diff => higher score)
+positionDiversityScore   # Unique positions across combined teams (scaled)
+balanceScore             # Legacy simple size-based score
+balanceScoreFinal        # Weighted composite (size 30%, skill variance 25%, experience 25%, position diversity 20%)
+```
+Recommendations adapt to low component scores (e.g. redistribute skill, swap experienced players, increase position diversity). Use `MatchService.getTeamBalance(...)` to access composite metrics.
+
+##### Swap Suggestions & Caching
+`PlayerService` now memoizes team balance computations using a sorted player ID key. This reduces recalculation overhead when the same roster is evaluated repeatedly (e.g. during UI drag-and-drop). Cache auto-invalidates on any player CRUD operation.
+
+Additionally, a lightweight swap optimization heuristic evaluates cross-team player exchanges (top 15 per side) and returns up to 5 beneficial swaps with projected composite score gain:
+```
+swapSuggestions: [
+	{
+		fromTeam: 'A',            # Origin team of the player being swapped out
+		playerOutId: string,      # Player leaving team A
+		playerInId: string,       # Player entering team A from team B
+		expectedGain: number,     # Increase in balanceScoreFinal if swap applied
+		rationale: string         # Human-readable explanation
+	}, ...
+]
+```
+Access via `MatchService.getTeamBalance(teamA, teamB)` which now includes `swapSuggestions` in the observable result.
+Heuristic Factors Recomputed Per Swap:
+- Size parity
+- Skill variance (goals + assists proxy)
+- Experience parity (avg totalMatches)
+- Position diversity
+
+Future enhancements may include multi-swap optimization or role-specific balancing.
 
 ### 📋 **Match History**
 - Complete match archive with search and filtering
@@ -144,6 +182,94 @@ APP_ENVIRONMENT=development
 - Fund transactions and balance history
 - User authentication and permissions
 - System configuration and settings
+
+### Realtime Player & Avatar Migration
+
+You can migrate local player data (`src/assets/players.json`) and avatar images (`src/assets/images/avatar_players/`) into Firebase Realtime Database and Storage using the script: `scripts/migrate-players.js`.
+
+Realtime DB nodes created:
+```
+/players/{id}           # Player profile & stats (+ avatarURL, avatarChecksum if available)
+/playerAvatars/{id}     # Avatar metadata (checksum, fileName, storagePath, downloadURL, updatedAt, currentVersion?, versions?)
+/playerMedia/{playerId}/{mediaId} # Gallery media items (type, checksum, storagePath, downloadURL, createdAt)
+```
+
+Avatar Storage path pattern:
+```
+avatars/{md5Checksum}.{ext}
+```
+
+Script flags:
+| Flag | Purpose |
+|------|---------|
+| --service-account=path | Path to Firebase service account JSON (required for remote writes) |
+| --dry | Dry run (no writes) for verification |
+| --force | Overwrite existing nodes/files |
+| --realtime-only | Skip Firestore logic (future extension) |
+| --avatars-node | Write `/playerAvatars/{id}` metadata entries |
+| --debug | Verbose diagnostic logging |
+| --gallery-dir=path | Directory of additional gallery images to ingest |
+| --media-node | Enable writing gallery media entries under /playerMedia |
+| --avatar-versioning | Enable avatar version history storage under versions/ |
+
+Example (PowerShell):
+```powershell
+node scripts/migrate-players.js --service-account=./service-account.json --avatars-node --debug
+```
+
+Dry run first:
+```powershell
+node scripts/migrate-players.js --service-account=./service-account.json --avatars-node --dry --debug
+```
+
+Force overwrite:
+```powershell
+node scripts/migrate-players.js --service-account=./service-account.json --avatars-node --force
+```
+
+Incremental avatar metadata only:
+```powershell
+node scripts/migrate-players.js --service-account=./service-account.json --avatars-node
+```
+
+Runtime sync: `PlayerService` automatically writes to Realtime DB if Firebase config is valid. Updating a player's avatar URL updates both `/players/{id}` and `/playerAvatars/{id}`. Deleting a player removes both nodes (Storage file retained for safety).
+
+Recommended workflow:
+1. Place service account JSON at project root (e.g., `service-account.json`).
+2. Run a dry migration.
+3. Run actual migration with `--avatars-node`.
+4. Start dev server and verify nodes in Realtime DB.
+5. Use the app UI for ongoing CRUD; metadata stays in sync.
+6. (Optional) Add gallery media programmatically via `PlayerService.addGalleryMedia(playerId, { downloadURL, fileName, checksum })` after uploading image to Storage.
+
+### Avatar Versioning & Gallery
+When `--avatar-versioning` is used during migration or an avatar is updated at runtime, the node structure becomes:
+```
+playerAvatars/{id} {
+	playerId: string,
+	currentVersion: 'v<timestamp>',
+	versions: {
+		v<timestamp>: { downloadURL, checksum?, storagePath?, updatedAt }
+	},
+	updatedAt: ISOString
+}
+```
+
+Gallery items (written with `--media-node` or via service method):
+```
+playerMedia/{playerId}/{mediaId} {
+	mediaId: string,
+	playerId: string,
+	fileName: string,
+	downloadURL: string,
+	checksum?: string,
+	type: 'gallery',
+	createdAt: ISOString
+}
+```
+
+Client-side avatar updates automatically append a new version entry under `versions/` with a generated timestamp key.
+
 
 ## 🎯 User Guide
 
