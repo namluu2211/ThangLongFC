@@ -3,6 +3,7 @@ node_modules
 .firebase
 .firebaserc
 /dist
+/coverage
 /src/test/*
 .angular
 .firebase

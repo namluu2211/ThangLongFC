@@ -1,10 +1,12 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { NAV_LINKS, NavLink } from './navigation-links';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   template: `
     <footer class="app-footer">
       <div class="footer-container">
@@ -24,10 +26,12 @@ import { CommonModule } from '@angular/common';
           <div class="footer-links">
             <h4>Liên kết nhanh</h4>
             <ul>
-              <li><a href="#/players">Quản lý đội hình</a></li>
-              <li><a href="#/history">Lịch sử trận đấu</a></li>
-              <li><a href="#/stats">Thống kê</a></li>
-              <li><a href="#/fund">Quỹ đội</a></li>
+              <li *ngFor="let link of navLinks">
+                <a [routerLink]="link.path" routerLinkActive="active" [routerLinkActiveOptions]="link.exact ? { exact: true } : {}">
+                  <i *ngIf="link.icon" [class]="link.icon" class="me-1"></i>
+                  {{ link.label }}
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -156,6 +160,11 @@ import { CommonModule } from '@angular/common';
       color: #3498db;
     }
 
+    .footer-links a.active {
+      color: #3498db;
+      font-weight: 600;
+    }
+
     .contact-item {
       display: flex;
       align-items: center;
@@ -276,6 +285,7 @@ import { CommonModule } from '@angular/common';
   `]
 })
 export class FooterComponent {
+  navLinks: NavLink[] = NAV_LINKS;
   getVersion(): string {
     return '1.0.0';
   }

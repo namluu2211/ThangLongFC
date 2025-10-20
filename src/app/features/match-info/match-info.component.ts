@@ -2,7 +2,6 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, inject, Chan
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
-import { CanEditDirective } from '../../shared/can-edit.directive';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil, take } from 'rxjs/operators';
@@ -48,7 +47,7 @@ interface AIAnalysisResult {
 @Component({
   selector: 'app-match-info',
   standalone: true,
-  imports: [CommonModule, FormsModule, DisableUnlessCanEditDirective, CanEditDirective],
+  imports: [CommonModule, FormsModule, DisableUnlessCanEditDirective],
   template: `
     <div class="match-info-container">
       <!-- Header -->
