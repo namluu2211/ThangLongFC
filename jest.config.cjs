@@ -8,7 +8,7 @@ module.exports = {
     'node_modules/(?!@angular|rxjs)'
   ],
   collectCoverage: true,
-  coverageDirectory: '<rootDir>/coverage',
+  coverageDirectory: '<rootDir>/src/test/coverage',
   coverageReporters: ['text','lcov'],
   moduleFileExtensions: ['ts','html','js','json','mjs'],
   reporters: ['default'],

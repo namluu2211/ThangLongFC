@@ -20,7 +20,7 @@ import { BehaviorSubject } from 'rxjs';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { LoggerService } from '../../core/services/logger.service';
-import { environment } from '../../../environments/environment';
+import { FeatureFlagsService } from '../../core/services/feature-flags.service';
 import { PAGINATION, STORAGE_KEYS } from './players.constants';
 import { PlayerPaginationController } from './utils/pagination.utils';
 import { PlayerListComponent } from './components/player-list.component';
@@ -60,6 +60,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private aiService: { analyze: (a: Player[], b: Player[], h: unknown[]) => AIAnalysisResult } | null = null;
   private aiWorker = inject(AIWorkerService);
   private readonly financeService=inject(MatchFinanceService);
+  private readonly featureFlags = inject(FeatureFlagsService);
   private readonly historyStatsService = inject(HistoryStatsService);
   private latestCompletedMatches: MatchInfo[] = [];
   private latestHeadToHead: ReturnType<HistoryStatsService['buildHeadToHead']> | null = null;
@@ -173,7 +174,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.subscribeToPlayersStream();
     this.subscribeToCompletedMatches();
     this.loadPlayers();
-    this.teamChange$.pipe(takeUntil(this.destroy$),debounceTime(250)).subscribe(()=>this.runAIAnalysis());
+    // Removed auto AI analysis subscription (manual trigger only via button)
+    this.teamChange$.pipe(takeUntil(this.destroy$),debounceTime(250)).subscribe(()=>{
+      // Only persist teams; AI analysis now manual
+      this.persistTeams();
+    });
     // Attempt restore of persisted teams after players load (delayed to ensure players available)
     setTimeout(()=>this.restorePersistedTeams(), 600);
   // Draft free-text event inputs deprecated – no restoration needed
@@ -342,15 +347,12 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.teamB=[...pool.slice(half)];
     this.triggerTeamChange();
     this.cdr.markForCheck();
-    // Auto-run AI analysis for viewers if both teams exist
-    if(!this.canEdit && this.teamA.length && this.teamB.length){
-      setTimeout(()=> this.runAIAnalysis(), 50);
-    }
+    // Manual AI analysis only (removed auto-run for viewers)
   }
   // Drag-drop handled by lazy TeamDndComponent
   removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
   }
-  private triggerTeamChange(){ this.teamChange$.next(); this.persistTeams(); }
+  private triggerTeamChange(){ this.teamChange$.next(); /* persistence handled in subscription */ }
   onTeamDropped(event: { previousContainer: { data: Player[] }; container: { data: Player[] }; previousIndex: number; currentIndex: number }){
     // Basic CDK drop event mapping without importing concrete type to avoid circular import here
     const prevList: Player[] = event.previousContainer.data;
@@ -388,38 +390,73 @@ export class PlayersComponent implements OnInit, OnDestroy {
     // Publish team changes to global store for external analysis component/route
     this.dataStore.setTeams(this.teamA, this.teamB);
     if(!this.aiLoaded){ void this.loadAIComponent(); }
-    if(!environment.features.aiAnalysis){ return; }
+  if(!this.featureFlags.isEnabled('aiAnalysis')){ return; }
     if(!this.teamA.length||!this.teamB.length){ this.aiAnalysisResults=null; return; }
     const hash=this.computeTeamHash(this.teamA,this.teamB);
     if(this.lastTeamCompositionHash===hash && this.aiAnalysisResults){ return; }
     this.isAnalyzing=true; this.cdr.markForCheck();
-    // Use worker-based analysis (with builtin fallback when unsupported)
-  // Ensure headToHead recomputed if teams changed since last calculation
-  this.recomputeHeadToHead();
-  this.aiWorker.analyze(this.teamA, this.teamB, this.latestHeadToHead || undefined).subscribe(res => {
-      const calcStrength=(players:Player[])=>{
-        if(!players.length) return 0;
-        const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
-        return Math.round(total/players.length);
-      };
-      const teamAStr=calcStrength(this.teamA);
-      const teamBStr=calcStrength(this.teamB);
-      const balanceScore=100 - Math.min(100, Math.abs(teamAStr-teamBStr)*5);
-      this.aiAnalysisResults={
-        predictedScore:res.prediction.predictedScore,
-        xanhWinProb:res.prediction.winProbability.xanh,
-        camWinProb:res.prediction.winProbability.cam,
-        keyFactors:res.keyFactors,
-        historicalStats:{
-          xanhWins:res.historicalContext.recentPerformance.xanhWins,
-          camWins:res.historicalContext.recentPerformance.camWins,
-          draws:res.historicalContext.recentPerformance.draws,
-          totalMatches:res.historicalContext.matchesAnalyzed
+    // Ensure headToHead recomputed if teams changed since last calculation
+    this.recomputeHeadToHead();
+    const TIMEOUT_MS = 8000;
+    let completed = false;
+    const sub = this.aiWorker.analyze(this.teamA, this.teamB, this.latestHeadToHead || undefined)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next:res => {
+          if(completed) return; completed = true;
+          const calcStrength=(players:Player[])=>{
+            if(!players.length) return 0;
+            const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
+            return Math.round(total/players.length);
+          };
+          const teamAStr=calcStrength(this.teamA);
+          const teamBStr=calcStrength(this.teamB);
+          const balanceScore=100 - Math.min(100, Math.abs(teamAStr-teamBStr)*5);
+          this.aiAnalysisResults={
+            predictedScore:res.prediction.predictedScore,
+            xanhWinProb:res.prediction.winProbability.xanh,
+            camWinProb:res.prediction.winProbability.cam,
+            keyFactors:res.keyFactors,
+            historicalStats:{
+              xanhWins:res.historicalContext.recentPerformance.xanhWins,
+              camWins:res.historicalContext.recentPerformance.camWins,
+              draws:res.historicalContext.recentPerformance.draws,
+              totalMatches:res.historicalContext.matchesAnalyzed
+            },
+            teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
+          };
+          const isFallback = (res as unknown as { mode?: string }).mode === 'fallback';
+          if(isFallback){
+            this.logger.warnDev('AI worker fallback used');
+            this.matchSaveMessage='AI (fallback) hoàn tất';
+            setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },3000);
+          }
+          this.lastTeamCompositionHash=hash;
+          this.isAnalyzing=false; this.cdr.markForCheck();
+          sub.unsubscribe();
         },
-        teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
-      };
-      this.lastTeamCompositionHash=hash; this.isAnalyzing=false; this.cdr.markForCheck();
-    });
+        error:err => {
+          if(completed) return; completed = true;
+          this.logger.warnDev('AI analysis failed', err);
+          this.aiAnalysisResults=null;
+          this.matchSaveMessage='AI lỗi hoặc timeout';
+          setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },3000);
+          this.isAnalyzing=false; this.cdr.markForCheck();
+          sub.unsubscribe();
+        }
+      });
+    // Timeout safeguard
+    setTimeout(()=>{
+      if(!completed){
+        completed = true;
+        this.logger.warnDev('AI analysis timeout (outer)');
+        this.aiAnalysisResults=null;
+        this.matchSaveMessage='AI timeout';
+        setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },3000);
+        this.isAnalyzing=false; this.cdr.markForCheck();
+        sub.unsubscribe();
+      }
+    }, TIMEOUT_MS);
   }
 
   private computeTeamHash(a:Player[], b:Player[]):string {

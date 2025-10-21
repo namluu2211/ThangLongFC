@@ -4,6 +4,9 @@ node_modules
 .firebaserc
 /dist
 /coverage
+/playwright-report
+/test-results
+/lcov-report
 /src/test/*
 .angular
 .firebase

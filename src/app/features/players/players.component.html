@@ -7,10 +7,7 @@
         <div class="label">Đang phân tích đội hình...</div>
       </div>
     </div>
-    <section class="players-header">
-            <h2 id="playersHeading" class="page-title"><i class="fas fa-users me-2"></i>⚽ Quản lý đội hình</h2>
-            <p id="playersSubheading" class="page-subtitle">Chia đội và ghi nhận thành tích trận đấu</p>
-    </section>
+    <!-- Removed duplicate header (now provided by parent Tabs) -->
 
     <section class="players-toolbar" aria-label="Thanh công cụ đội hình">
       <div class="toolbar-left">
@@ -224,10 +221,7 @@
 
     <!-- Legacy DnD component removed: integrated drag & drop now inside TeamsPanel -->
 
-    <div class="mt-3" *ngIf="teamA.length && teamB.length">
-        <button class="modern-btn btn-outline-info btn-sm" (click)="loadAIComponent()" *ngIf="!aiLoaded" aria-label="Enable AI analysis">Bật phân tích AI</button>
-    </div>
-    <ng-container *ngIf="aiLoaded">
+    <ng-container *ngIf="aiLoaded && teamA.length && teamB.length">
       <ng-container *ngComponentOutlet="aiComponent; inputs: { teamA: teamA, teamB: teamB, ai: aiAnalysisResults, isAnalyzing: isAnalyzing, runAnalysis: runAIAnalysis }"></ng-container>
     </ng-container>
 

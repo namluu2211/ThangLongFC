@@ -30,27 +30,8 @@ export interface SimpleAIResult {
       </button>
     </div>
     <div class="ai-body">
-      <div class="team-formation-preview mb-4">
-        <h5 class="preview-title"><i class="fas fa-eye me-2"></i>Đội hình sẽ được phân tích</h5>
-        <div class="formation-display">
-          <div class="formation-team formation-xanh">
-            <div class="formation-header">🔵 Đội Xanh ({{teamA.length}})</div>
-            <div class="formation-players">
-              <span *ngFor="let player of teamA; let last = last" class="formation-player">{{player.firstName}}{{!last ? ', ' : ''}}</span>
-            </div>
-          </div>
-          <div class="formation-team formation-cam">
-            <div class="formation-header">🟠 Đội Cam ({{teamB.length}})</div>
-            <div class="formation-players">
-              <span *ngFor="let player of teamB; let last = last" class="formation-player">{{player.firstName}}{{!last ? ', ' : ''}}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-  <button class="modern-btn btn-primary enhanced-analysis-btn" (click)="runAnalysis.emit()" [disabled]="isAnalyzing || !teamA.length || !teamB.length" aria-label="Chạy phân tích AI">
-        <span *ngIf="!isAnalyzing"><i class="fas fa-robot me-2"></i>Phân tích AI</span>
-        <span *ngIf="isAnalyzing"><i class="fas fa-spinner fa-spin me-2"></i>Đang phân tích...</span>
-      </button>
+      <!-- Formation preview removed (redundant with Teams Panel) -->
+  <!-- Internal AI trigger removed (toolbar button now sole trigger) -->
       <div class="analysis-results-enhanced" *ngIf="ai as result">
         <div class="results-header-enhanced">
           <div class="ai-badge" aria-label="Kết quả dự đoán">Kết quả</div>
@@ -144,52 +125,7 @@ export interface SimpleAIResult {
             </div>
           </div>
         </div>
-        <div class="match-history-enhanced" *ngIf="result.historicalStats">
-          <div class="history-header-enhanced">
-            <div class="history-badge"><span class="badge-icon">📈</span><span class="badge-text">Phân Tích Lịch Sử</span></div>
-            <h4 class="history-title-enhanced">Lịch Sử Đối Đầu</h4>
-            <p class="history-subtitle">Dựa trên dữ liệu các trận gần đây</p>
-          </div>
-          <div class="history-cards-grid">
-            <div class="history-card xanh-card">
-              <div class="card-header-history">
-                <div class="card-icon-history xanh-icon">🏆</div>
-                <div class="card-info"><h5 class="card-title-history">Đội Xanh</h5><p class="card-subtitle-history">Thắng</p></div>
-              </div>
-              <div class="stat-display">
-                <div class="stat-number-large">{{result.historicalStats?.xanhWins || 0}}</div>
-                <div class="stat-percentage">{{((result.historicalStats?.xanhWins || 0) / (result.historicalStats?.totalMatches || 1) * 100) | number:'1.0-0'}}%</div>
-              </div>
-            </div>
-            <div class="history-card cam-card">
-              <div class="card-header-history">
-                <div class="card-icon-history cam-icon">🏆</div>
-                <div class="card-info"><h5 class="card-title-history">Đội Cam</h5><p class="card-subtitle-history">Thắng</p></div>
-              </div>
-              <div class="stat-display">
-                <div class="stat-number-large">{{result.historicalStats?.camWins || 0}}</div>
-                <div class="stat-percentage">{{((result.historicalStats?.camWins || 0) / (result.historicalStats?.totalMatches || 1) * 100) | number:'1.0-0'}}%</div>
-              </div>
-            </div>
-            <div class="history-card draws-card">
-              <div class="card-header-history">
-                <div class="card-icon-history draws-icon">🤝</div>
-                <div class="card-info"><h5 class="card-title-history">Hòa</h5><p class="card-subtitle-history">Số trận</p></div>
-              </div>
-              <div class="stat-display"><div class="stat-number-large">{{result.historicalStats?.draws || 0}}</div></div>
-            </div>
-            <div class="history-card total-card">
-              <div class="card-header-history">
-                <div class="card-icon-history total-icon">⚽</div>
-                <div class="card-info"><h5 class="card-title-history">Tổng</h5><p class="card-subtitle-history">Trận đấu</p></div>
-              </div>
-              <div class="stat-display">
-                <div class="stat-number-large">{{result.historicalStats?.totalMatches || 0}}</div>
-                <div class="stat-label-enhanced">trận</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Historical stats panel removed to reduce redundancy -->
       </div>
     </div>
   `,
