@@ -1,6 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
-import { HeaderComponent } from './core/header.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from './services/firebase.service';
@@ -21,16 +20,13 @@ import { PermissionService } from './core/services/permission.service';
   imports: [
     CommonModule,
     FormsModule,
-    HeaderComponent,
     FooterComponent,
     RouterOutlet,
     RouterLink,
     RouterLinkActive
   ],
   template: `
-  <div class="app-header">
-      <app-header (loginChange)="onLoginChange($event)"></app-header>
-    </div>
+  <!-- Header removed to avoid duplication with navigation tabs -->
     <div class="container">
       <div class="hline"></div>
       <nav class="navigation-buttons" aria-label="Main navigation">

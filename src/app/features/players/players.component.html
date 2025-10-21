@@ -3,7 +3,7 @@
   <div class="players-orchestrator">
     <div class="analyzing-overlay" *ngIf="isAnalyzing">
       <div style="display:flex; flex-direction:column; align-items:center;">
-        <div class="spinner" role="status" aria-label="Đang phân tích AI"></div>
+  <div class="spinner" role="status" aria-label="Đang phân tích đội hình"></div>
         <div class="label">Đang phân tích đội hình...</div>
       </div>
     </div>
@@ -32,31 +32,50 @@
   <!-- Allow viewers to shuffle teams (read-only action) -->
   <button class="tl-btn" (click)="shuffleRegisteredTeams()" [disabled]="(registeredPlayers.length<2 && allPlayers.length<2)" [title]="(registeredPlayers.length<2 && allPlayers.length>=2) ? 'Sử dụng toàn bộ danh sách vì chưa có đăng ký' : ( (registeredPlayers.length<2 && allPlayers.length<2) ? 'Cần ≥2 cầu thủ' : 'Chia đội ngẫu nhiên')"><i class="fas fa-shuffle"></i> Chia đội</button>
   <button class="tl-btn" (click)="clearTeams()" [disabled]="(!teamA.length && !teamB.length)" appDisableUnlessCanEdit title="Xóa đội hình"><i class="fas fa-rotate-left"></i></button>
+      <button class="tl-btn" (click)="runAIAnalysis()" [disabled]="!teamA.length || !teamB.length" title="Phân tích đội hình"><i class="fas fa-robot"></i> AI</button>
   <!-- Allow viewers to run AI analysis (read-only) -->
-  <button class="tl-btn" (click)="runAIAnalysis()" [disabled]="!teamA.length || !teamB.length" title="Phân tích AI"><i class="fas fa-robot"></i></button>
   <button class="tl-btn primary" *appCanEdit (click)="saveMatchInfo()" [disabled]="!teamA.length || !teamB.length" aria-label="Lưu trận đấu" title="Lưu trận đấu"><i class="fas fa-save"></i> Lưu trận đấu</button>
       </div>
     </section>
 
-    <app-player-list
-      [showPlayerList]="showPlayerList"
-      [paginatedPlayers]="getPaginatedPlayers()"
-      [displayPlayers]="getDisplayPlayers()"
-      [pageSize]="pageSize"
-      [currentPage]="currentPage"
-      [totalPages]="totalPages"
-      [registeredPlayers]="registeredPlayers"
-      [canEdit]="canEdit"
-      (toggleRegistration)="toggleRegistration($event)"
-      (previousPage)="previousPage()"
-      (nextPage)="nextPage()"
-      (savePlayers)="savePlayers()"
-      (viewPlayer)="viewPlayer($event)"
-      (toggleList)="togglePlayerListView()"
-      (reload)="loadPlayers()"
-      (deletePlayer)="deletePlayer($event)"
-      (editPlayer)="startEditPlayer($event)"
-    ></app-player-list>
+    <!-- Collapsible Player List -->
+    <section class="players-list-wrapper" aria-labelledby="playersListHeading" [class.collapsed]="!showPlayerList">
+      <header class="players-list-header">
+        <h3 id="playersListHeading" class="players-list-title">
+          <i class="fas fa-address-book"></i>
+          Danh sách cầu thủ
+        </h3>
+        <button type="button"
+                class="collapse-toggle"
+                (click)="togglePlayerListView()"
+                [attr.aria-expanded]="showPlayerList"
+                [attr.aria-controls]="'playersListContent'"
+                [title]="showPlayerList ? 'Thu gọn danh sách' : 'Mở rộng danh sách'">
+          <i class="fas" [class.fa-chevron-up]="showPlayerList" [class.fa-chevron-down]="!showPlayerList"></i>
+        </button>
+      </header>
+      <div id="playersListContent" class="players-list-content" [attr.hidden]="!showPlayerList ? '' : null">
+        <app-player-list
+          [showPlayerList]="showPlayerList"
+          [paginatedPlayers]="getPaginatedPlayers()"
+          [displayPlayers]="getDisplayPlayers()"
+          [pageSize]="pageSize"
+          [currentPage]="currentPage"
+          [totalPages]="totalPages"
+          [registeredPlayers]="registeredPlayers"
+          [canEdit]="canEdit"
+          (toggleRegistration)="toggleRegistration($event)"
+          (previousPage)="previousPage()"
+          (nextPage)="nextPage()"
+          (savePlayers)="savePlayers()"
+          (viewPlayer)="viewPlayer($event)"
+          (toggleList)="togglePlayerListView()"
+          (reload)="loadPlayers()"
+          (deletePlayer)="deletePlayer($event)"
+          (editPlayer)="startEditPlayer($event)"
+        ></app-player-list>
+      </div>
+    </section>
 
 
 
@@ -224,11 +243,10 @@
 
     <!-- Legacy DnD component removed: integrated drag & drop now inside TeamsPanel -->
 
-    <div class="mt-3" *ngIf="teamA.length && teamB.length">
-        <button class="modern-btn btn-outline-info btn-sm" (click)="loadAIComponent()" *ngIf="!aiLoaded" aria-label="Enable AI analysis">Bật phân tích AI</button>
-    </div>
-    <ng-container *ngIf="aiLoaded">
-      <ng-container *ngComponentOutlet="aiComponent; inputs: { teamA: teamA, teamB: teamB, ai: aiAnalysisResults, isAnalyzing: isAnalyzing, runAnalysis: runAIAnalysis }"></ng-container>
+    <ng-container *ngIf="teamA.length && teamB.length">
+      <ng-container *ngIf="aiLoaded">
+        <ng-container *ngComponentOutlet="aiComponent; inputs: { teamA: teamA, teamB: teamB, ai: aiAnalysisResults, isAnalyzing: isAnalyzing, runAnalysis: runAIAnalysis }"></ng-container>
+      </ng-container>
     </ng-container>
 
 

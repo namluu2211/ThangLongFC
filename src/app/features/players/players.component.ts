@@ -173,7 +173,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.subscribeToPlayersStream();
     this.subscribeToCompletedMatches();
     this.loadPlayers();
-    this.teamChange$.pipe(takeUntil(this.destroy$),debounceTime(250)).subscribe(()=>this.runAIAnalysis());
+  // Removed auto AI analysis subscription – manual trigger only via toolbar button
     // Attempt restore of persisted teams after players load (delayed to ensure players available)
     setTimeout(()=>this.restorePersistedTeams(), 600);
   // Draft free-text event inputs deprecated – no restoration needed
@@ -342,10 +342,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.teamB=[...pool.slice(half)];
     this.triggerTeamChange();
     this.cdr.markForCheck();
-    // Auto-run AI analysis for viewers if both teams exist
-    if(!this.canEdit && this.teamA.length && this.teamB.length){
-      setTimeout(()=> this.runAIAnalysis(), 50);
-    }
   }
   // Drag-drop handled by lazy TeamDndComponent
   removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
@@ -396,30 +392,142 @@ export class PlayersComponent implements OnInit, OnDestroy {
     // Use worker-based analysis (with builtin fallback when unsupported)
   // Ensure headToHead recomputed if teams changed since last calculation
   this.recomputeHeadToHead();
-  this.aiWorker.analyze(this.teamA, this.teamB, this.latestHeadToHead || undefined).subscribe(res => {
-      const calcStrength=(players:Player[])=>{
-        if(!players.length) return 0;
-        const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
-        return Math.round(total/players.length);
-      };
-      const teamAStr=calcStrength(this.teamA);
-      const teamBStr=calcStrength(this.teamB);
-      const balanceScore=100 - Math.min(100, Math.abs(teamAStr-teamBStr)*5);
-      this.aiAnalysisResults={
-        predictedScore:res.prediction.predictedScore,
-        xanhWinProb:res.prediction.winProbability.xanh,
-        camWinProb:res.prediction.winProbability.cam,
-        keyFactors:res.keyFactors,
-        historicalStats:{
-          xanhWins:res.historicalContext.recentPerformance.xanhWins,
-          camWins:res.historicalContext.recentPerformance.camWins,
-          draws:res.historicalContext.recentPerformance.draws,
-          totalMatches:res.historicalContext.matchesAnalyzed
-        },
-        teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
-      };
-      this.lastTeamCompositionHash=hash; this.isAnalyzing=false; this.cdr.markForCheck();
-    });
+    // Timeout safeguard: if worker hangs >8s, mark analyzing false
+    // 1) Attempt observable-based analyze (players feature service). If signature mismatch (returns Promise), adapt.
+    let responded = false;
+    // Local helper types to avoid any
+    type LitePlayer = Player; // Already conforms sufficiently for AI service
+    const fallbackDirect = async () => {
+      try {
+        this.logger.warnDev('Worker no response -> using direct fallback AIAnalysisService');
+        // Lazy import direct service logic
+        const mod = await import('./services/ai-analysis.service');
+        const svc = new mod.AIAnalysisService();
+        const result = svc.analyzeTeams(this.teamA as LitePlayer[], this.teamB as LitePlayer[], [], this.latestHeadToHead || undefined);
+        this.applyAIResult({
+          prediction: result.prediction,
+          keyFactors: result.keyFactors,
+          historicalContext: { recentPerformance: result.historicalContext.recentPerformance, matchesAnalyzed: result.historicalContext.matchesAnalyzed },
+          headToHead: result.headToHead
+        });
+      } catch(e){
+        this.logger.warnDev('Direct fallback AI failed', e);
+        this.aiAnalysisResults = null;
+      } finally {
+        this.isAnalyzing=false; this.cdr.markForCheck();
+      }
+    };
+    const failSafeTimer = setTimeout(()=>{
+      if(!responded){ void fallbackDirect(); }
+    }, 3000);
+    // If service returns Observable (current players AIWorkerService impl)
+  // Attempt calling analyze with inferred types; suppressing potential mismatch by feature detection only
+    interface AIObserver {
+      next(value: unknown): void;
+      error?(err: unknown): void;
+      complete?(): void;
+    }
+    interface ObservableResult { subscribe: (observer: AIObserver)=> unknown }
+  interface PromiseWorkerResult { predictedScore:{ xanh:number; cam:number }; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; teamStrengths?:{ teamA:number; teamB:number; balanceScore:number }; }
+  const candidate: unknown = (this.aiWorker as { analyze: (...args:unknown[])=> unknown }).analyze(this.teamA, this.teamB, this.latestHeadToHead || undefined);
+    const isObservable = (obj:unknown): obj is ObservableResult => {
+      return !!obj && typeof (obj as { subscribe?: unknown }).subscribe === 'function';
+    };
+    const isPromiseLike = (obj:unknown): obj is Promise<PromiseWorkerResult> => {
+      return !!obj && typeof (obj as { then?: unknown }).then === 'function';
+    };
+    if(isObservable(candidate)){
+      interface WorkerObservablePayload { prediction:{ predictedScore:{ xanh:number; cam:number }; winProbability:{ xanh:number; cam:number } }; keyFactors:{ name:string; impact:number }[]; historicalContext:{ recentPerformance:{ xanhWins:number; camWins:number; draws:number }; matchesAnalyzed:number } }
+      candidate.subscribe({
+      next: res => {
+        responded = true; clearTimeout(failSafeTimer);
+        const payload = res as WorkerObservablePayload;
+        const calcStrength=(players:Player[])=>{
+          if(!players.length) return 0;
+          const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
+          return Math.round(total/players.length);
+        };
+        const teamAStr=calcStrength(this.teamA);
+        const teamBStr=calcStrength(this.teamB);
+        const balanceScore=100 - Math.min(100, Math.abs(teamAStr-teamBStr)*5);
+        this.aiAnalysisResults={
+          predictedScore:payload.prediction.predictedScore,
+          xanhWinProb:payload.prediction.winProbability.xanh,
+          camWinProb:payload.prediction.winProbability.cam,
+          keyFactors:payload.keyFactors,
+          historicalStats:{
+            xanhWins:payload.historicalContext.recentPerformance.xanhWins,
+            camWins:payload.historicalContext.recentPerformance.camWins,
+            draws:payload.historicalContext.recentPerformance.draws,
+            totalMatches:payload.historicalContext.matchesAnalyzed
+          },
+          teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
+        };
+        this.lastTeamCompositionHash=hash; 
+      },
+      error: err => {
+        // Gracefully handle worker / analysis failure
+        this.logger.warnDev('AI analysis failed', err);
+        this.aiAnalysisResults=null; // clear previous stale result
+      },
+      complete: () => {
+        responded = true; clearTimeout(failSafeTimer);
+        this.isAnalyzing=false; 
+        this.cdr.markForCheck();
+      }
+      });
+    } else if(isPromiseLike(candidate)) {
+      // Promise-based worker service (alternative implementation from analysis feature folder)
+      try {
+        const res: PromiseWorkerResult = await candidate; responded = true; clearTimeout(failSafeTimer);
+        // Adapt result shape if different
+        const teamAStr = res.teamStrengths?.teamA ?? 0;
+        const teamBStr = res.teamStrengths?.teamB ?? 0;
+        const balanceScore = res.teamStrengths?.balanceScore ?? (100 - Math.min(100, Math.abs(teamAStr-teamBStr)*5));
+        this.aiAnalysisResults = {
+          predictedScore: res.predictedScore,
+          xanhWinProb: res.xanhWinProb,
+          camWinProb: res.camWinProb,
+          keyFactors: res.keyFactors,
+          historicalStats: { xanhWins:0, camWins:0, draws:0, totalMatches:0 },
+          teamStrengths: { xanh: teamAStr, cam: teamBStr, balance: balanceScore }
+        } as AIResult;
+        this.lastTeamCompositionHash=hash;
+      } catch(err){
+        this.logger.warnDev('Promise-based AI worker failed', err);
+        this.aiAnalysisResults=null;
+      } finally {
+        this.isAnalyzing=false; this.cdr.markForCheck();
+      }
+    } else {
+      // Unknown return type -> immediate fallback
+      clearTimeout(failSafeTimer); responded=true; await fallbackDirect();
+    }
+  }
+
+  /** Apply unified AI result shape from fallback direct service */
+  private applyAIResult(res:{ prediction:{ predictedScore:{ xanh:number; cam:number }; winProbability:{ xanh:number; cam:number } }; keyFactors:{ name:string; impact:number }[]; historicalContext:{ recentPerformance:{ xanhWins:number; camWins:number; draws:number }; matchesAnalyzed:number }; headToHead?: unknown }){
+    const calcStrength=(players:Player[])=>{
+      if(!players.length) return 0;
+      const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
+      return Math.round(total/players.length);
+    };
+    const teamAStr=calcStrength(this.teamA);
+    const teamBStr=calcStrength(this.teamB);
+    const balanceScore=100 - Math.min(100, Math.abs(teamAStr-teamBStr)*5);
+    this.aiAnalysisResults={
+      predictedScore:res.prediction.predictedScore,
+      xanhWinProb:res.prediction.winProbability.xanh,
+      camWinProb:res.prediction.winProbability.cam,
+      keyFactors:res.keyFactors,
+      historicalStats:{
+        xanhWins:res.historicalContext.recentPerformance.xanhWins,
+        camWins:res.historicalContext.recentPerformance.camWins,
+        draws:res.historicalContext.recentPerformance.draws,
+        totalMatches:res.historicalContext.matchesAnalyzed
+      },
+      teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
+    };
   }
 
   private computeTeamHash(a:Player[], b:Player[]):string {
