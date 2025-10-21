@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PlayerDataFacade } from '../players/services/player-data-facade.service';
 import { StatisticsService } from '../../core/services/statistics.service';
-import { environment } from '../../../environments/environment';
+import { FeatureFlagsService } from '../../core/services/feature-flags.service';
 import { BehaviorSubject } from 'rxjs';
 
 @Component({
@@ -19,7 +19,7 @@ import { BehaviorSubject } from 'rxjs';
     <div class="setting-group">
       <span class="setting-label">AI Analysis:</span>
       <ng-container *ngIf="aiEnabled$ | async as enabled">
-        <button (click)="toggleAI()">{{ enabled ? 'Enabled' : 'Disabled' }}</button>
+        <button (click)="toggleAI()" [attr.aria-pressed]="enabled">{{ enabled ? 'Enabled' : 'Disabled' }}</button>
       </ng-container>
     </div>
     <div class="setting-group">
@@ -46,8 +46,9 @@ import { BehaviorSubject } from 'rxjs';
 export class AdminSettingsPanelComponent {
   private readonly playerFacade = inject(PlayerDataFacade);
   private readonly statistics = inject(StatisticsService);
+  private readonly flags = inject(FeatureFlagsService);
   dataMode$ = new BehaviorSubject<'file'|'firebase'>(this.playerFacade.useFileMode? 'file':'firebase');
-  aiEnabled$ = new BehaviorSubject<boolean>(environment.features?.aiAnalysis === true);
+  aiEnabled$ = this.flags.flag$('aiAnalysis');
   exporting = false;
   flushing = false;
   statusMsg = '';
@@ -60,10 +61,9 @@ export class AdminSettingsPanelComponent {
   }
 
   toggleAI(){
-    const next = !this.aiEnabled$.value;
-    this.aiEnabled$.next(next);
-    // Persist to localStorage for session (runtime feature flag shadow)
-    try { localStorage.setItem('feature.aiAnalysis', String(next)); } catch { /* noop */ }
+    const current = this.flags.isEnabled('aiAnalysis');
+    const next = !current;
+    this.flags.setFlag('aiAnalysis', next);
     this.setStatus(`AI analysis ${next? 'enabled':'disabled'}`);
   }
 

@@ -20,7 +20,7 @@ import { BehaviorSubject } from 'rxjs';
 import { MatchService } from '../../core/services/match.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { LoggerService } from '../../core/services/logger.service';
-import { environment } from '../../../environments/environment';
+import { FeatureFlagsService } from '../../core/services/feature-flags.service';
 import { PAGINATION, STORAGE_KEYS } from './players.constants';
 import { PlayerPaginationController } from './utils/pagination.utils';
 import { PlayerListComponent } from './components/player-list.component';
@@ -60,6 +60,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private aiService: { analyze: (a: Player[], b: Player[], h: unknown[]) => AIAnalysisResult } | null = null;
   private aiWorker = inject(AIWorkerService);
   private readonly financeService=inject(MatchFinanceService);
+  private readonly featureFlags = inject(FeatureFlagsService);
   private readonly historyStatsService = inject(HistoryStatsService);
   private latestCompletedMatches: MatchInfo[] = [];
   private latestHeadToHead: ReturnType<HistoryStatsService['buildHeadToHead']> | null = null;
@@ -346,7 +347,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Drag-drop handled by lazy TeamDndComponent
   removeFromTeam(player:Player, team:'A'|'B'){ const list=team==='A'?this.teamA:this.teamB; const idx=list.findIndex(p=>p.id===player.id); if(idx>-1){ list.splice(idx,1); this.triggerTeamChange(); this.persistTeams(); }
   }
-  private triggerTeamChange(){ this.teamChange$.next(); this.persistTeams(); }
+  private triggerTeamChange(){ this.teamChange$.next(); /* persistence handled in subscription */ }
   onTeamDropped(event: { previousContainer: { data: Player[] }; container: { data: Player[] }; previousIndex: number; currentIndex: number }){
     // Basic CDK drop event mapping without importing concrete type to avoid circular import here
     const prevList: Player[] = event.previousContainer.data;
@@ -384,7 +385,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     // Publish team changes to global store for external analysis component/route
     this.dataStore.setTeams(this.teamA, this.teamB);
     if(!this.aiLoaded){ void this.loadAIComponent(); }
-    if(!environment.features.aiAnalysis){ return; }
+  if(!this.featureFlags.isEnabled('aiAnalysis')){ return; }
     if(!this.teamA.length||!this.teamB.length){ this.aiAnalysisResults=null; return; }
     const hash=this.computeTeamHash(this.teamA,this.teamB);
     if(this.lastTeamCompositionHash===hash && this.aiAnalysisResults){ return; }

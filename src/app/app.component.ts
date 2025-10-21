@@ -29,23 +29,7 @@ import { PermissionService } from './core/services/permission.service';
   <!-- Header removed to avoid duplication with navigation tabs -->
     <div class="container">
       <div class="hline"></div>
-      <nav class="navigation-buttons" aria-label="Main navigation">
-        <a routerLink="/players" routerLinkActive="active" class="nav-btn">
-          <i class="fas fa-users"></i><span>Đội hình</span>
-        </a>
-        <a routerLink="/players-list" routerLinkActive="active" class="nav-btn">
-          <i class="fas fa-list"></i><span>Danh sách</span>
-        </a>
-        <a routerLink="/history" routerLinkActive="active" class="nav-btn">
-          <i class="fas fa-history"></i><span>Lịch sử</span>
-        </a>
-        <a routerLink="/fund" routerLinkActive="active" class="nav-btn">
-          <i class="fas fa-wallet"></i><span>Tài chính</span>
-        </a>
-        <a routerLink="/stats" routerLinkActive="active" class="nav-btn">
-          <i class="fas fa-chart-bar"></i><span>Thống kê</span>
-        </a>
-      </nav>
+      <!-- Navigation header removed (tabs handled elsewhere) -->
       <!-- Professional Content Area -->
       <div class="content-area fade-in">
         <router-outlet></router-outlet>
@@ -66,6 +50,15 @@ export class AppComponent implements OnInit, OnDestroy {
   canEdit = false;
   currentFund = 0;
   isLoading = false;
+  onLoginChange(event: { loggedIn: boolean; role: string }) {
+    if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
+      this.loggedIn = event.loggedIn;
+      this.role = event.role;
+      this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
+      this.permissionService.setAuthState({ loggedIn: this.loggedIn, role: this.role });
+      this.cdr.markForCheck();
+    }
+  }
 
   private readonly dataStore = inject(DataStoreService);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -296,22 +289,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  onLoginChange(event: { loggedIn: boolean; role: string }) {
-    
-    // Only update if values actually changed
-    if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
-      this.loggedIn = event.loggedIn;
-      this.role = event.role;
-  this.canEdit = (this.role === 'admin' || this.role === 'superadmin');
-  this.permissionService.setAuthState({ loggedIn: this.loggedIn, role: this.role });
-      
-      // Store role in localStorage for history component
-      // (Role persistence moved into PermissionService)
-      
-      // Trigger change detection
-      this.cdr.markForCheck();
-    }
-  }
+  // Login state now provided directly via auth service observers (header removed)
 
   // Fund status calculation based on current fund value
   getFundStatus(): string {

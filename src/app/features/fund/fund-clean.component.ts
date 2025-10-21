@@ -1,4 +1,6 @@
 import { Component, OnInit, inject, OnDestroy } from '@angular/core';
+import { ReadonlyBannerComponent } from '../../shared/readonly-banner.component';
+import { CanEditDirective } from '../../shared/can-edit.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
@@ -28,7 +30,7 @@ interface FundSummary {
 @Component({
   selector: 'app-fund-clean',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReadonlyBannerComponent, CanEditDirective],
   template: `
     <div class="fund-container">
       <!-- Header -->

@@ -10,10 +10,15 @@ import { Player } from '../player-utils';
   standalone: true,
   imports: [CommonModule, FormsModule, AvatarFallbackDirective, PlayerSkeletonComponent],
   template: `
-  <div *ngIf="showPlayerList" class="player-list-section">
-    <div class="player-list-card light">
+  <div class="player-list-section">
+    <div class="player-list-card light" *ngIf="showPlayerList; else collapsedTemplate">
       <div class="list-header">
         <h3><i class="fas fa-users me-2"></i>Danh sách cầu thủ</h3>
+        <div class="list-controls">
+          <button type="button" class="collapse-btn" (click)="toggleList.emit()" [attr.aria-expanded]="showPlayerList" title="Thu gọn danh sách">
+            <i class="fas fa-chevron-up"></i>
+          </button>
+        </div>
       </div>
       <app-player-skeleton *ngIf="loading && paginatedPlayers.length === 0"></app-player-skeleton>
       <div class="legend-row" *ngIf="paginatedPlayers.length && registeredPlayers.length">
@@ -60,6 +65,13 @@ import { Player } from '../player-utils';
         </div>
       </ng-template>
     </div>
+    <ng-template #collapsedTemplate>
+      <div class="collapsed-bar" aria-label="Danh sách cầu thủ đã thu gọn">
+        <button type="button" class="expand-btn" (click)="toggleList.emit()" [attr.aria-expanded]="showPlayerList" title="Mở rộng danh sách">
+          <i class="fas fa-chevron-down"></i> Hiện danh sách cầu thủ
+        </button>
+      </div>
+    </ng-template>
   </div>
   `,
   styles: [`
@@ -67,7 +79,10 @@ import { Player } from '../player-utils';
     .player-list-card.light { background:#f6f4ff; border:1px solid #e0dcf5; border-radius:16px; padding:14px 14px 10px; box-shadow:0 6px 20px -6px rgba(50,30,90,.25),0 2px 6px rgba(0,0,0,.08); }
     .list-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
     .list-header h3 { margin:0; font-size:1rem; font-weight:600; color:#312b53; letter-spacing:.3px; }
-    .list-controls { display:flex; gap:6px; }
+  .list-controls { display:flex; gap:6px; }
+  .collapse-btn, .expand-btn { background:#ece8fa; border:1px solid #d3cbed; color:#5a3fd0; padding:6px 10px; font-size:.65rem; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:600; }
+  .collapse-btn:hover, .expand-btn:hover { background:#ded7f4; }
+  .collapsed-bar { background:#f6f4ff; border:1px solid #e0dcf5; border-radius:14px; padding:10px 14px; display:flex; justify-content:center; box-shadow:0 4px 12px -4px rgba(50,30,90,.25); }
   .players-grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
   .player-cell { background:#ffffff; border:1px solid #dad4ed; border-radius:14px; padding:8px 8px 6px; display:flex; flex-direction:column; gap:4px; position:relative; box-shadow:0 2px 4px rgba(0,0,0,.05); transition:box-shadow .18s, transform .18s, border-color .25s; }
   .player-cell.registered { border-color:#2e9b43; box-shadow:0 4px 14px -2px rgba(36,130,60,.28); background:linear-gradient(145deg,#ffffff,#f3fff6); }

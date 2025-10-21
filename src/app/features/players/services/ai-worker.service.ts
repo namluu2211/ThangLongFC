@@ -18,16 +18,30 @@ export class AIWorkerService {
   private ensureWorker(){
   if(!this.supportsWorker) return;
     if(!this.worker){
-  // Worker initialization without import.meta for broader TS module compatibility
-  this.worker = new Worker('./ai-analysis.worker.ts', { type:'module' });
+      // Try multiple resolution strategies for worker path (Angular build can relocate workers)
+      const tryPaths = [
+        './ai-analysis.worker.ts',
+        'ai-analysis.worker.js',
+        new URL('./ai-analysis.worker.ts', import.meta.url).toString()
+      ];
+      let created: Worker | null = null;
+      for(const p of tryPaths){
+        try { created = new Worker(p, { type:'module' }); break; } catch { /* continue */ }
+      }
+      this.worker = created;
     }
   }
 
   analyze(teamA: PlayerLite[], teamB: PlayerLite[], headToHead?: HeadToHeadStats): Observable<AIWorkerResult & { duration?: number; mode:'worker'|'fallback' }> {
     if(this.supportsWorker){
       this.ensureWorker();
-      return new Observable<AIWorkerResult & { duration?: number; mode:'worker' }>(subscriber => {
-        if(!this.worker){ subscriber.error('Worker init failed'); return; }
+      return new Observable<AIWorkerResult & { duration?: number; mode:'worker'|'fallback' }>(subscriber => {
+        if(!this.worker){
+          const fb = this.runFallback(teamA, teamB, headToHead);
+          subscriber.next({ ...fb, mode:'fallback' });
+          subscriber.complete();
+          return;
+        }
         const startId = this.perf.markStart('ai-worker-analysis');
         const handler = (ev: MessageEvent) => {
           if(ev.data?.type === 'ANALYSIS_RESULT'){
@@ -40,26 +54,42 @@ export class AIWorkerService {
         };
         this.worker.addEventListener('message', handler);
   this.worker.postMessage({ type:'ANALYZE_TEAMS', teamA, teamB, headToHead });
-        return () => { this.worker?.removeEventListener('message', handler); };
+        // Safety timeout emission (prevents silent 10s stall)
+        const timeout = setTimeout(()=>{
+          if(!subscriber.closed){
+            this.perf.markEnd('ai-worker-analysis', startId);
+            // Fallback: perform direct analysis instead of pure error
+            const fb = this.runFallback(teamA, teamB, headToHead);
+            subscriber.next({ ...fb, mode:'fallback' });
+            subscriber.complete();
+            this.worker?.removeEventListener('message', handler);
+          }
+        }, 6000);
+        return () => { clearTimeout(timeout); this.worker?.removeEventListener('message', handler); };
       });
     }
     // Fallback path (no worker support): use direct AIAnalysisService logic
     if(!this.fallbackService){
       this.fallbackService = new AIAnalysisService();
     }
+    const fb = this.runFallback(teamA, teamB, headToHead);
+    return of({ ...fb, mode:'fallback' });
+  }
+
+  private runFallback(teamA: PlayerLite[], teamB: PlayerLite[], headToHead?: HeadToHeadStats){
+    if(!this.fallbackService){ this.fallbackService = new AIAnalysisService(); }
     const toAIPlayer = (p: PlayerLite): AIPlayer => ({ id: typeof p.id==='number'? p.id: parseInt(String(p.id),10)||0, firstName: p.firstName, lastName: p.lastName, position: p.position||'Chưa xác định' });
     const startId = this.perf.markStart('ai-fallback-analysis');
     const t0 = performance.now();
-  const result = this.fallbackService.analyzeTeams(teamA.map(toAIPlayer), teamB.map(toAIPlayer), [], headToHead);
+    const result = this.fallbackService.analyzeTeams(teamA.map(toAIPlayer), teamB.map(toAIPlayer), [], headToHead);
     const duration = performance.now() - t0;
     this.perf.markEnd('ai-fallback-analysis', startId);
-    return of({
+    return {
       prediction: result.prediction,
       keyFactors: result.keyFactors,
       historicalContext: { recentPerformance: result.historicalContext.recentPerformance, matchesAnalyzed: result.historicalContext.matchesAnalyzed },
-  duration,
-  headToHead: result.headToHead,
-      mode:'fallback'
-    });
+      duration,
+      headToHead: result.headToHead
+    } as AIWorkerResult & { duration?: number };
   }
 }

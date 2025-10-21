@@ -10,7 +10,6 @@ import { PlayerService } from '../../core/services/player.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo } from '../../core/models/player.model';
 import { MatchInfo } from '../../core/models/match.model';
-import { HistoryStatsService, HeadToHeadStats } from '../players/services/history-stats.service';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 
 interface MatchData {
@@ -61,30 +60,13 @@ interface MonthlyStats {
   playerStats: PlayerStats[];
 }
 
-
-
-
-
 @Component({
   selector: 'app-stats',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
     <div class="container-fluid mt-3">
-      <!-- Header with gradient background -->
-      <div class="stats-header mb-4">
-        <div class="row align-items-center">
-          <div class="col-md-8">
-            <h2 class="stats-title mb-0">
-              <i class="fas fa-chart-line me-2"></i>
-              📊 Thống kê Thành Tích
-            </h2>
-            <p class="text-muted mb-0">Phân tích chi tiết thành tích cầu thủ và đội bóng</p>
-            <i class="fas fa-calendar-alt me-1"></i>
-                {{history.length}} trận đấu
-          </div>
-        </div>
-      </div>
+      <!-- Gradient header removed to avoid duplicate page hero (tabs now provide context) -->
 
       <!-- Quick Stats Overview Table -->
       <div class="row mb-4">
@@ -206,7 +188,7 @@ interface MonthlyStats {
         </div>
       </div>
 
-      <!-- Head-to-Head Section removed per request -->
+      <!-- Head-to-Head Section removed (duplicate of AI analysis context) -->
 
       <!-- Filter Controls -->
       <div class="row mb-4">
@@ -633,24 +615,7 @@ interface MonthlyStats {
     }
 
     /* Header Styles */
-    .stats-header {
-      background: #667eea;
-      border-radius: 15px;
-      padding: 2rem;
-      color: white;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      margin-bottom: 2rem;
-    }
-
-    .stats-title {
-      font-size: 2.5rem;
-      font-weight: 700;
-    }
-
-    .stats-badge .badge {
-      font-size: 1rem;
-      border-radius: 25px;
-    }
+    /* stats-header styles removed */
 
     /* Stats Overview Table */
     .stats-overview-table-card {
@@ -859,26 +824,7 @@ interface MonthlyStats {
       background: #27ae60;
     }
 
-    .h2h-card { background:white; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,0.1); overflow:hidden; }
-    .h2h-header { background:#34495e; color:white; padding:1rem 1.5rem; }
-    .h2h-body { padding:1.25rem 1.5rem; }
-    .h2h-metric { background:#f8f9fa; border-radius:12px; padding:0.75rem 1rem; font-weight:600; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
-    .h2h-metric.xanh { border-left:4px solid #3498db; }
-    .h2h-metric.cam { border-left:4px solid #f39c12; }
-    .h2h-metric.draws { border-left:4px solid #7f8c8d; }
-    .h2h-metric.meetings { border-left:4px solid #2c3e50; }
-    .h2h-metric .value { font-size:1.2rem; font-weight:800; }
-    .stability-section { }
-    .stability-label { font-size:0.9rem; font-weight:600; color:#2c3e50; margin-bottom:0.25rem; }
-    .stability-bar { height:12px; background:#e9ecef; border-radius:6px; overflow:hidden; position:relative; }
-    .stability-fill { height:100%; background:linear-gradient(90deg,#27ae60,#2ecc71); transition:width 0.6s ease; }
-    .recent-form { }
-    .form-title { font-size:0.85rem; font-weight:700; text-transform:uppercase; color:#2c3e50; margin-bottom:0.25rem; }
-    .form-seq { display:flex; gap:4px; flex-wrap:wrap; }
-    .form-item { width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.75rem; background:#bdc3c7; color:#fff; }
-    .form-item.xanh { background:#3498db; }
-    .form-item.cam { background:#f39c12; }
-    .form-item.draw { background:#7f8c8d; }
+  /* Head-to-Head styles removed */
 
     /* Filter Card - Simplified */
     .enhanced-filter-card {
@@ -2609,7 +2555,7 @@ export class StatsComponent implements OnInit, OnDestroy {
     // Subscribe to completed matches for head-to-head stats
     this.matchService.completedMatches$.pipe(takeUntil(this.destroy$)).subscribe(matches=>{
       this.coreMatchesData = matches || []; // keep core list fresh
-      this.computeHeadToHead();
+      // Head-to-head computation removed
     });
   }
 
@@ -3161,19 +3107,15 @@ export class StatsComponent implements OnInit, OnDestroy {
       // Extract the name part (without count in parentheses)
       const nameWithoutCount = trimmed.replace(/\s*\(\d+\)$/, '').trim();
       
-      console.log(`   Checking part: "${nameWithoutCount}" against "${playerName}"`);
-      
       // Check for exact match
       if (this.isExactNameMatch(nameWithoutCount, playerName)) {
         // Extract number if any (e.g., "PlayerName (2)" -> 2)
         const countMatch = trimmed.match(/\((\d+)\)$/);
         const count = countMatch ? parseInt(countMatch[1]) : 1;
         totalCount += count;
-        console.log(`   ✅ Match found! Count: ${count}`);
       }
     }
-    
-    console.log(`   Final count for "${playerName}": ${totalCount}`);
+
     return totalCount;
   }
 
@@ -3551,14 +3493,6 @@ export class StatsComponent implements OnInit, OnDestroy {
     return 'Tất cả thời gian';
   }
 
-
-
-
-
-
-
-
-
   // Helper methods for status badges
   getMatchesStatus(): string {
     const total = this.overallStats.totalMatches;
@@ -3579,19 +3513,4 @@ export class StatsComponent implements OnInit, OnDestroy {
       `${player.firstName} ${player.lastName || ''}`.trim() === playerName
     );
   }
-
-  headToHead: HeadToHeadStats | null = null; // public for template binding
-  private readonly h2hService = inject(HistoryStatsService);
-
-  private computeHeadToHead(){
-    const matches = this.coreMatchesData;
-    if(!matches.length){ this.headToHead=null; return; }
-    const last = matches[matches.length-1];
-  const extractIds = (team: { players?: { id: string }[] } | undefined) => (team?.players||[]).map(p=> p.id.toString()).filter(x=> !!x);
-    const blueIds = extractIds(last.teamA);
-    const orangeIds = extractIds(last.teamB);
-    try { this.headToHead = this.h2hService.buildHeadToHead(matches, blueIds, orangeIds); } catch { this.headToHead=null; }
-  }
-
-
 }
