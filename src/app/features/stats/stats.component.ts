@@ -206,57 +206,7 @@ interface MonthlyStats {
         </div>
       </div>
 
-      <!-- Head-to-Head Section -->
-      <div class="row mb-4" *ngIf="headToHead">
-        <div class="col-12">
-          <div class="h2h-card">
-            <div class="h2h-header">
-              <h5 class="mb-0">
-                <i class="fas fa-shield-alt me-2"></i>
-                🤝 Đối đầu Đội Xanh vs Đội Cam
-              </h5>
-            </div>
-            <div class="h2h-body">
-              <div class="row g-3 align-items-center">
-                <div class="col-md-3">
-                  <div class="h2h-metric xanh">Xanh thắng
-                    <span class="value">{{headToHead.xanhWins}}</span>
-                  </div>
-                </div>
-                <div class="col-md-3">
-                  <div class="h2h-metric cam">Cam thắng
-                    <span class="value">{{headToHead.camWins}}</span>
-                  </div>
-                </div>
-                <div class="col-md-3">
-                  <div class="h2h-metric draws">Hòa
-                    <span class="value">{{headToHead.draws}}</span>
-                  </div>
-                </div>
-                <div class="col-md-3">
-                  <div class="h2h-metric meetings">Tổng trận
-                    <span class="value">{{headToHead.totalMeetings}}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="stability-section mt-3" *ngIf="headToHead.totalMeetings">
-                <div class="stability-label">Ổn định đội hình: {{(headToHead.playerStabilityIndex*100)|number:'1.0-0'}}%</div>
-                <div class="stability-bar">
-                  <div class="stability-fill" [style.width.%]="headToHead.playerStabilityIndex*100"></div>
-                </div>
-              </div>
-              <div class="recent-form mt-3" *ngIf="headToHead.recentForm.sequence.length">
-                <div class="form-title">Phong độ gần đây:</div>
-                <div class="form-seq">
-                  <span *ngFor="let f of headToHead.recentForm.sequence; let i=index" class="form-item" [class.xanh]="f==='X'" [class.cam]="f==='C'" [class.draw]="f==='D'">
-                    {{f}}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Head-to-Head Section removed per request -->
 
       <!-- Filter Controls -->
       <div class="row mb-4">
