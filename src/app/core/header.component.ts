@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { NAV_LINKS, NavLink } from '../shared/navigation-links';
 import { AdminConfig } from '../config/admin.config';
 import { FirebaseAuthService } from '../services/firebase-auth.service';
+import { AIWorkerService } from '../features/players/services/ai-worker.service';
 
 @Component({
   selector: 'app-header',
@@ -31,6 +32,12 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
           <span class="nav-text">{{link.label}}</span>
         </a>
       </nav>
+
+      <!-- AI Mode Badge -->
+      <div class="ai-mode-badge" *ngIf="aiMode !== 'idle'" [class.worker]="aiMode==='worker'" [class.fallback]="aiMode==='fallback'" aria-label="Trạng thái phân tích AI"> 
+        <i class="fas fa-robot" aria-hidden="true"></i>
+        <span>{{ aiMode==='worker' ? 'AI nhanh' : 'AI dự phòng' }}</span>
+      </div>
 
       <!-- Login Section -->
   <div class="auth-section" role="navigation" aria-label="Tài khoản người dùng">
@@ -200,6 +207,25 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
     .nav-link i {
       font-size: 14px;
     }
+
+    .ai-mode-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.25);
+      transition: background .3s;
+      margin-right: 12px;
+    }
+    .ai-mode-badge.worker { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); }
+    .ai-mode-badge.fallback { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
+    .ai-mode-badge i { font-size: 14px; }
 
     /* Logo Section */
     .logo-section {
@@ -731,7 +757,9 @@ export class HeaderComponent implements OnInit {
   currentUserDisplayName = '';
   
   private readonly firebaseAuthService = inject(FirebaseAuthService);
+  private readonly aiWorkerService = inject(AIWorkerService);
   navLinks: NavLink[] = NAV_LINKS;
+  aiMode: 'idle'|'worker'|'fallback' = 'idle';
 
   ngOnInit() {
     // Subscribe to Firebase auth state changes
@@ -764,6 +792,9 @@ export class HeaderComponent implements OnInit {
         console.log('🔥 No Firebase user logged in');
       }
     });
+
+    // Subscribe to AI mode changes
+    this.aiWorkerService.mode$.subscribe(mode => { this.aiMode = mode; });
   }
 
   async login() {

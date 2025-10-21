@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from './services/firebase.service';
@@ -8,6 +8,7 @@ import { LazyLoadingService } from './services/lazy-loading.service';
 import { AssetOptimizationService } from './services/asset-optimization.service';
 import { DataStoreService } from './core/services/data-store.service';
 import { FooterComponent } from './shared/footer.component';
+import { HeaderComponent } from './core/header.component';
 import { Subject } from 'rxjs';
 import { environment } from '../environments/environment';
 import { takeUntil, debounceTime } from 'rxjs/operators';
@@ -20,17 +21,14 @@ import { PermissionService } from './core/services/permission.service';
   imports: [
     CommonModule,
     FormsModule,
-    FooterComponent,
-    RouterOutlet,
-    RouterLink,
-    RouterLinkActive
+  FooterComponent,
+  HeaderComponent,
+  RouterOutlet
   ],
   template: `
-  <!-- Header removed to avoid duplication with navigation tabs -->
+    <app-header (loginChange)="onLoginChange($event)"></app-header>
     <div class="container">
       <div class="hline"></div>
-      <!-- Navigation header removed (tabs handled elsewhere) -->
-      <!-- Professional Content Area -->
       <div class="content-area fade-in">
         <router-outlet></router-outlet>
       </div>

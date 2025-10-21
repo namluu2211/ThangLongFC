@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { PerfMarksService } from '../../../core/services/perf-marks.service';
-import { Observable, of } from 'rxjs';
+import { Observable, of, BehaviorSubject } from 'rxjs';
 import { AIAnalysisService, Player as AIPlayer } from './ai-analysis.service';
 import type { HeadToHeadStats } from './history-stats.service';
 
@@ -14,6 +14,9 @@ export class AIWorkerService {
   // Fallback direct service (lazy loaded on demand) if Worker unsupported
   private fallbackService: AIAnalysisService | null = null;
   private perf: { markStart(label:string): string; markEnd(label:string, startId:string): unknown } = inject(PerfMarksService);
+  // Track current AI mode for UI badge (idle | worker | fallback)
+  private modeSubject = new BehaviorSubject<'idle'|'worker'|'fallback'>('idle');
+  readonly mode$ = this.modeSubject.asObservable();
   // Removed custom constructor to fix Angular DI runtime error
   private ensureWorker(){
   if(!this.supportsWorker) return;
@@ -38,6 +41,7 @@ export class AIWorkerService {
       return new Observable<AIWorkerResult & { duration?: number; mode:'worker'|'fallback' }>(subscriber => {
         if(!this.worker){
           const fb = this.runFallback(teamA, teamB, headToHead);
+          this.modeSubject.next('fallback');
           subscriber.next({ ...fb, mode:'fallback' });
           subscriber.complete();
           return;
@@ -47,6 +51,7 @@ export class AIWorkerService {
           if(ev.data?.type === 'ANALYSIS_RESULT'){
             // Perf measure end
             this.perf.markEnd('ai-worker-analysis', startId);
+            this.modeSubject.next('worker');
             subscriber.next({ ...(ev.data.result as AIWorkerResult), duration: ev.data.duration, mode:'worker' });
             subscriber.complete();
             this.worker?.removeEventListener('message', handler);
@@ -60,6 +65,7 @@ export class AIWorkerService {
             this.perf.markEnd('ai-worker-analysis', startId);
             // Fallback: perform direct analysis instead of pure error
             const fb = this.runFallback(teamA, teamB, headToHead);
+            this.modeSubject.next('fallback');
             subscriber.next({ ...fb, mode:'fallback' });
             subscriber.complete();
             this.worker?.removeEventListener('message', handler);
@@ -73,6 +79,7 @@ export class AIWorkerService {
       this.fallbackService = new AIAnalysisService();
     }
     const fb = this.runFallback(teamA, teamB, headToHead);
+    this.modeSubject.next('fallback');
     return of({ ...fb, mode:'fallback' });
   }
 
