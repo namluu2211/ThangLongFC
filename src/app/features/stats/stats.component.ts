@@ -10,8 +10,6 @@ import { PlayerService } from '../../core/services/player.service';
 import { DataStoreService } from '../../core/services/data-store.service';
 import { PlayerInfo } from '../../core/models/player.model';
 import { MatchInfo } from '../../core/models/match.model';
-// Removed head-to-head historical stats import (panel deprecated)
-// import { HistoryStatsService, HeadToHeadStats } from '../players/services/history-stats.service';
 import { FirebaseService, HistoryEntry } from '../../services/firebase.service';
 
 interface MatchData {
@@ -61,10 +59,6 @@ interface MonthlyStats {
   topAssist: PlayerStats | null;
   playerStats: PlayerStats[];
 }
-
-
-
-
 
 @Component({
   selector: 'app-stats',
@@ -3113,19 +3107,15 @@ export class StatsComponent implements OnInit, OnDestroy {
       // Extract the name part (without count in parentheses)
       const nameWithoutCount = trimmed.replace(/\s*\(\d+\)$/, '').trim();
       
-      console.log(`   Checking part: "${nameWithoutCount}" against "${playerName}"`);
-      
       // Check for exact match
       if (this.isExactNameMatch(nameWithoutCount, playerName)) {
         // Extract number if any (e.g., "PlayerName (2)" -> 2)
         const countMatch = trimmed.match(/\((\d+)\)$/);
         const count = countMatch ? parseInt(countMatch[1]) : 1;
         totalCount += count;
-        console.log(`   ✅ Match found! Count: ${count}`);
       }
     }
-    
-    console.log(`   Final count for "${playerName}": ${totalCount}`);
+
     return totalCount;
   }
 
@@ -3503,14 +3493,6 @@ export class StatsComponent implements OnInit, OnDestroy {
     return 'Tất cả thời gian';
   }
 
-
-
-
-
-
-
-
-
   // Helper methods for status badges
   getMatchesStatus(): string {
     const total = this.overallStats.totalMatches;
@@ -3531,10 +3513,4 @@ export class StatsComponent implements OnInit, OnDestroy {
       `${player.firstName} ${player.lastName || ''}`.trim() === playerName
     );
   }
-
-  // Head-to-head panel removed: no longer tracking per Stats tab
-
-  // computeHeadToHead() removed with deprecated head-to-head UI
-
-
 }
