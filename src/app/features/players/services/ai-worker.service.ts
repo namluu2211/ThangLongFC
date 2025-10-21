@@ -16,7 +16,7 @@ export class AIWorkerService {
   private perf: { markStart(label:string): string; markEnd(label:string, startId:string): unknown } = inject(PerfMarksService);
   // Removed custom constructor to fix Angular DI runtime error
   private ensureWorker(){
-    if(!this.supportsWorker) return;
+  if(!this.supportsWorker) return;
     if(!this.worker){
       // Try multiple resolution strategies for worker path (Angular build can relocate workers)
       const tryPaths = [

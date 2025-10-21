@@ -5,7 +5,7 @@ import { Player } from '../players/player-utils';
 import { FirebaseService } from '../../services/firebase.service';
 import { environment } from '../../../environments/environment';
 import { combineLatest } from 'rxjs';
-import { AIWorkerService } from './ai-worker.service';
+import { AIWorkerService } from '../players/services/ai-worker.service';
 
 interface AnalysisResult {
   predictedScore:{xanh:number;cam:number};
@@ -33,10 +33,7 @@ interface AnalysisResult {
   <div class="players">{{ formatNames(teamB) }}</div>
       </div>
     </div>
-    <button class="btn btn-primary" (click)="runAnalysis()" [disabled]="isAnalyzing || !teamA.length || !teamB.length">
-      <span *ngIf="!isAnalyzing"><i class="fas fa-robot me-2"></i>Phân tích AI</span>
-      <span *ngIf="isAnalyzing"><i class="fas fa-spinner fa-spin me-2"></i>Đang phân tích...</span>
-    </button>
+    <!-- Manual AI button removed -->
     <div class="result-card mt-4" *ngIf="result">
       <h4>Kết quả dự đoán: {{result.predictedScore.xanh}} - {{result.predictedScore.cam}}</h4>
       <p>Tỷ lệ thắng: 🟦 {{result.xanhWinProb}}% | 🟧 {{result.camWinProb}}%</p>
@@ -104,19 +101,28 @@ export class AnalysisComponent {
     const hash=this.computeHash(this.teamA,this.teamB);
     if(hash===this.lastHash && this.result) return;
     this.isAnalyzing=true;
-    try{
-      const raw=await this.aiWorker.analyze(this.teamA,this.teamB);
-      this.result={
-        predictedScore:raw.predictedScore,
-        xanhWinProb:raw.xanhWinProb,
-        camWinProb:raw.camWinProb,
-        keyFactors:raw.keyFactors,
-        teamStrengths:raw.teamStrengths
-      };
-      this.lastHash=hash;
+    try {
+      this.aiWorker.analyze(this.teamA,this.teamB).subscribe({
+        next: raw => {
+          // raw: AIWorkerResult & { mode, duration }
+          this.result={
+            predictedScore: raw.prediction.predictedScore,
+            xanhWinProb: raw.prediction.winProbability.xanh,
+            camWinProb: raw.prediction.winProbability.cam,
+            keyFactors: raw.keyFactors,
+            teamStrengths: raw.headToHead ? undefined : undefined // simplified view; could compute separately
+          };
+          this.lastHash=hash;
+        },
+        error: err => {
+          console.error('AI worker analysis failed', err);
+        },
+        complete: () => {
+          this.isAnalyzing=false;
+        }
+      });
     } catch(err){
-      console.error('AI worker analysis failed',err);
-    } finally {
+      console.error('AI worker analysis invocation error', err);
       this.isAnalyzing=false;
     }
   }

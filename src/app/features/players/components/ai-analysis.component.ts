@@ -30,8 +30,24 @@ export interface SimpleAIResult {
       </button>
     </div>
     <div class="ai-body">
-      <!-- Formation preview removed (redundant with Teams Panel) -->
-  <!-- Internal AI trigger removed (toolbar button now sole trigger) -->
+      <div class="team-formation-preview mb-4">
+        <h5 class="preview-title"><i class="fas fa-eye me-2"></i>Đội hình sẽ được phân tích</h5>
+        <div class="formation-display">
+          <div class="formation-team formation-xanh">
+            <div class="formation-header">🔵 Đội Xanh ({{teamA.length}})</div>
+            <div class="formation-players">
+              <span *ngFor="let player of teamA; let last = last" class="formation-player">{{player.firstName}}{{!last ? ', ' : ''}}</span>
+            </div>
+          </div>
+          <div class="formation-team formation-cam">
+            <div class="formation-header">🟠 Đội Cam ({{teamB.length}})</div>
+            <div class="formation-players">
+              <span *ngFor="let player of teamB; let last = last" class="formation-player">{{player.firstName}}{{!last ? ', ' : ''}}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+  <!-- Manual trigger removed per request; analysis can auto-run externally -->
       <div class="analysis-results-enhanced" *ngIf="ai as result">
         <div class="results-header-enhanced">
           <div class="ai-badge" aria-label="Kết quả dự đoán">Kết quả</div>
@@ -125,7 +141,6 @@ export interface SimpleAIResult {
             </div>
           </div>
         </div>
-        <!-- Historical stats panel removed to reduce redundancy -->
       </div>
     </div>
   `,
@@ -241,7 +256,7 @@ export class AIAnalysisComponent {
   @Input() ai: SimpleAIResult | null = null;
   @Input() isAnalyzing = false;
   @Output() runAnalysis = new EventEmitter<void>();
-
+  /* Manual trigger only now; auto-run removed */
   trackByFactorName = (_:number, f:{name:string}) => f.name;
   abs(v:number|undefined|null){ return Math.abs(v||0); }
   darkMode = true;
