@@ -47,10 +47,7 @@ export interface SimpleAIResult {
           </div>
         </div>
       </div>
-  <button class="modern-btn btn-primary enhanced-analysis-btn" (click)="runAnalysis.emit()" [disabled]="isAnalyzing || !teamA.length || !teamB.length" aria-label="Chạy phân tích AI">
-        <span *ngIf="!isAnalyzing"><i class="fas fa-robot me-2"></i>Phân tích AI</span>
-        <span *ngIf="isAnalyzing"><i class="fas fa-spinner fa-spin me-2"></i>Đang phân tích...</span>
-      </button>
+  <!-- Manual trigger removed per request; analysis can auto-run externally -->
       <div class="analysis-results-enhanced" *ngIf="ai as result">
         <div class="results-header-enhanced">
           <div class="ai-badge" aria-label="Kết quả dự đoán">Kết quả</div>
@@ -140,52 +137,6 @@ export interface SimpleAIResult {
                 <div class="factor-progress">
                   <div class="factor-bar" [style.width.%]="abs(factor.impact) * 2" [class.positive-bar]="(factor.impact||0) > 0" [class.negative-bar]="(factor.impact||0) < 0"></div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="match-history-enhanced" *ngIf="result.historicalStats">
-          <div class="history-header-enhanced">
-            <div class="history-badge"><span class="badge-icon">📈</span><span class="badge-text">Phân Tích Lịch Sử</span></div>
-            <h4 class="history-title-enhanced">Lịch Sử Đối Đầu</h4>
-            <p class="history-subtitle">Dựa trên dữ liệu các trận gần đây</p>
-          </div>
-          <div class="history-cards-grid">
-            <div class="history-card xanh-card">
-              <div class="card-header-history">
-                <div class="card-icon-history xanh-icon">🏆</div>
-                <div class="card-info"><h5 class="card-title-history">Đội Xanh</h5><p class="card-subtitle-history">Thắng</p></div>
-              </div>
-              <div class="stat-display">
-                <div class="stat-number-large">{{result.historicalStats?.xanhWins || 0}}</div>
-                <div class="stat-percentage">{{((result.historicalStats?.xanhWins || 0) / (result.historicalStats?.totalMatches || 1) * 100) | number:'1.0-0'}}%</div>
-              </div>
-            </div>
-            <div class="history-card cam-card">
-              <div class="card-header-history">
-                <div class="card-icon-history cam-icon">🏆</div>
-                <div class="card-info"><h5 class="card-title-history">Đội Cam</h5><p class="card-subtitle-history">Thắng</p></div>
-              </div>
-              <div class="stat-display">
-                <div class="stat-number-large">{{result.historicalStats?.camWins || 0}}</div>
-                <div class="stat-percentage">{{((result.historicalStats?.camWins || 0) / (result.historicalStats?.totalMatches || 1) * 100) | number:'1.0-0'}}%</div>
-              </div>
-            </div>
-            <div class="history-card draws-card">
-              <div class="card-header-history">
-                <div class="card-icon-history draws-icon">🤝</div>
-                <div class="card-info"><h5 class="card-title-history">Hòa</h5><p class="card-subtitle-history">Số trận</p></div>
-              </div>
-              <div class="stat-display"><div class="stat-number-large">{{result.historicalStats?.draws || 0}}</div></div>
-            </div>
-            <div class="history-card total-card">
-              <div class="card-header-history">
-                <div class="card-icon-history total-icon">⚽</div>
-                <div class="card-info"><h5 class="card-title-history">Tổng</h5><p class="card-subtitle-history">Trận đấu</p></div>
-              </div>
-              <div class="stat-display">
-                <div class="stat-number-large">{{result.historicalStats?.totalMatches || 0}}</div>
-                <div class="stat-label-enhanced">trận</div>
               </div>
             </div>
           </div>
@@ -305,7 +256,7 @@ export class AIAnalysisComponent {
   @Input() ai: SimpleAIResult | null = null;
   @Input() isAnalyzing = false;
   @Output() runAnalysis = new EventEmitter<void>();
-
+  /* Manual trigger only now; auto-run removed */
   trackByFactorName = (_:number, f:{name:string}) => f.name;
   abs(v:number|undefined|null){ return Math.abs(v||0); }
   darkMode = true;
