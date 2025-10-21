@@ -25,8 +25,37 @@ export class FirebaseCoreService {
     // Defer actual initialization until first ensureInitialized call.
   }
 
+  private static initializing = false;
+  private static initialized = false;
+  private static cachedApp: FirebaseApp | null = null;
+  private static cachedDb: Database | null = null;
+
   private async initialize() {
     if (!isFirebaseConfigValid) { return; }
+    // Guard against concurrent / repeated initialization attempts
+    if (FirebaseCoreService.initialized && FirebaseCoreService.cachedApp && FirebaseCoreService.cachedDb) {
+      this.app = FirebaseCoreService.cachedApp;
+      this.database = FirebaseCoreService.cachedDb;
+      this.enabled = true;
+      console.log('[FirebaseCore] Reusing existing cached app & database (singleton guard)');
+      return;
+    }
+    if (FirebaseCoreService.initializing) {
+      // Wait until first initializer completes
+      console.log('[FirebaseCore] Another initialization in progress; awaiting completion');
+      while (FirebaseCoreService.initializing) {
+        await new Promise(res => setTimeout(res, 50));
+      }
+      // After wait, reuse cached values if available
+      if (FirebaseCoreService.initialized && FirebaseCoreService.cachedApp && FirebaseCoreService.cachedDb) {
+        this.app = FirebaseCoreService.cachedApp;
+        this.database = FirebaseCoreService.cachedDb;
+        this.enabled = true;
+        console.log('[FirebaseCore] Initialization completed by another caller; adopting cached instances');
+        return;
+      }
+    }
+    FirebaseCoreService.initializing = true;
     try {
       console.log('[FirebaseCore] initialize() start. Existing apps:', getApps().length);
       const existing = getApps();
@@ -44,6 +73,9 @@ export class FirebaseCoreService {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this._fb = { ref, push, set, onValue, serverTimestamp, goOffline, goOnline, getDatabase } as any;
       this.enabled = true;
+      FirebaseCoreService.cachedApp = this.app;
+      FirebaseCoreService.cachedDb = this.database;
+      FirebaseCoreService.initialized = true;
       console.log('✅ Firebase core initialized (static imports). Enabled:', this.enabled, 'Has DB:', !!this.database);
     } catch (e) {
       console.error('❌ Firebase static init failed', e);
@@ -51,6 +83,7 @@ export class FirebaseCoreService {
       this.enabled = false;
       console.log('[FirebaseCore] Initialization failed. enabled set to false. failureReason:', this.failureReason);
     }
+    FirebaseCoreService.initializing = false;
   }
 
   async ensureInitialized(): Promise<boolean> {
