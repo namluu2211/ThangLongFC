@@ -42,9 +42,7 @@ import { PermissionService } from './core/services/permission.service';
         <a routerLink="/fund" routerLinkActive="active" class="nav-btn">
           <i class="fas fa-wallet"></i><span>Tài chính</span>
         </a>
-        <a routerLink="/stats" routerLinkActive="active" class="nav-btn">
-          <i class="fas fa-chart-bar"></i><span>Thống kê</span>
-        </a>
+        <!-- Stats tab removed per request -->
       </nav>
       <!-- Professional Content Area -->
       <div class="content-area fade-in">
