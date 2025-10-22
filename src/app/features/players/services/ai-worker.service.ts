@@ -17,6 +17,8 @@ export class AIWorkerService {
   // Track current AI mode for UI badge (idle | worker | fallback)
   private modeSubject = new BehaviorSubject<'idle'|'worker'|'fallback'>('idle');
   readonly mode$ = this.modeSubject.asObservable();
+  private lastDurationSubject = new BehaviorSubject<number|undefined>(undefined);
+  readonly lastDuration$ = this.lastDurationSubject.asObservable();
   // Removed custom constructor to fix Angular DI runtime error
   private ensureWorker(){
   if(!this.supportsWorker) return;
@@ -24,8 +26,7 @@ export class AIWorkerService {
       // Try multiple resolution strategies for worker path (Angular build can relocate workers)
       const tryPaths = [
         './ai-analysis.worker.ts',
-        'ai-analysis.worker.js',
-        new URL('./ai-analysis.worker.ts', import.meta.url).toString()
+        'ai-analysis.worker.js'
       ];
       let created: Worker | null = null;
       for(const p of tryPaths){
@@ -52,6 +53,7 @@ export class AIWorkerService {
             // Perf measure end
             this.perf.markEnd('ai-worker-analysis', startId);
             this.modeSubject.next('worker');
+            this.lastDurationSubject.next(ev.data.duration);
             subscriber.next({ ...(ev.data.result as AIWorkerResult), duration: ev.data.duration, mode:'worker' });
             subscriber.complete();
             this.worker?.removeEventListener('message', handler);
@@ -66,6 +68,7 @@ export class AIWorkerService {
             // Fallback: perform direct analysis instead of pure error
             const fb = this.runFallback(teamA, teamB, headToHead);
             this.modeSubject.next('fallback');
+            this.lastDurationSubject.next(fb.duration);
             subscriber.next({ ...fb, mode:'fallback' });
             subscriber.complete();
             this.worker?.removeEventListener('message', handler);
@@ -79,7 +82,8 @@ export class AIWorkerService {
       this.fallbackService = new AIAnalysisService();
     }
     const fb = this.runFallback(teamA, teamB, headToHead);
-    this.modeSubject.next('fallback');
+  this.modeSubject.next('fallback');
+  this.lastDurationSubject.next(fb.duration);
     return of({ ...fb, mode:'fallback' });
   }
 

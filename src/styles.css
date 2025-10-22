@@ -118,6 +118,21 @@
   --space-16: 64px;
   --space-20: 80px;
   --space-24: 96px;
+
+  /* Elevation tokens for focus rings */
+  --focus-ring-color: rgba(37,99,235,0.9);
+  --focus-ring-offset: 3px;
+  --focus-ring-shadow: 0 0 0 3px rgba(255,255,255,0.4), 0 0 0 6px rgba(37,99,235,0.35);
+
+  /* Scrollbar colors */
+  --scrollbar-track: rgba(255,255,255,0.06);
+  --scrollbar-thumb: rgba(255,255,255,0.28);
+  --scrollbar-thumb-hover: rgba(255,255,255,0.45);
+
+  /* Tooltip palette */
+  --tooltip-bg: #0f172a;
+  --tooltip-color: #f1f5f9;
+  --tooltip-border: rgba(255,255,255,0.15);
 }
 
 /* Performance optimizations */
@@ -164,6 +179,15 @@ body {
   will-change: scroll-position;
   scroll-behavior: smooth;
 }
+
+/* Global scrollbar styling */
+body::-webkit-scrollbar { width: 10px; }
+body::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 6px; }
+body::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* Firefox scrollbar */
+body { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); }
 
 /* Critical layout styles */
 .app-container {
@@ -738,9 +762,30 @@ app-root {
 
 /* Focus management for keyboard navigation */
 :focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: var(--focus-ring-shadow);
+  transition: outline-color var(--transition-fast), box-shadow var(--transition-fast);
 }
+
+/* Tooltip utility */
+.tl-tooltip {
+  position: absolute;
+  z-index: 2000;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-color);
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--tooltip-border);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+}
+.has-tooltip { position: relative; }
+.has-tooltip:hover .tl-tooltip, .has-tooltip:focus-within .tl-tooltip { opacity:1; transform:translateY(0); }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {

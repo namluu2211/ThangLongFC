@@ -8,6 +8,8 @@ import { LazyLoadingService } from './services/lazy-loading.service';
 import { AssetOptimizationService } from './services/asset-optimization.service';
 import { DataStoreService } from './core/services/data-store.service';
 import { FooterComponent } from './shared/footer.component';
+import { LoadingOverlayComponent } from './shared/loading-overlay.component';
+import { ToastContainerComponent } from './shared/toast-container.component';
 import { HeaderComponent } from './core/header.component';
 import { Subject } from 'rxjs';
 import { environment } from '../environments/environment';
@@ -21,12 +23,16 @@ import { PermissionService } from './core/services/permission.service';
   imports: [
     CommonModule,
     FormsModule,
-  FooterComponent,
-  HeaderComponent,
-  RouterOutlet
+    FooterComponent,
+    LoadingOverlayComponent,
+    ToastContainerComponent,
+    HeaderComponent,
+    RouterOutlet
   ],
   template: `
-    <app-header (loginChange)="onLoginChange($event)"></app-header>
+  <app-header (loginChange)="onLoginChange($event)"></app-header>
+  <app-loading-overlay [show]="globalLoading"></app-loading-overlay>
+  <app-toast-container></app-toast-container>
     <div class="container">
       <div class="hline"></div>
       <div class="content-area fade-in">
@@ -48,6 +54,7 @@ export class AppComponent implements OnInit, OnDestroy {
   canEdit = false;
   currentFund = 0;
   isLoading = false;
+  globalLoading = false;
   onLoginChange(event: { loggedIn: boolean; role: string }) {
     if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
       this.loggedIn = event.loggedIn;
@@ -166,6 +173,7 @@ export class AppComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe(loading => {
           this.isLoading = loading;
+          this.globalLoading = loading;
           this.cdr.markForCheck();
         });
 

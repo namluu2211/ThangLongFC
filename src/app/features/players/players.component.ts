@@ -31,7 +31,7 @@ import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-e
 // Removed FinancePanelComponent & PlayerRankingsComponent from Đội hình tab
 
 interface PlayerStats { name:string; goals:number; assists:number; yellowCards:number; redCards:number; matches:number; }
-interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{ xanh:number; cam:number; balance:number } }
+interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{ xanh:number; cam:number; balance:number }; scoreDistribution?: { scoreline:string; probability:number }[] }
 interface RawPlayerJson { id?: number|string; firstName?: string; lastName?: string; position?: string; DOB?: number; dateOfBirth?: string|number; height?: number; weight?: number; avatar?: string; note?: string; notes?: string; }
 interface PlayerWithCoreId extends Player { coreId?: string; avatar?: string; note?: string; }
 
@@ -438,7 +438,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       return !!obj && typeof (obj as { then?: unknown }).then === 'function';
     };
     if(isObservable(candidate)){
-      interface WorkerObservablePayload { prediction:{ predictedScore:{ xanh:number; cam:number }; winProbability:{ xanh:number; cam:number } }; keyFactors:{ name:string; impact:number }[]; historicalContext:{ recentPerformance:{ xanhWins:number; camWins:number; draws:number }; matchesAnalyzed:number } }
+  interface WorkerObservablePayload { prediction:{ predictedScore:{ xanh:number; cam:number }; winProbability:{ xanh:number; cam:number }; scoreDistribution?: { scoreline:string; probability:number }[] }; keyFactors:{ name:string; impact:number }[]; historicalContext:{ recentPerformance:{ xanhWins:number; camWins:number; draws:number }; matchesAnalyzed:number } }
       candidate.subscribe({
       next: res => {
         responded = true; clearTimeout(failSafeTimer);
@@ -462,7 +462,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
             draws:payload.historicalContext.recentPerformance.draws,
             totalMatches:payload.historicalContext.matchesAnalyzed
           },
-          teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
+          teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore },
+          scoreDistribution: payload.prediction.scoreDistribution
         };
         this.lastTeamCompositionHash=hash; 
       },
@@ -507,7 +508,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   /** Apply unified AI result shape from fallback direct service */
-  private applyAIResult(res:{ prediction:{ predictedScore:{ xanh:number; cam:number }; winProbability:{ xanh:number; cam:number } }; keyFactors:{ name:string; impact:number }[]; historicalContext:{ recentPerformance:{ xanhWins:number; camWins:number; draws:number }; matchesAnalyzed:number }; headToHead?: unknown }){
+  private applyAIResult(res:{ prediction:{ predictedScore:{ xanh:number; cam:number }; winProbability:{ xanh:number; cam:number }; scoreDistribution?: { scoreline:string; probability:number }[] }; keyFactors:{ name:string; impact:number }[]; historicalContext:{ recentPerformance:{ xanhWins:number; camWins:number; draws:number }; matchesAnalyzed:number }; headToHead?: unknown }){
     const calcStrength=(players:Player[])=>{
       if(!players.length) return 0;
       const total=players.reduce((sum,p)=> sum + ((typeof p.id==='number'? p.id%10:5)+10),0);
@@ -527,7 +528,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
         draws:res.historicalContext.recentPerformance.draws,
         totalMatches:res.historicalContext.matchesAnalyzed
       },
-      teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore }
+      teamStrengths:{ xanh:teamAStr, cam:teamBStr, balance:balanceScore },
+      scoreDistribution: res.prediction.scoreDistribution
     };
   }
 
