@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseService, HistoryEntry } from './services/firebase.service';
@@ -8,6 +8,9 @@ import { LazyLoadingService } from './services/lazy-loading.service';
 import { AssetOptimizationService } from './services/asset-optimization.service';
 import { DataStoreService } from './core/services/data-store.service';
 import { FooterComponent } from './shared/footer.component';
+import { LoadingOverlayComponent } from './shared/loading-overlay.component';
+import { ToastContainerComponent } from './shared/toast-container.component';
+import { HeaderComponent } from './core/header.component';
 import { Subject } from 'rxjs';
 import { environment } from '../environments/environment';
 import { takeUntil, debounceTime } from 'rxjs/operators';
@@ -21,16 +24,17 @@ import { PermissionService } from './core/services/permission.service';
     CommonModule,
     FormsModule,
     FooterComponent,
-    RouterOutlet,
-    RouterLink,
-    RouterLinkActive
+    LoadingOverlayComponent,
+    ToastContainerComponent,
+    HeaderComponent,
+    RouterOutlet
   ],
   template: `
-  <!-- Header removed to avoid duplication with navigation tabs -->
+  <app-header (loginChange)="onLoginChange($event)"></app-header>
+  <app-loading-overlay [show]="globalLoading"></app-loading-overlay>
+  <app-toast-container></app-toast-container>
     <div class="container">
       <div class="hline"></div>
-      <!-- Navigation header removed (tabs handled elsewhere) -->
-      <!-- Professional Content Area -->
       <div class="content-area fade-in">
         <router-outlet></router-outlet>
       </div>
@@ -50,6 +54,7 @@ export class AppComponent implements OnInit, OnDestroy {
   canEdit = false;
   currentFund = 0;
   isLoading = false;
+  globalLoading = false;
   onLoginChange(event: { loggedIn: boolean; role: string }) {
     if (this.loggedIn !== event.loggedIn || this.role !== event.role) {
       this.loggedIn = event.loggedIn;
@@ -168,6 +173,7 @@ export class AppComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe(loading => {
           this.isLoading = loading;
+          this.globalLoading = loading;
           this.cdr.markForCheck();
         });
 

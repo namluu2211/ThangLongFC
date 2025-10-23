@@ -10,6 +10,7 @@ export interface AIAnalysisResult {
   prediction: {
     winProbability: { xanh: number; cam: number };
     predictedScore: { xanh: number; cam: number };
+    scoreDistribution?: { scoreline: string; probability: number }[]; // Top likely scorelines (joint distribution)
   };
   keyFactors: { name: string; impact: number }[];
   historicalContext: {
@@ -56,9 +57,17 @@ export class AIAnalysisService {
       return cached;
     }
 
-    // Calculate team strengths
-    const xanhStrength = this.calculateTeamStrength(teamXanhPlayers);
-    const camStrength = this.calculateTeamStrength(teamCamPlayers);
+    // Base average strengths
+    let xanhStrength = this.calculateTeamStrength(teamXanhPlayers);
+    let camStrength = this.calculateTeamStrength(teamCamPlayers);
+
+    // Roster size weighting: each extra player gives ~2.5% strength boost (capped)
+    const sizeDiff = teamXanhPlayers.length - teamCamPlayers.length;
+    if (sizeDiff !== 0) {
+      const adjFactor = (diff: number) => 1 + Math.max(-0.25, Math.min(0.25, diff * 0.025));
+      xanhStrength = +(xanhStrength * adjFactor(sizeDiff)).toFixed(3);
+      camStrength = +(camStrength * adjFactor(-sizeDiff)).toFixed(3);
+    }
 
     // Get historical context
     const historicalContext = this.analyzeHistory(history);
@@ -71,8 +80,16 @@ export class AIAnalysisService {
       headToHead
     );
 
-    // Predict score
-  const predictedScore = this.predictScore(xanhStrength, camStrength, headToHead);
+    // Build distribution & select mode scoreline as predicted score
+    const scoreDistribution = this.buildScoreDistribution(xanhStrength, camStrength, headToHead);
+    const predictedScore = (() => {
+      if (scoreDistribution.length) {
+        const top = scoreDistribution[0].scoreline.split('-').map(n=> parseInt(n,10)||0);
+        return { xanh: top[0], cam: top[1] };
+      }
+      // Fallback to mean-based rounding if distribution empty (should not happen)
+      return { xanh: Math.round(xanhStrength/30), cam: Math.round(camStrength/30) };
+    })();
 
     // Identify key factors
     const keyFactors = this.identifyKeyFactors(
@@ -81,6 +98,8 @@ export class AIAnalysisService {
       xanhStrength,
       camStrength
     );
+
+  // scoreDistribution already computed above
 
     const result: AIAnalysisResult = {
       teamComparison: {
@@ -95,9 +114,10 @@ export class AIAnalysisService {
       },
       prediction: {
         winProbability,
-        predictedScore
+        predictedScore,
+        scoreDistribution
       },
-      keyFactors,
+  keyFactors: this.appendSizeFactor(keyFactors, sizeDiff),
       historicalContext: {
         matchesAnalyzed: historicalContext.matchesAnalyzed,
         recentPerformance: historicalContext.stats
@@ -107,6 +127,56 @@ export class AIAnalysisService {
 
     this.cacheResult(cacheKey, result);
     return result;
+  }
+
+  /**
+   * Construct a joint score distribution using Poisson approximation of expected goals.
+   * We reuse internal expected goals logic from predictScore (before variance & rounding) to derive means.
+   */
+  private buildScoreDistribution(xanhStrength:number, camStrength:number, headToHead?: HeadToHeadStats){
+    // Recompute base expected goals similarly to predictScore but without random variance / rounding
+    let lambdaX = xanhStrength / 30;
+    let lambdaC = camStrength / 30;
+    if(headToHead && headToHead.totalMeetings>0){
+      lambdaX = lambdaX * 0.5 + headToHead.averageGoalsXanh * 0.5;
+      lambdaC = lambdaC * 0.5 + headToHead.averageGoalsCam * 0.5;
+      const avgTotal = headToHead.averageGoalsXanh + headToHead.averageGoalsCam;
+      if(avgTotal >= 8){
+        const amplification = 1 + Math.min(0.6, (avgTotal - 8) * 0.08);
+        lambdaX *= amplification; lambdaC *= amplification;
+      }
+    }
+    // Cap lambdas to avoid runaway loops
+    lambdaX = Math.min(lambdaX, 12);
+    lambdaC = Math.min(lambdaC, 12);
+    // Poisson PMF function
+    const poisson = (lam:number,k:number)=> Math.exp(-lam) * Math.pow(lam,k) / factorial(k);
+    const factorialCache: number[] = [1];
+    function factorial(n:number): number {
+      if(factorialCache[n] !== undefined) return factorialCache[n]!;
+      const last = factorialCache.length-1;
+      let acc = factorialCache[last]!;
+      for(let i=last+1;i<=n;i++){ acc*=i; factorialCache[i]=acc; }
+      return factorialCache[n]!;
+    }
+    // Determine max goals to consider where tail probability < 0.002 each side or upper bound 15
+    const cutoff = (lam:number)=> Math.min(15, Math.max(5, Math.ceil(lam + 4*Math.sqrt(lam||1))));
+    const maxX = cutoff(lambdaX); const maxC = cutoff(lambdaC);
+    const dist: { scoreline:string; probability:number }[] = [];
+    let totalP=0;
+    for(let x=0;x<=maxX;x++){
+      const px = poisson(lambdaX,x);
+      for(let c=0;c<=maxC;c++){
+        const pc = poisson(lambdaC,c);
+        const p = px*pc;
+        totalP += p;
+        dist.push({ scoreline: `${x}-${c}`, probability:p });
+      }
+    }
+    // Normalize (due to truncation of tails)
+    if(totalP>0){ for(const d of dist){ d.probability = +(d.probability/totalP); } }
+    // Sort by probability desc & take top 8
+    return dist.sort((a,b)=> b.probability - a.probability).slice(0,8).map(d=> ({...d, probability:+d.probability.toFixed(4)}));
   }
 
   /**
@@ -197,21 +267,57 @@ export class AIAnalysisService {
    * Predict match score
    */
   private predictScore(xanhStrength: number, camStrength: number, headToHead?: HeadToHeadStats): { xanh: number; cam: number } {
-    // Base expected goals from current strength
-    let baseX = xanhStrength / 30;
-    let baseC = camStrength / 30;
+    // --- Enhanced high-scoring adaptive model ---
+    // 1. Derive baseline from team strength (scaled)
+    let expectedX = xanhStrength / 30; // typical range ~1.5–3
+    let expectedC = camStrength / 30;
 
-    // Blend historical average goals if available (30% weight)
+    // 2. If sufficient head-to-head data, blend in historical scoring with higher weight (50%)
     if (headToHead && headToHead.totalMeetings > 0) {
-      baseX = baseX * 0.7 + headToHead.averageGoalsXanh * 0.3;
-      baseC = baseC * 0.7 + headToHead.averageGoalsCam * 0.3;
+      expectedX = expectedX * 0.5 + headToHead.averageGoalsXanh * 0.5;
+      expectedC = expectedC * 0.5 + headToHead.averageGoalsCam * 0.5;
+
+      // 3. Detect sustained high-scoring pattern (average total goals high)
+      const avgTotal = headToHead.averageGoalsXanh + headToHead.averageGoalsCam; // per match
+      if (avgTotal >= 8) {
+        // Scale factor increases with extremity but capped for sanity
+        const amplification = 1 + Math.min(0.6, (avgTotal - 8) * 0.08); // up to +60%
+        expectedX *= amplification;
+        expectedC *= amplification;
+      }
     }
 
-    // Random variance scaled modestly
-    const xanhGoals = Math.max(0, Math.round(baseX + Math.random() * 1.8));
-    const camGoals = Math.max(0, Math.round(baseC + Math.random() * 1.8));
+    // 4. Apply modest variance (reduced to keep tests stable & avoid collapsing to low values)
+    const varianceScale = 0.6; // was 1.8 in legacy model
+    expectedX += Math.random() * varianceScale * 0.7; // slight asym randomness
+    expectedC += Math.random() * varianceScale;
+
+    // 5. Floor at 0, round to nearest whole number
+    const xanhGoals = Math.max(0, Math.round(expectedX));
+    const camGoals = Math.max(0, Math.round(expectedC));
+
+    // 6. Ensure at least one side reflects high-scoring signal if historical total extremely large
+    if (headToHead && headToHead.totalMeetings > 0) {
+      const extremeTotal = headToHead.averageGoalsXanh + headToHead.averageGoalsCam;
+      if (extremeTotal >= 10 && (xanhGoals + camGoals) < 8) {
+        // Bump weaker side minimally to raise total realism
+        if (xanhGoals <= camGoals) {
+          return { xanh: xanhGoals + 1, cam: camGoals + 1 };
+        } else {
+          return { xanh: xanhGoals + 1, cam: camGoals + 1 };
+        }
+      }
+    }
 
     return { xanh: xanhGoals, cam: camGoals };
+  }
+
+  private appendSizeFactor(factors:{name:string;impact:number}[], sizeDiff:number){
+    if (sizeDiff === 0) return factors;
+    return [
+      { name:'Chênh lệch quân số', impact: Math.min(25, Math.abs(sizeDiff)*5) * (sizeDiff>0? 1:-1) },
+      ...factors
+    ];
   }
 
   /**

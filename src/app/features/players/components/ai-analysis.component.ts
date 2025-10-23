@@ -13,6 +13,8 @@ export interface SimpleAIResult {
    * balance: 0 means completely uneven, 100 means perfectly balanced
    */
   teamStrengths?: { xanh: number; cam: number; balance: number };
+  /** Top scoreline probabilities from joint distribution (already normalized & truncated) */
+  scoreDistribution?: { scoreline: string; probability: number }[];
 }
 
 @Component({
@@ -53,6 +55,21 @@ export interface SimpleAIResult {
           <div class="ai-badge" aria-label="Kết quả dự đoán">Kết quả</div>
           <h3 class="results-title" aria-live="polite">Dự đoán tỷ số: <span class="score-pill xanh-pill">{{result.predictedScore?.xanh ?? 0}}</span> - <span class="score-pill cam-pill">{{result.predictedScore?.cam ?? 0}}</span></h3>
           <p class="results-subtitle">Tỷ lệ thắng: 🔵 {{ (result.xanhWinProb || 0) | number:'1.0-2'}}% <span class="divider">|</span> 🟠 {{ (result.camWinProb || 0) | number:'1.0-2'}}%</p>
+        </div>
+        <div class="distribution-chip-row" *ngIf="result.scoreDistribution?.length">
+          <div class="dist-label" [attr.title]="'Ba tỷ số có xác suất cao nhất trong Top8 phân phối. Bao phủ ' + (displayedMass*100 | number:'1.0-1') + '% tổng xác suất top8.'">
+            TOP TỶ SỐ (Bao phủ {{ (displayedMass*100) | number:'1.0-1'}}% / Top8)
+          </div>
+          <button type="button" class="dist-toggle" (click)="toggleRelative()" [attr.aria-pressed]="showRelative" [attr.title]="showRelative ? 'Hiển thị xác suất tuyệt đối' : 'Hiển thị xác suất tương đối trong nhóm hiển thị'">
+            {{ showRelative ? 'Tương đối' : 'Tuyệt đối' }}
+          </button>
+          <div class="dist-chips">
+            <span *ngFor="let d of displayedDistribution" class="dist-chip" [attr.title]="'Tỷ số ' + d.scoreline + ' — Global: ' + (d.probability*100 | number:'1.0-2') + '% / Nhóm: ' + ((d.probability/displayedMass*100) | number:'1.0-2') + '%'">
+              <span class="dist-score">{{d.scoreline}}</span>
+              <span class="dist-prob" [class.relative]="showRelative">{{ formatProb(d.probability) }}</span>
+              <small class="dist-prob-secondary" *ngIf="showRelative">({{ (d.probability*100) | number:'1.0-1'}}%)</small>
+            </span>
+          </div>
         </div>
         <div class="predictions-grid">
           <div class="prediction-card-enhanced">
@@ -246,6 +263,23 @@ export interface SimpleAIResult {
     /* Animations */
     `@keyframes fadeInUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}` ,
     `.prediction-card-enhanced,.history-card,.factor-item-enhanced{animation:fadeInUp .45s ease both}`,
+    /* Distribution chips */
+    `.distribution-chip-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px;margin-bottom:4px}`,
+    `.dist-label{font-size:.55rem;letter-spacing:.5px;opacity:.65;text-transform:uppercase;font-weight:600}`,
+    `.dist-chips{display:flex;gap:6px;flex-wrap:wrap}`,
+    `.dist-chip{display:inline-flex;align-items:center;gap:4px;background:#233241;border:1px solid #314556;padding:4px 8px;border-radius:14px;font-size:.6rem;font-weight:600;letter-spacing:.3px;animation:fadeInUp .4s ease}`,
+    `.dist-chip .dist-score{color:#9ec5e2}`,
+  `.dist-chip .dist-prob{color:#2dd19d}`,
+  `.dist-prob.relative{color:#f1bb5c}`,
+  `.dist-prob-secondary{font-size:.5rem;opacity:.6;margin-left:2px}`,
+  `.dist-toggle{background:#233241;border:1px solid #314556;color:#9ec5e2;font-size:.55rem;padding:4px 8px;border-radius:12px;cursor:pointer;letter-spacing:.5px;font-weight:600;transition:background .25s,border-color .25s}`,
+  `.dist-toggle:hover{background:#2b4254}`,
+  `.dist-toggle[aria-pressed='true']{background:#314b5e;color:#ffe9c2;border-color:#48657a}`,
+  `.ai-analysis-card.light-theme .dist-toggle{background:#fff;border-color:#d3dde5;color:#2b3d4e}`,
+  `.ai-analysis-card.light-theme .dist-toggle[aria-pressed='true']{background:#e8f1f7;color:#1d5f43}`,
+    `.ai-analysis-card.light-theme .dist-chip{background:#fff;border-color:#d3dde5}`,
+    `.ai-analysis-card.light-theme .dist-chip .dist-score{color:#2b3d4e}`,
+    `.ai-analysis-card.light-theme .dist-chip .dist-prob{color:#1d5f43}`,
     `@media (max-width:720px){.predictions-grid{grid-template-columns:1fr}}`
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -260,6 +294,20 @@ export class AIAnalysisComponent {
   trackByFactorName = (_:number, f:{name:string}) => f.name;
   abs(v:number|undefined|null){ return Math.abs(v||0); }
   darkMode = true;
+  showRelative = false;
+
+  get displayedDistribution(){
+    return this.ai?.scoreDistribution?.slice(0,3) || [];
+  }
+  get displayedMass(){
+    return this.displayedDistribution.reduce((s,d)=> s + d.probability,0);
+  }
+  toggleRelative(){ this.showRelative = !this.showRelative; }
+  formatProb(p:number){
+    if(!this.showRelative) return (p*100).toLocaleString(undefined,{minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+    const rel = this.displayedMass? (p/this.displayedMass)*100 : 0;
+    return rel.toLocaleString(undefined,{minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+  }
 
   toggleTheme(){
     this.darkMode = !this.darkMode;

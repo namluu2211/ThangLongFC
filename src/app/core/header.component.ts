@@ -5,6 +5,8 @@ import { RouterModule } from '@angular/router';
 import { NAV_LINKS, NavLink } from '../shared/navigation-links';
 import { AdminConfig } from '../config/admin.config';
 import { FirebaseAuthService } from '../services/firebase-auth.service';
+import { AIWorkerService } from '../features/players/services/ai-worker.service';
+import { ToastService } from '../core/services/toast.service';
 
 @Component({
   selector: 'app-header',
@@ -26,11 +28,24 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
 
       <!-- Navigation Links -->
       <nav class="nav-links" aria-label="Điều hướng chính">
-        <a *ngFor="let link of navLinks" class="nav-link" [routerLink]="link.path" routerLinkActive="active" [routerLinkActiveOptions]="link.exact ? { exact: true } : {}" [attr.aria-label]="link.label">
+        <a *ngFor="let link of navLinks"
+           class="nav-link"
+           [routerLink]="link.path"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="link.exact ? { exact: true } : {}"
+           [attr.aria-label]="link.label"
+           [attr.aria-current]="isLinkActive(link.path) ? 'page' : null">
           <i *ngIf="link.icon" [class]="link.icon" aria-hidden="true"></i>
           <span class="nav-text">{{link.label}}</span>
         </a>
       </nav>
+
+      <!-- AI Mode Badge -->
+      <div class="ai-mode-badge" *ngIf="aiMode !== 'idle'" [class.worker]="aiMode==='worker'" [class.fallback]="aiMode==='fallback'" aria-label="Trạng thái phân tích AI"> 
+        <i class="fas fa-robot" aria-hidden="true"></i>
+        <span>{{ aiMode==='worker' ? 'AI nhanh' : 'AI dự phòng' }}</span>
+        <small *ngIf="lastAIDuration" class="duration">{{ lastAIDuration }}ms</small>
+      </div>
 
       <!-- Login Section -->
   <div class="auth-section" role="navigation" aria-label="Tài khoản người dùng">
@@ -200,6 +215,26 @@ import { FirebaseAuthService } from '../services/firebase-auth.service';
     .nav-link i {
       font-size: 14px;
     }
+
+    .ai-mode-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.25);
+      transition: background .3s;
+      margin-right: 12px;
+    }
+    .ai-mode-badge.worker { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); }
+    .ai-mode-badge.fallback { background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); }
+    .ai-mode-badge i { font-size: 14px; }
+  .ai-mode-badge .duration { font-size:10px; opacity:.85; margin-left:4px; font-weight:500; }
 
     /* Logo Section */
     .logo-section {
@@ -731,7 +766,17 @@ export class HeaderComponent implements OnInit {
   currentUserDisplayName = '';
   
   private readonly firebaseAuthService = inject(FirebaseAuthService);
+  private readonly aiWorkerService = inject(AIWorkerService);
+  private readonly toast = inject(ToastService);
   navLinks: NavLink[] = NAV_LINKS;
+  aiMode: 'idle'|'worker'|'fallback' = 'idle';
+  lastAIDuration?: number;
+  private aiBadgeTimer?: ReturnType<typeof setTimeout>;
+
+  isLinkActive(path:string): boolean {
+    // Simple check using location; for robust solution inject Router and check
+    return typeof window !== 'undefined' && window.location.pathname === path;
+  }
 
   ngOnInit() {
     // Subscribe to Firebase auth state changes
@@ -751,6 +796,7 @@ export class HeaderComponent implements OnInit {
           displayName: firebaseUser.displayName,
           role: this.role
         });
+        this.toast.success(`Đăng nhập: ${firebaseUser.displayName || firebaseUser.email}`);
       } else {
         // No user logged in
         this.loggedIn = false;
@@ -762,25 +808,39 @@ export class HeaderComponent implements OnInit {
         this.loginChange.emit({ loggedIn: false, role: '' });
         
         console.log('🔥 No Firebase user logged in');
+        this.toast.info('Chưa đăng nhập');
       }
     });
+
+    // Subscribe to AI mode changes
+  this.aiWorkerService.mode$.subscribe(mode => {
+    this.aiMode = mode;
+    if (this.aiBadgeTimer) clearTimeout(this.aiBadgeTimer);
+    if (mode !== 'idle') {
+      this.aiBadgeTimer = setTimeout(() => {
+        // reset to idle after inactivity
+        this.aiMode = 'idle';
+      }, 10000);
+    }
+  });
+  this.aiWorkerService.lastDuration$.subscribe(d => { this.lastAIDuration = d; });
   }
 
   async login() {
     if (!this.email || !this.password) {
-      this.showError('Vui lòng nhập đầy đủ email và mật khẩu');
+      this.toast.error('Vui lòng nhập đầy đủ email và mật khẩu');
       return;
     }
 
     // Validate email format
     if (!this.isValidEmail(this.email)) {
-      this.showError('Vui lòng nhập email hợp lệ');
+      this.toast.error('Vui lòng nhập email hợp lệ');
       return;
     }
 
     // Check if email is in admin configuration
     if (!AdminConfig.isAdminEmail(this.email)) {
-      this.showError('Email này không có quyền admin. Liên hệ quản trị viên để được cấp quyền.');
+      this.toast.error('Email này không có quyền admin. Liên hệ quản trị viên để được cấp quyền.');
       return;
     }
 
@@ -794,7 +854,7 @@ export class HeaderComponent implements OnInit {
         // Login successful - Firebase auth service will handle state updates
         this.showLoginForm = false;
         this.password = ''; // Clear password for security
-        this.showSuccess(`🔥 Đăng nhập thành công! Chào mừng ${firebaseUser.displayName}`);
+  this.toast.success(`🔥 Chào mừng ${firebaseUser.displayName || firebaseUser.email}`);
         
         console.log('🔥 login successful:', firebaseUser);
       }
@@ -815,7 +875,7 @@ export class HeaderComponent implements OnInit {
         errorMessage = 'Email này không có quyền admin.';
       }
       
-      this.showError(errorMessage);
+  this.toast.error(errorMessage);
     } finally {
       this.isLoading = false;
     }
@@ -825,11 +885,11 @@ export class HeaderComponent implements OnInit {
     try {
       await this.firebaseAuthService.signOut();
       this.showUserMenu = false;
-      this.showSuccess('Đã đăng xuất thành công!');
+  this.toast.info('Đã đăng xuất');
       console.log('🔥 Firebase logout successful');
     } catch (error) {
       console.error('❌ Firebase logout failed:', error);
-      this.showError('Lỗi đăng xuất. Vui lòng thử lại.');
+  this.toast.error('Lỗi đăng xuất. Vui lòng thử lại.');
     }
   }
 
@@ -878,8 +938,8 @@ export class HeaderComponent implements OnInit {
   }
 
   openProfile() {
-    this.showUserMenu = false;
-    this.showInfo('Tính năng đang được phát triển');
+  this.showUserMenu = false;
+  this.toast.info('Tính năng đang phát triển');
   }
 
   // Accessibility: handle keydown for dropdown items
@@ -919,79 +979,5 @@ export class HeaderComponent implements OnInit {
     return emailRegex.test(email);
   }
 
-  private showSuccess(message: string) {
-    this.createNotification(message, 'success');
-  }
-
-  private showError(message: string) {
-    this.createNotification(message, 'error');
-  }
-
-  private showInfo(message: string) {
-    this.createNotification(message, 'info');
-  }
-
-  private createNotification(message: string, type: 'success' | 'error' | 'info'): void {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 10000;
-      font-size: 14px;
-      font-weight: 500;
-      max-width: 300px;
-      animation: slideIn 0.3s ease;
-    `;
-    notification.textContent = message;
-    
-    // Add close button
-    const closeBtn = document.createElement('span');
-    closeBtn.innerHTML = '&times;';
-    closeBtn.style.cssText = `
-      margin-left: 10px;
-      cursor: pointer;
-      font-size: 18px;
-      font-weight: bold;
-    `;
-    closeBtn.onclick = () => {
-      if (document.body.contains(notification)) {
-        document.body.removeChild(notification);
-      }
-    };
-    notification.appendChild(closeBtn);
-
-    document.body.appendChild(notification);
-    
-    // Auto remove after 4 seconds
-    setTimeout(() => {
-      if (document.body.contains(notification)) {
-        document.body.removeChild(notification);
-      }
-    }, 4000);
-
-    // Add slide in animation
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateX(100%);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-    `;
-    if (!document.head.querySelector('style[data-notifications]')) {
-      style.setAttribute('data-notifications', 'true');
-      document.head.appendChild(style);
-    }
-  }
+  // Removed legacy DOM notification implementation in favor of ToastService
 }
