@@ -29,7 +29,6 @@ import {
 import { PlayerInfo } from '../models/player.model';
 import { PlayerService, TeamBalanceResult } from './player.service';
 import { FirebaseService } from '../../services/firebase.service';
-import { MatchFinancesService } from './match-finances.service';
 import { MatchValidationService } from './match-validation.service';
 
 @Injectable({ providedIn: 'root' })
@@ -37,7 +36,6 @@ export class MatchService {
   // Injected dependencies
   private readonly playerService = inject(PlayerService);
   private readonly firebaseService = inject(FirebaseService);
-  private readonly financesService = inject(MatchFinancesService);
   private readonly validationService = inject(MatchValidationService);
 
   // Reactive state
@@ -84,7 +82,6 @@ export class MatchService {
       if (!validation.isValid) throw new Error(`Validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
       const id = this.generateMatchId();
       const newMatch: MatchInfo = { ...matchData, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), version: 1 };
-      newMatch.finances = this.financesService.calculate(newMatch);
       await this.saveMatchToStorage(newMatch);
       const mapRef = this._matches$.value; mapRef.set(id, newMatch); this._matches$.next(new Map(mapRef));
       return newMatch;
@@ -98,7 +95,6 @@ export class MatchService {
       this._loading$.next(true); this._error$.next(null);
       const current = await this.getMatchById(id); if (!current) throw new Error(`Match with ID ${id} not found`);
       const updated: MatchInfo = { ...current, ...updates, id, updatedAt: new Date().toISOString(), version: current.version + 1 };
-      if (this.shouldRecalculateFinances(updates)) updated.finances = this.financesService.calculate(updated);
       const validation = this.validationService.validate(updated); if (!validation.isValid) throw new Error(`Validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
       await this.saveMatchToStorage(updated);
       const mapRef = this._matches$.value; mapRef.set(id, updated); this._matches$.next(new Map(mapRef));
@@ -303,7 +299,6 @@ export class MatchService {
   private async removeMatchFromStorage(id: string): Promise<void> { const list = Array.from(this._matches$.value.values()).filter(m => m.id !== id); localStorage.setItem('matchHistory', JSON.stringify(list)); }
   private filterMatches(matches: MatchInfo[], c: MatchSearchCriteria): MatchInfo[] { return matches.filter(m => { if (c.dateFrom && m.date < c.dateFrom) return false; if (c.dateTo && m.date > c.dateTo) return false; if (c.status && m.status !== c.status) return false; if (c.teamPlayer) { const q = c.teamPlayer.toLowerCase(); const has = m.teamA.players.some(p => p.firstName.toLowerCase().includes(q)) || m.teamB.players.some(p => p.firstName.toLowerCase().includes(q)); if (!has) return false; } return true; }); }
   private sortMatches(matches: MatchInfo[], sort: MatchSortOptions): MatchInfo[] { return matches.sort((a,b)=>{ let av: number|string = a[sort.field as keyof MatchInfo] as string|number; let bv: number|string = b[sort.field as keyof MatchInfo] as string|number; if (sort.field === 'totalGoals') { av = a.result.scoreA + a.result.scoreB; bv = b.result.scoreA + b.result.scoreB; } else if (sort.field === 'profit') { av = a.finances.netProfit; bv = b.finances.netProfit; } const comp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv)); return sort.direction === 'desc' ? -comp : comp; }); }
-  private shouldRecalculateFinances(updates: MatchUpdateFields): boolean { return !!(updates.result || updates.teamA || updates.teamB); }
   private async updatePlayerStatistics(): Promise<void> { /* integrate with PlayerService later */ }
   private generateMatchId(): string { return `match_${Date.now()}_${Math.random().toString(36).slice(2)}`; }
   private generateEventId(): string { return `event_${Date.now()}_${Math.random().toString(36).slice(2)}`; }

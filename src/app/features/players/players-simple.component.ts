@@ -697,7 +697,11 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
 
     .th-avatar {
       width: 70px;
-      text-align: center;
+      text-align: center !important;
+    }
+
+    .th-age, .th-height, .th-weight {
+      text-align: center !important;
     }
 
     .player-row {
@@ -728,7 +732,14 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
     }
 
     .avatar-cell {
-      text-align: center;
+      width: 70px;
+      text-align: center !important;
+      vertical-align: middle !important;
+      padding: 16px 0 !important;
+    }
+
+    .age-cell, .height-cell, .weight-cell {
+      text-align: center !important;
     }
 
     .avatar-wrapper {
@@ -737,6 +748,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       width: 50px;
       height: 50px;
       cursor: pointer;
+      margin: 0 auto;
     }
 
     .player-avatar {
