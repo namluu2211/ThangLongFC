@@ -101,13 +101,20 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
             <i class="fas fa-search search-icon"></i>
             <input 
               type="text" 
-              placeholder="Tìm kiếm cầu thủ..." 
+              placeholder="Tìm kiếm theo tên, vị trí..." 
               (input)="onSearchInput($event)"
-              class="search-input">
+              class="search-input"
+              aria-label="Tìm kiếm cầu thủ">
+            <span class="search-hint" *ngIf="filteredPlayers.length > 0">
+              <i class="fas fa-users"></i> {{ filteredPlayers.length }} cầu thủ
+            </span>
           </div>
           
           <div class="filter-group">
-            <select (change)="onPositionFilterChange($event)" class="filter-select">
+            <span class="filter-label">
+              <i class="fas fa-filter"></i> Vị trí
+            </span>
+            <select (change)="onPositionFilterChange($event)" class="filter-select" aria-label="Lọc theo vị trí">
               <option value="">Tất cả vị trí</option>
               <option *ngFor="let position of availablePositions; trackBy: trackByPositionName" [value]="position">
                 {{ position }}
@@ -119,58 +126,127 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
 
       <!-- Players Table -->
       <div *ngIf="!isLoading && !errorMessage && filteredPlayers.length > 0" class="table-container">
-        <table class="players-table">
-          <thead>
-            <tr>
-              <th>Avatar</th>
-              <th>Tên cầu thủ</th>
-              <th>Vị trí</th>
-              <th>Tuổi</th>
-              <th>Chiều cao</th>
-              <th>Cân nặng</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let player of paginatedPlayers; trackBy: trackByPlayerId" class="player-row">
-              <td class="avatar-cell">
-                <img 
-                  [src]="getPlayerAvatar(player)" 
-                  [alt]="getPlayerDisplayName(player)"
-                  class="player-avatar"
-                  loading="lazy">
-              </td>
-              <td class="name-cell">
-                <div class="player-name">{{ getPlayerDisplayName(player) }}</div>
-                <div class="player-number">#{{ player.id }}</div>
-                <div class="note-indicator" *ngIf="player.notes" [title]="player.notes">📝</div>
-              </td>
-              <td class="position-cell">
-                <span class="position-badge">{{ player.position }}</span>
-              </td>
-              <td class="age-cell">{{ calculateAge(player) }}</td>
-              <td class="height-cell">{{ player.height }}cm</td>
-              <td class="weight-cell">{{ player.weight }}kg</td>
-              <td class="actions-cell">
-                <button 
-                  (click)="viewPlayerDetails(player)" 
-                  class="action-btn detail-btn"
-                  title="Xem chi tiết">
-                  <i class="fas fa-eye"></i>
-                  Chi tiết
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="pagination-bar" *ngIf="totalPages > 1">
-          <button class="page-btn" (click)="prevPage()" [disabled]="currentPage === 0">«</button>
-          <ng-container *ngFor="let p of pages; let i = index; trackBy: trackByPageIndex">
-            <button class="page-btn" [class.active]="i === currentPage" (click)="goToPage(i)">{{ i + 1 }}</button>
-          </ng-container>
-            <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages - 1">»</button>
-          <div class="page-info">Hiển thị {{ pageStart + 1 }} - {{ pageEnd }} / {{ filteredPlayers.length }}</div>
+        <div class="table-header-info">
+          <h3 class="table-title">
+            <i class="fas fa-table"></i>
+            Danh sách cầu thủ
+          </h3>
+          <div class="table-meta">
+            Hiển thị {{ pageStart + 1 }} - {{ pageEnd }} / {{ filteredPlayers.length }} cầu thủ
+          </div>
         </div>
+        <div class="table-wrapper">
+          <table class="players-table">
+            <thead>
+              <tr>
+                <th class="th-avatar">
+                  <i class="fas fa-image"></i>
+                </th>
+                <th class="th-name">
+                  <i class="fas fa-user"></i> Tên cầu thủ
+                </th>
+                <th class="th-position">
+                  <i class="fas fa-map-marker-alt"></i> Vị trí
+                </th>
+                <th class="th-age">
+                  <i class="fas fa-birthday-cake"></i> Tuổi
+                </th>
+                <th class="th-height">
+                  <i class="fas fa-ruler-vertical"></i> Cao
+                </th>
+                <th class="th-weight">
+                  <i class="fas fa-weight"></i> Nặng
+                </th>
+                <th class="th-actions">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let player of paginatedPlayers; let i = index; trackBy: trackByPlayerId" 
+                  class="player-row"
+                  [class.row-even]="i % 2 === 0"
+                  [class.row-odd]="i % 2 === 1">
+                <td class="avatar-cell">
+                  <div class="avatar-wrapper">
+                    <img 
+                      [src]="getPlayerAvatar(player)" 
+                      [alt]="getPlayerDisplayName(player)"
+                      class="player-avatar"
+                      loading="lazy">
+                    <div class="avatar-overlay">
+                      <i class="fas fa-search-plus"></i>
+                    </div>
+                  </div>
+                </td>
+                <td class="name-cell">
+                  <div class="player-name-container">
+                    <div class="player-name">{{ getPlayerDisplayName(player) }}</div>
+                    <div class="player-subtitle" *ngIf="player.stats?.totalMatches">
+                      <i class="fas fa-futbol"></i> {{ player.stats.totalMatches }} trận
+                    </div>
+                  </div>
+                </td>
+                <td class="position-cell">
+                  <span class="position-badge" [class.position-gk]="player.position?.includes('Thủ môn')"
+                        [class.position-def]="player.position?.includes('Hậu vệ')"
+                        [class.position-mid]="player.position?.includes('Tiền vệ')"
+                        [class.position-fwd]="player.position?.includes('Tiền đạo')">
+                    {{ player.position }}
+                  </span>
+                </td>
+                <td class="age-cell">
+                  <span class="data-value">{{ calculateAge(player) }}</span>
+                </td>
+                <td class="height-cell">
+                  <span class="data-value">{{ player.height }}<small>cm</small></span>
+                </td>
+                <td class="weight-cell">
+                  <span class="data-value">{{ player.weight }}<small>kg</small></span>
+                </td>
+                <td class="actions-cell">
+                  <button 
+                    (click)="viewPlayerDetails(player)" 
+                    class="action-btn detail-btn"
+                    title="Xem chi tiết cầu thủ">
+                    <i class="fas fa-eye"></i>
+                    <span class="btn-text">Chi tiết</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-bar" *ngIf="totalPages > 1">
+          <button class="page-btn page-nav" (click)="prevPage()" [disabled]="currentPage === 0" title="Trang trước">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div class="page-numbers">
+            <ng-container *ngFor="let p of pages; let i = index; trackBy: trackByPageIndex">
+              <button class="page-btn" 
+                      [class.active]="i === currentPage" 
+                      (click)="goToPage(i)"
+                      [attr.aria-label]="'Trang ' + (i + 1)"
+                      [attr.aria-current]="i === currentPage ? 'page' : null">
+                {{ i + 1 }}
+              </button>
+            </ng-container>
+          </div>
+          <button class="page-btn page-nav" (click)="nextPage()" [disabled]="currentPage === totalPages - 1" title="Trang sau">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- No Results State -->
+      <div *ngIf="!isLoading && !errorMessage && filteredPlayers.length === 0" class="no-results">
+        <div class="no-results-icon">
+          <i class="fas fa-search"></i>
+        </div>
+        <h3>Không tìm thấy cầu thủ</h3>
+        <p>Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm</p>
+        <button (click)="clearFilters()" class="clear-filters-btn">
+          <i class="fas fa-times-circle"></i>
+          Xóa bộ lọc
+        </button>
       </div>
 
       <!-- Detail / Create / Edit Panels -->
@@ -199,16 +275,11 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
                 <div class="hero-position">{{ selectedPlayer.position || 'Chưa xác định' }}</div>
               </div>
             </div>
-            <div class="mini-stats">
-              <div class="mini-stat"><span>{{ selectedPlayer.stats?.totalMatches || 0 }}</span><span class="mini-label">Trận</span></div>
-              <div class="mini-stat"><span>{{ selectedPlayer.stats?.goals || 0 }}</span><span class="mini-label">Bàn</span></div>
-              <div class="mini-stat"><span>{{ selectedPlayer.stats?.assists || 0 }}</span><span class="mini-label">Kiến tạo</span></div>
-            </div>
             <dl class="detail-list">
               <div><dt>Tuổi</dt><dd>{{ calculateAge(selectedPlayer) }}</dd></div>
               <div><dt>Chiều cao</dt><dd>{{ selectedPlayer.height || '—' }}cm</dd></div>
               <div><dt>Cân nặng</dt><dd>{{ selectedPlayer.weight || '—' }}kg</dd></div>
-              <div><dt>Trạng thái</dt><dd>{{ selectedPlayer.status }}</dd></div>
+              <div *ngIf="selectedPlayer.notes" class="note-section"><dt>Ghi chú</dt><dd>{{ selectedPlayer.notes }}</dd></div>
             </dl>
           </div>
           <footer class="panel-footer">
@@ -420,13 +491,27 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
     .filters-section {
       max-width: 1200px;
       margin: 0 auto 30px;
+      animation: slideDown 0.4s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .search-container {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 20px;
-      border-radius: 15px;
-      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.15);
+      padding: 24px;
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
       display: flex;
       gap: 20px;
       align-items: center;
@@ -436,137 +521,455 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
     .search-box {
       position: relative;
       flex: 1;
-      min-width: 250px;
+      min-width: 280px;
     }
 
     .search-input {
       width: 100%;
-      padding: 12px 15px 12px 45px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 25px;
-      background: rgba(255, 255, 255, 0.9);
+      padding: 14px 18px 14px 50px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.95);
       font-size: 1rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(0, 0, 0, 0.12);
+      transform: translateY(-1px);
     }
 
     .search-icon {
       position: absolute;
-      left: 15px;
+      left: 18px;
       top: 50%;
       transform: translateY(-50%);
-      color: #666;
+      color: #667eea;
+      font-size: 1.1rem;
+      transition: transform 0.3s ease;
+    }
+
+    .search-input:focus ~ .search-icon {
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .search-hint {
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #667eea;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
     }
 
     .filter-group {
       display: flex;
-      gap: 15px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .filter-label {
+      color: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
     }
 
     .filter-select {
-      padding: 10px 15px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.9);
+      padding: 12px 18px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.95);
       font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .filter-select:hover {
+      border-color: #667eea;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
     }
 
     .table-container {
       max-width: 1200px;
-      margin: 0 auto;
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
+      margin: 0 auto 30px;
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      animation: fadeInUp 0.5s ease;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .table-header-info {
+      padding: 20px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .table-title {
+      margin: 0;
+      color: white;
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .table-meta {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.9rem;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 6px 14px;
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
     }
 
     .players-table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
     }
 
     .players-table thead {
-      background: linear-gradient(45deg, #667eea, #764ba2);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     .players-table th {
-      padding: 15px;
+      padding: 16px 18px;
       text-align: left;
-      font-weight: 600;
+      font-weight: 700;
       color: white;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+      white-space: nowrap;
+    }
+
+    .th-avatar {
+      width: 70px;
+      text-align: center;
     }
 
     .player-row {
-      transition: background-color 0.2s ease;
+      transition: all 0.2s ease;
+      position: relative;
     }
 
     .player-row:hover {
-      background-color: #f8f9ff;
+      background: linear-gradient(90deg, #f8f9ff 0%, #e8eeff 100%);
+      transform: scale(1.01);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+      z-index: 5;
+    }
+
+    .row-even {
+      background: #ffffff;
+    }
+
+    .row-odd {
+      background: #f8f9fd;
     }
 
     .players-table td {
-      padding: 12px 15px;
-      border-bottom: 1px solid #eee;
+      padding: 16px 18px;
+      border-bottom: 1px solid #e8ecf4;
       vertical-align: middle;
+      font-size: 0.95rem;
+    }
+
+    .avatar-cell {
+      text-align: center;
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      cursor: pointer;
     }
 
     .player-avatar {
-      width: 40px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       object-fit: cover;
+      border: 3px solid #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .avatar-wrapper:hover .player-avatar {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .avatar-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(102, 126, 234, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      color: white;
+      font-size: 1.1rem;
+    }
+
+    .avatar-wrapper:hover .avatar-overlay {
+      opacity: 1;
+    }
+
+    .player-name-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .player-name {
-      font-weight: 600;
-      color: #333;
+      font-weight: 700;
+      color: #2d3748;
+      font-size: 1rem;
+      letter-spacing: 0.3px;
     }
 
-    .player-number {
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .position-badge {
-      background: #e3f2fd;
-      color: #1976d2;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-
-    .action-btn {
-      background: #1976d2;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
+    .player-subtitle {
+      font-size: 0.8rem;
+      color: #718096;
       display: flex;
       align-items: center;
       gap: 5px;
-      transition: background-color 0.2s ease;
+    }
+
+    .player-subtitle i {
+      color: #667eea;
+    }
+
+    .position-badge {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      color: #1565c0;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-block;
+      box-shadow: 0 2px 6px rgba(21, 101, 192, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .position-badge:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(21, 101, 192, 0.3);
+    }
+
+    .position-gk {
+      background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%);
+      color: #f57f17;
+      box-shadow: 0 2px 6px rgba(245, 127, 23, 0.2);
+    }
+
+    .position-def {
+      background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+      color: #2e7d32;
+      box-shadow: 0 2px 6px rgba(46, 125, 50, 0.2);
+    }
+
+    .position-mid {
+      background: linear-gradient(135deg, #e1bee7 0%, #ce93d8 100%);
+      color: #6a1b9a;
+      box-shadow: 0 2px 6px rgba(106, 27, 154, 0.2);
+    }
+
+    .position-fwd {
+      background: linear-gradient(135deg, #ffccbc 0%, #ffab91 100%);
+      color: #d84315;
+      box-shadow: 0 2px 6px rgba(216, 67, 21, 0.2);
+    }
+
+    .data-value {
+      font-weight: 600;
+      color: #4a5568;
+      font-size: 0.95rem;
+    }
+
+    .data-value small {
+      font-weight: 400;
+      color: #a0aec0;
+      margin-left: 2px;
+    }
+
+    .action-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      white-space: nowrap;
     }
 
     .action-btn:hover {
-      background: #1565c0;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-text {
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .btn-text {
+        display: none;
+      }
+      .action-btn {
+        padding: 10px 14px;
+      }
+    }
+
+    .pagination-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
+      border-top: 2px solid #e8ecf4;
+      flex-wrap: wrap;
+    }
+
+    .page-numbers {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .page-btn {
+      background: #ffffff;
+      border: 2px solid #e8ecf4;
+      min-width: 42px;
+      height: 42px;
+      padding: 0 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #4a5568;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-btn:hover:not(:disabled):not(.active) {
+      background: #f8f9ff;
+      border-color: #667eea;
+      color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: #f1f3f5;
+    }
+
+    .page-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+      transform: scale(1.05);
+    }
+
+    .page-nav {
+      font-weight: 700;
+    }
+
+    .page-nav i {
+      font-size: 0.85rem;
     }
 
     .loading-state, .error-state, .no-results {
       text-align: center;
-      padding: 60px 20px;
+      padding: 80px 20px;
       color: white;
+      max-width: 600px;
+      margin: 0 auto;
     }
 
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid white;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.2);
+      border-top: 5px solid white;
       border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 24px;
     }
 
     @keyframes spin {
@@ -574,26 +977,69 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
       100% { transform: rotate(360deg); }
     }
 
+    .loading-state p {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-top: 20px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
     .error-icon, .no-results-icon {
-      font-size: 3rem;
-      margin-bottom: 20px;
+      font-size: 4rem;
+      margin-bottom: 24px;
+      color: rgba(255, 255, 255, 0.9);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+      }
+    }
+
+    .error-state h3, .no-results h3 {
+      font-size: 1.8rem;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+
+    .error-state p, .no-results p {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.85);
+      margin-bottom: 28px;
+      line-height: 1.6;
     }
 
     .retry-btn, .clear-filters-btn {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.4);
       color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
+      padding: 14px 28px;
+      border-radius: 30px;
       cursor: pointer;
-      margin-top: 20px;
+      font-size: 1rem;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .retry-btn:hover, .clear-filters-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .retry-btn:active, .clear-filters-btn:active {
+      transform: translateY(0);
     }
 
     .pagination-bar {
