@@ -5,7 +5,6 @@ import { DataStoreService } from '../../core/services/data-store.service';
 import { FormsModule } from '@angular/forms';
 import { PermissionService } from '../../core/services/permission.service';
 import { CanEditDirective } from '../../shared/can-edit.directive';
-import { AdminConfig } from '../../config/admin.config';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
 import { DevFirebaseAuthService } from '../../services/dev-firebase-auth.service';
 import { Router } from '@angular/router';
@@ -16,133 +15,124 @@ import { Router } from '@angular/router';
   imports: [CommonModule, FormsModule, CanEditDirective],
   template: `
     <div class="history-container">
-      <!-- Header Section -->
+      <!-- Modern Header Section -->
       <div class="header-section">
+        <div class="header-backdrop"></div>
         <div class="header-content">
-          <h1 class="page-title">Lịch sử trận đấu</h1>
-          <p class="page-subtitle">Xem lại các trận đấu đã qua và quản lý tài chính</p>
-        </div>
-        <div class="header-actions">
-          <div class="match-count-badge">
-            {{ filteredMatches.length }}/{{ matches.length }} trận đấu
+          <div class="title-section">
+            <h1 class="page-title">
+              <i class="fas fa-history"></i>
+              Lịch sử trận đấu
+            </h1>
+            <p class="page-subtitle">Xem lại các trận đấu đã qua và quản lý tài chính</p>
           </div>
-          <button class="sync-btn" (click)="syncData()">🔄 Sync Data</button>
-          <button 
-            class="fund-sync-btn" 
-            (click)="syncFundFromHistory()" 
-            [disabled]="isSyncingFund"
-            *appCanEdit>
-            {{ isSyncingFund ? '🔄 Đang sync...' : '💰 Sync Fund' }}
-          </button>
-          <button class="export-btn" (click)="exportData()">📤 Xuất dữ liệu</button>
-        </div>
-      </div>
-
-      <!-- Search and Filter Section -->
-      <div class="filter-section" *ngIf="matches.length > 0">
-        <div class="search-controls">
-          <div class="search-group">
-            <label for="history-search-input">🔍 Tìm kiếm</label>
-            <input 
-              id="history-search-input"
-              type="text" 
-              [(ngModel)]="searchTerm" 
-              (input)="onSearchChange()"
-              placeholder="Tìm theo ngày, cầu thủ ghi bàn..."
-              class="search-input"
-              aria-label="Tìm kiếm trận đấu">
+          <div class="header-actions">
+            <div class="match-count-badge">
+              <i class="fas fa-trophy"></i>
+              <span>{{ filteredMatches.length }}/{{ matches.length }}</span>
+            </div>
+            <button class="action-button sync-btn" (click)="syncData()">
+              <i class="fas fa-sync-alt"></i>
+              <span>Sync Data</span>
+            </button>
+            <button 
+              class="action-button fund-sync-btn" 
+              (click)="syncFundFromHistory()" 
+              [disabled]="isSyncingFund"
+              *appCanEdit>
+              <i class="fas" [class.fa-sync-alt]="isSyncingFund" [class.fa-spin]="isSyncingFund" [class.fa-coins]="!isSyncingFund"></i>
+              <span>{{ isSyncingFund ? 'Đang sync...' : 'Sync Fund' }}</span>
+            </button>
+            <button class="action-button export-btn" (click)="exportData()">
+              <i class="fas fa-file-export"></i>
+              <span>Xuất dữ liệu</span>
+            </button>
           </div>
-          
-          <div class="filter-group">
-            <label for="history-month-filter">📅 Tháng</label>
-            <input 
-              id="history-month-filter"
-              type="month" 
-              [(ngModel)]="dateFilter" 
-              (change)="onDateFilterChange()"
-              class="date-filter"
-              aria-label="Lọc theo tháng">
-          </div>
-          
-          <div class="filter-group">
-            <label for="history-score-filter">🏆 Kết quả</label>
-            <select 
-              id="history-score-filter"
-              [(ngModel)]="scoreFilter" 
-              (change)="onScoreFilterChange()"
-              class="score-filter"
-              aria-label="Lọc theo kết quả trận đấu">
-              <option value="all">Tất cả</option>
-              <option value="win">Thắng</option>
-              <option value="draw">Hòa</option>
-              <option value="loss">Thua</option>
-            </select>
-          </div>
-          
-          <button 
-            class="clear-filters-btn" 
-            (click)="clearFilters()" 
-            *ngIf="searchTerm || dateFilter || scoreFilter !== 'all'"
-            aria-label="Xóa tất cả bộ lọc đang áp dụng"
-          >
-            🗑️ Xóa bộ lọc
-          </button>
         </div>
       </div>
 
       <!-- Fund Sync Result -->
-      <div class="fund-sync-result" *ngIf="showFundSyncResult" aria-live="polite" aria-atomic="true">
-        <div class="sync-message">{{ fundSyncMessage }}</div>
+      <div class="fund-sync-alert success-alert" *ngIf="showFundSyncResult" aria-live="polite" aria-atomic="true">
+        <i class="fas fa-check-circle"></i>
+        <span>{{ fundSyncMessage }}</span>
       </div>
 
-      <!-- Tổng quan tài chính Section -->
-      <div class="financial-section">
-        <div class="section-header">
-          <h2 class="section-title">📈 Tổng quan tài chính</h2>
-          <button class="collapse-btn">v</button>
-        </div>
-        
-        <div class="financial-stats">
-          <div class="stat-item revenue">
-            <div class="stat-icon">💰</div>
-            <div class="stat-info">
-              <div class="stat-amount">{{ getTotalRevenue() | number:'1.0-0' }} đ</div>
-              <div class="stat-label">Tổng thu nhập</div>
-              <div class="stat-detail">{{ matches.length }} trận đấu</div>
-            </div>
-          </div>
-          
-          <div class="stat-item expense">
-            <div class="stat-icon">💸</div>
-            <div class="stat-info">
-              <div class="stat-amount">{{ getTotalExpenses() | number:'1.0-0' }} đ</div>
-              <div class="stat-label">Tổng chi phí</div>
-              <div class="stat-detail">Bao gồm sân, trọng tài, nước</div>
-            </div>
-          </div>
-          
-          <div class="stat-item balance" [class.positive]="getNetProfit() >= 0" [class.negative]="getNetProfit() < 0">
-            <div class="stat-icon">⚖️</div>
-            <div class="stat-info">
-              <div class="stat-amount">{{ getNetProfit() | number:'1.0-0' }} đ</div>
-              <div class="stat-label">Hòa vốn</div>
-              <div class="stat-detail">Cân bằng thu chi</div>
-            </div>
+      <!-- Modern Financial Overview Section -->
+      <div class="financial-overview-section">
+        <div class="section-header-modern">
+          <div class="header-left">
+            <i class="fas fa-chart-line"></i>
+            <h2>Tổng quan tài chính</h2>
           </div>
         </div>
         
-        <div class="average-stats">
-          <div class="avg-item">
-            <span class="avg-label">Trung bình/trận:</span>
-            <span class="avg-value">{{ getAveragePerMatch() | number:'1.0-0' }} đ</span>
+        <div class="financial-cards-grid">
+          <!-- Revenue Card -->
+          <div class="financial-card revenue-card">
+            <div class="card-icon-wrapper">
+              <i class="fas fa-money-bill-wave"></i>
+              <div class="icon-glow"></div>
+            </div>
+            <div class="card-content">
+              <div class="card-label">Tổng thu nhập</div>
+              <div class="card-value">{{ getTotalRevenue() | number:'1.0-0' }}</div>
+              <div class="card-subtitle">
+                <i class="fas fa-trophy"></i>
+                {{ matches.length }} trận đấu
+              </div>
+            </div>
+            <div class="card-decoration"></div>
           </div>
-          <div class="avg-item">
-            <span class="avg-label">Thu trung bình:</span>
-            <span class="avg-value">{{ getAverageRevenue() | number:'1.0-0' }} đ</span>
+          
+          <!-- Expense Card -->
+          <div class="financial-card expense-card">
+            <div class="card-icon-wrapper">
+              <i class="fas fa-receipt"></i>
+              <div class="icon-glow"></div>
+            </div>
+            <div class="card-content">
+              <div class="card-label">Tổng chi phí</div>
+              <div class="card-value">{{ getTotalExpenses() | number:'1.0-0' }}</div>
+              <div class="card-subtitle">
+                <i class="fas fa-info-circle"></i>
+                Sân, trọng tài, nước
+              </div>
+            </div>
+            <div class="card-decoration"></div>
           </div>
-          <div class="avg-item">
-            <span class="avg-label">Chi trung bình:</span>
-            <span class="avg-value">{{ getAverageExpensePerMatch() | number:'1.0-0' }} đ</span>
+          
+          <!-- Balance Card -->
+          <div class="financial-card balance-card" [class.positive]="getNetProfit() >= 0" [class.negative]="getNetProfit() < 0">
+            <div class="card-icon-wrapper">
+              <i class="fas fa-balance-scale"></i>
+              <div class="icon-glow"></div>
+            </div>
+            <div class="card-content">
+              <div class="card-label">Hòa vốn</div>
+              <div class="card-value">{{ getNetProfit() | number:'1.0-0' }}</div>
+              <div class="card-subtitle">
+                <i class="fas" [class.fa-arrow-up]="getNetProfit() >= 0" [class.fa-arrow-down]="getNetProfit() < 0"></i>
+                {{ getNetProfit() >= 0 ? 'Lãi' : 'Lỗ' }}
+              </div>
+            </div>
+            <div class="card-decoration"></div>
+          </div>
+
+          <!-- Average Card -->
+          <div class="financial-card average-card">
+            <div class="card-icon-wrapper">
+              <i class="fas fa-calculator"></i>
+              <div class="icon-glow"></div>
+            </div>
+            <div class="card-content">
+              <div class="card-label">TB mỗi trận</div>
+              <div class="card-value">{{ getAveragePerMatch() | number:'1.0-0' }}</div>
+              <div class="card-subtitle">
+                <i class="fas fa-chart-bar"></i>
+                Thu: {{ getAverageRevenue() | number:'1.0-0' }}
+              </div>
+            </div>
+            <div class="card-decoration"></div>
           </div>
         </div>
       </div>
@@ -533,6 +523,405 @@ import { Router } from '@angular/router';
   `,
   styleUrls: ['./history.component.css'],
   styles: [`
+    /* Modern Base Styles */
+    .history-container {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 24px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Modern Header Section */
+    .header-section {
+      position: relative;
+      margin-bottom: 32px;
+      overflow: hidden;
+      border-radius: 24px;
+      animation: slideDown 0.6s ease;
+    }
+
+    .header-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .header-content {
+      position: relative;
+      padding: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .title-section {
+      flex: 1;
+    }
+
+    .page-title {
+      margin: 0 0 12px 0;
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-title i {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .page-subtitle {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .match-count-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 4px 16px rgba(17, 153, 142, 0.3);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 4px 16px rgba(17, 153, 142, 0.3);
+      }
+      50% {
+        box-shadow: 0 6px 24px rgba(17, 153, 142, 0.5);
+      }
+    }
+
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-button:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-button:active:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .sync-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .fund-sync-btn {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+
+    .fund-sync-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .export-btn {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+    }
+
+    .fa-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Fund Sync Alert */
+    .fund-sync-alert {
+      margin: 0 0 24px 0;
+      padding: 16px 24px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      animation: slideDown 0.4s ease;
+    }
+
+    .success-alert {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      box-shadow: 0 4px 16px rgba(17, 153, 142, 0.3);
+    }
+
+    .success-alert i {
+      font-size: 1.3rem;
+    }
+
+    /* Modern Financial Overview */
+    .financial-overview-section {
+      margin-bottom: 32px;
+      animation: fadeInUp 0.6s ease;
+    }
+
+    .section-header-modern {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+    }
+
+    .header-left i {
+      font-size: 1.8rem;
+    }
+
+    .header-left h2 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+
+    .financial-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .financial-card {
+      position: relative;
+      background: white;
+      border-radius: 20px;
+      padding: 28px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid transparent;
+    }
+
+    .financial-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+    }
+
+    .financial-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
+      transition: height 0.3s ease;
+    }
+
+    .financial-card:hover::before {
+      height: 8px;
+    }
+
+    .revenue-card {
+      --card-color-1: #11998e;
+      --card-color-2: #38ef7d;
+    }
+
+    .expense-card {
+      --card-color-1: #ff6b6b;
+      --card-color-2: #ee5a6f;
+    }
+
+    .balance-card {
+      --card-color-1: #4facfe;
+      --card-color-2: #00f2fe;
+    }
+
+    .balance-card.negative {
+      --card-color-1: #ff6b6b;
+      --card-color-2: #ee5a6f;
+    }
+
+    .average-card {
+      --card-color-1: #f093fb;
+      --card-color-2: #f5576c;
+    }
+
+    .card-decoration {
+      position: absolute;
+      bottom: -20px;
+      right: -20px;
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      border-radius: 50%;
+      opacity: 0.08;
+      transition: all 0.4s ease;
+    }
+
+    .financial-card:hover .card-decoration {
+      transform: scale(1.2);
+      opacity: 0.12;
+    }
+
+    .card-icon-wrapper {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .financial-card:hover .card-icon-wrapper {
+      transform: scale(1.1) rotate(-5deg);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-icon-wrapper i {
+      font-size: 2.2rem;
+      color: white;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    .icon-glow {
+      position: absolute;
+      inset: -4px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      opacity: 0.3;
+      filter: blur(8px);
+      z-index: -1;
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.05);
+      }
+    }
+
+    .card-content {
+      flex: 1;
+    }
+
+    .card-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+
+    .card-value::after {
+      content: ' đ';
+      font-size: 1.2rem;
+    }
+
+    .card-subtitle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #7f8c8d;
+      font-weight: 600;
+    }
+
+    .card-subtitle i {
+      color: var(--card-color-1);
+    }
+
     /* Modal Styles */
     .modal-overlay {
       position: fixed;
@@ -709,69 +1098,6 @@ import { Router } from '@angular/router';
       color: #dc3545;
     }
     
-    /* Search and Filter Styles */
-    .filter-section {
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 20px 0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .search-controls {
-      display: flex;
-      gap: 16px;
-      align-items: end;
-      flex-wrap: wrap;
-    }
-    
-    .search-group,
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 180px;
-    }
-    
-    .search-group label,
-    .filter-group label {
-      font-weight: 500;
-      color: #495057;
-      font-size: 14px;
-    }
-    
-    .search-input,
-    .date-filter,
-    .score-filter {
-      padding: 8px 12px;
-      border: 1px solid #ced4da;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    
-    .search-input:focus,
-    .date-filter:focus,
-    .score-filter:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-    
-    .clear-filters-btn {
-      padding: 8px 16px;
-      background: #6c757d;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      height: fit-content;
-    }
-    
-    .clear-filters-btn:hover {
-      background: #5a6268;
-    }
-    
     /* Fund Sync Styles */
     .fund-sync-btn {
       padding: 8px 16px;
@@ -871,27 +1197,30 @@ import { Router } from '@angular/router';
       }
     }
 
-    /* Date Group Styles */
+    /* Modern Date Group Styles */
     .date-group {
       margin-bottom: 24px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
       overflow: hidden;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      animation: fadeInUp 0.5s ease;
     }
 
     .date-group:hover {
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
     }
 
     .date-group-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 20px;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border-bottom: 1px solid #e9ecef;
+      padding: 20px 28px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       cursor: pointer;
       user-select: none;
       transition: all 0.3s ease;
@@ -899,64 +1228,101 @@ import { Router } from '@angular/router';
       overflow: hidden;
     }
 
-    .date-group-header:hover {
-      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    .date-group-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .date-group-header:hover::before {
+      left: 100%;
     }
 
     .date-group-header:focus {
-      outline: 2px solid #007bff;
-      outline-offset: -2px;
+      outline: 3px solid rgba(102, 126, 234, 0.4);
+      outline-offset: -3px;
     }
 
     .date-group-header.collapsed {
-      border-bottom: none;
+      border-radius: 20px;
     }
 
     .date-header-content {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
+      position: relative;
+      z-index: 1;
     }
 
     .date-title {
-      font-size: 1.2rem;
-      font-weight: 600;
-      color: #2c3e50;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: white;
       margin: 0;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .date-title i {
+      font-size: 1.3rem;
     }
 
     .match-count {
-      background: #007bff;
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(10px);
       color: white;
-      padding: 4px 12px;
+      padding: 6px 16px;
       border-radius: 20px;
-      font-size: 0.875rem;
-      font-weight: 500;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .date-group-header:hover .match-count {
+      background: rgba(255, 255, 255, 0.35);
+      transform: scale(1.05);
     }
 
     .collapse-indicator {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.3s ease;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      z-index: 1;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
     }
 
     .date-group-header.collapsed .collapse-indicator {
-      transform: rotate(-90deg);
+      transform: rotate(-180deg);
     }
 
     .collapse-icon {
       font-size: 1.2rem;
-      color: #6c757d;
+      color: white;
       font-weight: bold;
     }
 
     .date-group-content {
       padding: 0;
-      max-height: 2000px;
+      max-height: 5000px;
       overflow: hidden;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
       opacity: 1;
+      background: linear-gradient(to bottom, rgba(102, 126, 234, 0.02), transparent);
     }
 
     .date-group-content.collapsed {
@@ -966,24 +1332,492 @@ import { Router } from '@angular/router';
     }
 
     .date-group-content .match-card {
-      margin: 16px 20px;
-      border-radius: 8px;
+      margin: 20px 24px;
+      border-radius: 16px;
+    }
+
+    .date-group-content .match-card:first-child {
+      margin-top: 24px;
     }
 
     .date-group-content .match-card:last-child {
+      margin-bottom: 24px;
+    }
+
+    /* Modern Match Card Styles */
+    .match-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .match-card:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    .match-date-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .date-text {
+      font-weight: 700;
+      color: #495057;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .date-text::before {
+      content: '📅';
+      font-size: 1.1rem;
+    }
+
+    .match-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background: white;
+      border: 2px solid #e9ecef;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 8px 12px;
+      border-radius: 10px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-btn.edit:hover {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-color: #667eea;
+    }
+
+    .action-btn.delete:hover {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      border-color: #ff6b6b;
+    }
+
+    /* Score Display */
+    .score-display {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 32px 24px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+      position: relative;
+    }
+
+    .score-display::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(to bottom, transparent, rgba(102, 126, 234, 0.2), transparent);
+    }
+
+    .team {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+
+    .team-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .team-blue .team-name {
+      color: #4299e1;
+      text-shadow: 0 2px 4px rgba(66, 153, 225, 0.2);
+    }
+
+    .team-orange .team-name {
+      color: #ed8936;
+      text-shadow: 0 2px 4px rgba(237, 137, 54, 0.2);
+    }
+
+    .team-score {
+      font-size: 3.5rem;
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .vs-divider {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #9ca3af;
+      background: white;
+      padding: 12px 16px;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border: 3px solid rgba(102, 126, 234, 0.2);
+      z-index: 1;
+    }
+
+    /* Teams Display */
+    .teams-display {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 24px;
+      background: white;
+      border-top: 2px solid #f0f2f5;
+    }
+
+    .team-players {
+      padding: 16px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(66, 153, 225, 0.05), rgba(66, 153, 225, 0.02));
+      border: 2px solid rgba(66, 153, 225, 0.15);
+    }
+
+    .team-players.orange {
+      background: linear-gradient(135deg, rgba(237, 137, 54, 0.05), rgba(237, 137, 54, 0.02));
+      border-color: rgba(237, 137, 54, 0.15);
+    }
+
+    .team-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #4a5568;
+    }
+
+    .team-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .blue-dot {
+      background: linear-gradient(135deg, #4299e1, #3182ce);
+    }
+
+    .orange-dot {
+      background: linear-gradient(135deg, #ed8936, #dd6b20);
+    }
+
+    .players-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .player-tag {
+      padding: 6px 12px;
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #4a5568;
+      transition: all 0.2s ease;
+    }
+
+    .player-tag:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-color: #667eea;
+    }
+
+    /* Match Statistics */
+    .match-statistics {
+      padding: 24px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
+      border-top: 2px solid #f0f2f5;
+    }
+
+    .stats-header {
       margin-bottom: 20px;
     }
+
+    .stats-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #2d3748;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stats-content {
+      display: grid;
+      gap: 16px;
+    }
+
+    .stat-section {
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+
+    .stat-section:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .stat-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: #4a5568;
+      margin-bottom: 12px;
+      font-size: 0.95rem;
+    }
+
+    .stat-title i {
+      color: #667eea;
+      font-size: 1.1rem;
+    }
+
+    .stat-teams {
+      display: grid;
+      gap: 8px;
+    }
+
+    .team-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .team-stat.blue {
+      background: linear-gradient(135deg, rgba(66, 153, 225, 0.1), rgba(66, 153, 225, 0.05));
+      border-left: 4px solid #4299e1;
+    }
+
+    .team-stat.orange {
+      background: linear-gradient(135deg, rgba(237, 137, 54, 0.1), rgba(237, 137, 54, 0.05));
+      border-left: 4px solid #ed8936;
+    }
+
+    .team-stat:hover {
+      transform: translateX(4px);
+    }
+
+    .team-label {
+      font-weight: 600;
+      color: #4a5568;
+      font-size: 0.9rem;
+    }
+
+    .stat-value {
+      font-weight: 700;
+      color: #2d3748;
+      font-size: 0.95rem;
+    }
+
+    .text-warning {
+      color: #fbbf24 !important;
+    }
+
+    .text-danger {
+      color: #ef4444 !important;
+    }
+
+    /* Match Finance */
+    .match-finance {
+      padding: 24px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.02));
+      border-top: 2px solid #f0f2f5;
+    }
+
+    .finance-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .finance-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #2d3748;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finance-title::before {
+      content: '💰';
+      font-size: 1.3rem;
+    }
+
+    .finance-summary {
+      padding: 8px 16px;
+      background: white;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #4a5568;
+      border: 2px solid #e9ecef;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .finance-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .finance-group {
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+    }
+
+    .finance-group.income {
+      border-left: 4px solid #10b981;
+    }
+
+    .finance-group.expense {
+      border-left: 4px solid #ef4444;
+    }
+
+    .finance-group h4 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #4a5568;
+    }
+
+    .finance-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 0.9rem;
+      color: #64748b;
+      border-bottom: 1px solid #f0f2f5;
+    }
+
+    .finance-row:last-of-type {
+      border-bottom: none;
+    }
+
+    .finance-total {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 2px solid #e9ecef;
+      text-align: right;
+      font-size: 1.1rem;
+    }
+
+    .finance-total strong {
+      color: #2d3748;
+    }
     
+    /* Responsive Design */
     @media (max-width: 768px) {
-      .search-controls {
-        flex-direction: column;
-        align-items: stretch;
+      .history-container {
+        padding: 16px;
       }
-      
-      .search-group,
-      .filter-group {
-        min-width: auto;
+
+      .header-content {
+        padding: 24px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .page-title {
+        font-size: 2rem;
+      }
+
+      .header-actions {
         width: 100%;
+        justify-content: flex-start;
+      }
+
+      .financial-cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .score-display {
+        padding: 24px 16px;
+      }
+
+      .team-score {
+        font-size: 2.5rem;
+      }
+
+      .teams-display {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+
+      .finance-details {
+        grid-template-columns: 1fr;
+      }
+
+      .date-group-header {
+        padding: 16px 20px;
+      }
+
+      .date-title {
+        font-size: 1.1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .page-title {
+        font-size: 1.6rem;
+      }
+
+      .card-value {
+        font-size: 2rem;
+      }
+
+      .team-score {
+        font-size: 2rem;
+      }
+
+      .date-group-content .match-card {
+        margin: 16px;
       }
     }
   `]
