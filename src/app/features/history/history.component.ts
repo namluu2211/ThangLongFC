@@ -178,15 +178,56 @@ import { Router } from '@angular/router';
               [attr.aria-hidden]="isDateCollapsed(dateGroup.date)">
               
               <!-- Individual match cards for this date -->
-              <div class="match-card" *ngFor="let match of dateGroup.matches; trackBy: trackByMatchId">
-            <!-- Match Date -->
-            <div class="match-date-header">
-              <span class="date-text">{{ formatMatchDate(match.date) }}</span>
-              <div class="match-actions" *appCanEdit>
-                <button class="action-btn edit" (click)="editMatch(match)" title="Chỉnh sửa trận đấu">✏️</button>
-                <button class="action-btn delete" (click)="confirmDeleteMatch(match)" title="Xóa trận đấu">🗑️</button>
-              </div>
-            </div>
+              <div class="match-card" 
+                   *ngFor="let match of dateGroup.matches; trackBy: trackByMatchId"
+                   [class.collapsed]="isMatchCollapsed(match.id)">
+                
+                <!-- Match Header (Always Visible - Collapsed State) -->
+                <div 
+                  class="match-header-clickable"
+                  (click)="toggleMatchCollapse(match.id, $event)"
+                  (keydown.enter)="toggleMatchCollapse(match.id, $event)"
+                  (keydown.space)="toggleMatchCollapse(match.id, $event)"
+                  tabindex="0"
+                  role="button"
+                  [attr.aria-expanded]="!isMatchCollapsed(match.id)"
+                  [attr.aria-controls]="'match-details-' + match.id">
+                  
+                  <div class="match-summary">
+                    <div class="match-date-inline">
+                      <i class="fas fa-calendar-alt"></i>
+                      <span class="date-text">{{ formatMatchDate(match.date) }}</span>
+                    </div>
+                    
+                    <div class="score-summary">
+                      <span class="team-name-short blue">Đội Xanh</span>
+                      <span class="score-badge">{{ match.scoreA || 0 }}</span>
+                      <span class="vs-text">-</span>
+                      <span class="score-badge">{{ match.scoreB || 0 }}</span>
+                      <span class="team-name-short orange">Đội Cam</span>
+                    </div>
+                    
+                    <div class="match-actions-inline" *appCanEdit (click)="$event.stopPropagation()">
+                      <button class="action-btn-small edit" (click)="editMatch(match)" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="action-btn-small delete" (click)="confirmDeleteMatch(match)" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="collapse-indicator-match">
+                    <i class="fas" [class.fa-chevron-down]="isMatchCollapsed(match.id)" [class.fa-chevron-up]="!isMatchCollapsed(match.id)"></i>
+                  </div>
+                </div>
+
+                <!-- Match Details (Expandable Content) -->
+                <div 
+                  class="match-details"
+                  [class.collapsed]="isMatchCollapsed(match.id)"
+                  [id]="'match-details-' + match.id"
+                  [attr.aria-hidden]="isMatchCollapsed(match.id)">
 
             <!-- Score Display -->
             <div class="score-display">
@@ -348,6 +389,7 @@ import { Router } from '@angular/router';
                 </div>
               </div>
             </div>
+                </div>
               </div>
             </div>
           </div>
@@ -747,7 +789,7 @@ import { Router } from '@angular/router';
 
     .financial-cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
     }
 
@@ -1352,12 +1394,162 @@ import { Router } from '@angular/router';
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       border: 2px solid rgba(102, 126, 234, 0.1);
+      margin-bottom: 12px;
     }
 
     .match-card:hover {
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      transform: translateY(-2px);
       border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    .match-card.collapsed:hover {
+      transform: none;
+    }
+
+    /* Clickable Match Header */
+    .match-header-clickable {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .match-header-clickable:hover {
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    }
+
+    .match-header-clickable:focus {
+      outline: 2px solid #667eea;
+      outline-offset: -2px;
+    }
+
+    .match-summary {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .match-date-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #64748b;
+      font-weight: 600;
+      min-width: 140px;
+    }
+
+    .match-date-inline i {
+      color: #667eea;
+    }
+
+    .score-summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .team-name-short {
+      font-size: 0.9rem;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    .team-name-short.blue {
+      background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+      color: #0369a1;
+    }
+
+    .team-name-short.orange {
+      background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+      color: #c2410c;
+    }
+
+    .score-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-size: 1.1rem;
+      padding: 6px 14px;
+      border-radius: 10px;
+      min-width: 40px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .vs-text {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .match-actions-inline {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .action-btn-small {
+      background: white;
+      border: 2px solid #e2e8f0;
+      color: #64748b;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      font-size: 0.85rem;
+    }
+
+    .action-btn-small:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-btn-small.edit:hover {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: #667eea;
+    }
+
+    .action-btn-small.delete:hover {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border-color: #ef4444;
+    }
+
+    .collapse-indicator-match {
+      display: flex;
+      align-items: center;
+      color: #667eea;
+      font-size: 1.1rem;
+      transition: transform 0.3s ease;
+      margin-left: 12px;
+    }
+
+    .match-card.collapsed .collapse-indicator-match {
+      transform: rotate(0deg);
+    }
+
+    /* Match Details (Expandable Content) */
+    .match-details {
+      max-height: 5000px;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+      opacity: 1;
+    }
+
+    .match-details.collapsed {
+      max-height: 0;
+      opacity: 0;
     }
 
     .match-date-header {
@@ -1855,9 +2047,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
   fundSyncMessage = '';
   showFundSyncResult = false;
 
-  // Collapse state properties for date groups
+  // Collapse state properties for date groups (months)
   dateCollapseStates: Record<string, boolean> = {};
   private readonly COLLAPSE_STATES_KEY = 'history_date_collapse_states';
+  
+  // Collapse state properties for individual matches
+  matchCollapseStates: Record<string, boolean> = {};
+  private readonly MATCH_COLLAPSE_STATES_KEY = 'history_match_collapse_states';
 
   // Skeleton loading placeholder
   skeletonArray = Array.from({ length: 5 });
@@ -1876,6 +2072,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
       }
     })();
     this.loadCollapseStates();
+    this.loadMatchCollapseStates();
   }
 
   // Legacy evaluatePermissions removed in favor of centralized PermissionService.
@@ -2345,21 +2542,38 @@ export class HistoryComponent implements OnInit, OnDestroy {
   getMatchesByDate(): { date: string; matches: HistoryEntry[] }[] {
     const groups: Record<string, HistoryEntry[]> = {};
     
-    // Group filtered matches by date
+    // Group filtered matches by month (YYYY-MM format)
     this.filteredMatches.forEach(match => {
-      const dateKey = match.date || 'unknown';
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
+      if (!match.date || match.date === 'unknown') {
+        const dateKey = 'unknown';
+        if (!groups[dateKey]) {
+          groups[dateKey] = [];
+        }
+        groups[dateKey].push(match);
+      } else {
+        // Extract year and month from date (YYYY-MM)
+        const matchDate = new Date(match.date);
+        const year = matchDate.getFullYear();
+        const month = String(matchDate.getMonth() + 1).padStart(2, '0');
+        const monthKey = `${year}-${month}`;
+        
+        if (!groups[monthKey]) {
+          groups[monthKey] = [];
+        }
+        groups[monthKey].push(match);
       }
-      groups[dateKey].push(match);
     });
 
-    // Convert to sorted array of groups
+    // Convert to sorted array of groups (most recent month first)
     return Object.keys(groups)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime()) // Most recent first
-      .map(date => ({
-        date,
-        matches: groups[date].sort((a, b) => 
+      .sort((a, b) => {
+        if (a === 'unknown') return 1;
+        if (b === 'unknown') return -1;
+        return b.localeCompare(a); // Descending order for YYYY-MM format
+      })
+      .map(monthKey => ({
+        date: monthKey,
+        matches: groups[monthKey].sort((a, b) => 
           new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
         )
       }));
@@ -2402,8 +2616,55 @@ export class HistoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Match collapse methods
+  isMatchCollapsed(matchId: string): boolean {
+    // By default, all matches are collapsed (true)
+    return this.matchCollapseStates[matchId] !== false;
+  }
+
+  toggleMatchCollapse(matchId: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation(); // Prevent triggering parent collapse
+    }
+    
+    this.matchCollapseStates[matchId] = !this.isMatchCollapsed(matchId);
+    this.saveMatchCollapseStates();
+  }
+
+  private loadMatchCollapseStates(): void {
+    try {
+      const saved = localStorage.getItem(this.MATCH_COLLAPSE_STATES_KEY);
+      if (saved) {
+        this.matchCollapseStates = JSON.parse(saved);
+      }
+    } catch (error) {
+      console.warn('Could not load match collapse states:', error);
+      this.matchCollapseStates = {};
+    }
+  }
+
+  private saveMatchCollapseStates(): void {
+    try {
+      localStorage.setItem(this.MATCH_COLLAPSE_STATES_KEY, JSON.stringify(this.matchCollapseStates));
+    } catch (error) {
+      console.warn('Could not save match collapse states:', error);
+    }
+  }
+
   getDateDisplayText(date: string): string {
     if (!date || date === 'unknown') return 'Ngày không xác định';
+    
+    // Handle month format (YYYY-MM)
+    if (date.match(/^\d{4}-\d{2}$/)) {
+      const [year, month] = date.split('-');
+      const monthNames = [
+        'tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6',
+        'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'
+      ];
+      const monthIndex = parseInt(month, 10) - 1;
+      return `${monthNames[monthIndex]}, ${year}`;
+    }
+    
     return this.formatMatchDate(date);
   }
 

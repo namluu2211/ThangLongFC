@@ -796,7 +796,7 @@ export class HeaderComponent implements OnInit {
           displayName: firebaseUser.displayName,
           role: this.role
         });
-        this.toast.success(`Đăng nhập: ${firebaseUser.displayName || firebaseUser.email}`);
+        // Removed toast notification - only show when user explicitly logs in
       } else {
         // No user logged in
         this.loggedIn = false;
@@ -808,7 +808,7 @@ export class HeaderComponent implements OnInit {
         this.loginChange.emit({ loggedIn: false, role: '' });
         
         console.log('🔥 No Firebase user logged in');
-        this.toast.info('Chưa đăng nhập');
+        // Removed toast notification - user will see "Đăng nhập" button which is enough
       }
     });
 

@@ -576,7 +576,7 @@ interface MonthlyStats {
     /* Stats Overview Grid - Modern Card Design */
     .stats-overview-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 24px;
       margin-bottom: 20px;
       animation: fadeInUp 0.6s ease;
@@ -1673,6 +1673,10 @@ interface MonthlyStats {
     /* Responsive - Simplified */
 
     @media (max-width: 768px) {
+      .stats-overview-grid {
+        grid-template-columns: 1fr;
+      }
+
       .filter-row {
         flex-direction: column;
       }
