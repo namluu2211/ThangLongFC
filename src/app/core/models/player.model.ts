@@ -25,6 +25,7 @@ export interface PlayerInfo {
   
   // Media assets
   avatar?: string;
+  videoUrl?: string; // Short video URL (YouTube Shorts, TikTok, Instagram Reels, etc.)
   images?: string[];
   thumbnailUrl?: string;
   

@@ -6,6 +6,7 @@ export interface Player {
   lastName?: string;
   position: string;
   avatar?: string;
+  videoUrl?: string;  // Short video URL (e.g., YouTube Shorts, TikTok, Instagram Reels)
   DOB?: number | string;  // Can be age number or date string
   height?: number;
   weight?: number;
