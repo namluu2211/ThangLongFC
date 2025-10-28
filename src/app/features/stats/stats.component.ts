@@ -71,118 +71,74 @@ interface MonthlyStats {
       <!-- Quick Stats Overview Table -->
       <div class="row mb-4">
         <div class="col-12">
-          <div class="stats-overview-table-card">
-            <div class="stats-overview-header">
-              <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                  <i class="fas fa-chart-bar me-2"></i>
-                  📊 Tổng quan thống kê
-                </h5>
+          <div class="stats-overview-grid">
+            <div class="stats-overview-card matches-card">
+              <div class="card-icon-wrapper matches">
+                <div class="card-icon">⚽</div>
+                <div class="icon-glow"></div>
               </div>
+              <div class="card-content">
+                <div class="card-label">Trận đấu</div>
+                <div class="card-value">{{overallStats.totalMatches}}</div>
+                <div class="card-status">
+                  <span class="status-badge" 
+                        [class.excellent]="overallStats.totalMatches > 20"
+                        [class.good]="overallStats.totalMatches > 10 && overallStats.totalMatches <= 20"
+                        [class.average]="overallStats.totalMatches <= 10">
+                    {{getMatchesStatus()}}
+                  </span>
+                </div>
+              </div>
+              <div class="card-decoration"></div>
             </div>
-            <div class="stats-overview-body">
-              <table class="stats-overview-table">
-                <thead>
-                  <tr>
-                    <th class="metric-header">Chỉ số</th>
-                    <th class="value-header">Giá trị</th>
-                    <th class="description-header">Mô tả</th>
-                    <th class="status-header">Đánh giá</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="matches-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon matches">⚽</div>
-                        <div class="metric-name">Trận đấu</div>
-                      </div>
-                    </td>
-                    <td class="value-cell matches">
-                      <div class="metric-value">{{overallStats.totalMatches}}</div>
-                    </td>
-                    <td class="description-cell">
-                      <div class="metric-description">
-                        <i class="fas fa-calendar-alt text-primary"></i>
-                        Tổng số trận đã diễn ra
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge matches" 
-                            [class.high]="overallStats.totalMatches > 20"
-                            [class.medium]="overallStats.totalMatches > 10 && overallStats.totalMatches <= 20"
-                            [class.low]="overallStats.totalMatches <= 10">
-                        {{getMatchesStatus()}}
-                      </span>
-                    </td>
-                  </tr>
-                  <tr class="goals-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon goals">🥅</div>
-                        <div class="metric-name">Bàn thắng</div>
-                      </div>
-                    </td>
-                    <td class="value-cell goals">
-                      <div class="metric-value">{{overallStats.totalGoals}}</div>
-                    </td>
-                    <td class="description-cell">
-                      <div class="metric-description">
-                        <i class="fas fa-target text-success"></i>
-                        Tổng bàn thắng ghi được
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge goals">Tấn công</span>
-                    </td>
-                  </tr>
-                  <tr class="assists-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon assists">🎯</div>
-                        <div class="metric-name">Kiến tạo</div>
-                      </div>
-                    </td>
-                    <td class="value-cell assists">
-                      <div class="metric-value">{{overallStats.totalAssists}}</div>
-                    </td>
-                    <td class="description-cell">
-                      <div class="metric-description">
-                        <i class="fas fa-hand-point-right text-info"></i>
-                        Tổng số kiến tạo thành công
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge assists">Hỗ trợ</span>
-                    </td>
-                  </tr>
-                  <tr class="cards-row">
-                    <td class="metric-cell">
-                      <div class="metric-info">
-                        <div class="metric-icon cards">🟨</div>
-                        <div class="metric-name">Thẻ phạt</div>
-                      </div>
-                    </td>
-                    <td class="value-cell cards">
-                      <div class="metric-value">{{overallStats.totalYellowCards + overallStats.totalRedCards}}</div>
-                    </td>
-                    <td class="description-cell">
-                      <div class="metric-description">
-                        <i class="fas fa-exclamation-triangle text-warning"></i>
-                        {{overallStats.totalYellowCards}} thẻ vàng + {{overallStats.totalRedCards}} thẻ đỏ
-                      </div>
-                    </td>
-                    <td class="status-cell">
-                      <span class="status-badge cards" 
-                            [class.high]="(overallStats.totalYellowCards + overallStats.totalRedCards) > 20"
-                            [class.medium]="(overallStats.totalYellowCards + overallStats.totalRedCards) > 10"
-                            [class.low]="(overallStats.totalYellowCards + overallStats.totalRedCards) <= 10">
-                        {{getCardsStatus()}}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+
+            <div class="stats-overview-card goals-card">
+              <div class="card-icon-wrapper goals">
+                <div class="card-icon">🥅</div>
+                <div class="icon-glow"></div>
+              </div>
+              <div class="card-content">
+                <div class="card-label">Bàn thắng</div>
+                <div class="card-value">{{overallStats.totalGoals}}</div>
+                <div class="card-subtitle">
+                  <i class="fas fa-chart-line"></i>
+                  {{(overallStats.totalGoals / overallStats.totalMatches || 0).toFixed(1)}} / trận
+                </div>
+              </div>
+              <div class="card-decoration"></div>
+            </div>
+
+            <div class="stats-overview-card assists-card">
+              <div class="card-icon-wrapper assists">
+                <div class="card-icon">🎯</div>
+                <div class="icon-glow"></div>
+              </div>
+              <div class="card-content">
+                <div class="card-label">Kiến tạo</div>
+                <div class="card-value">{{overallStats.totalAssists}}</div>
+                <div class="card-subtitle">
+                  <i class="fas fa-handshake"></i>
+                  {{(overallStats.totalAssists / overallStats.totalMatches || 0).toFixed(1)}} / trận
+                </div>
+              </div>
+              <div class="card-decoration"></div>
+            </div>
+
+            <div class="stats-overview-card cards-card">
+              <div class="card-icon-wrapper cards">
+                <div class="card-icon">🟨</div>
+                <div class="icon-glow"></div>
+              </div>
+              <div class="card-content">
+                <div class="card-label">Thẻ phạt</div>
+                <div class="card-value">{{overallStats.totalYellowCards + overallStats.totalRedCards}}</div>
+                <div class="card-subtitle">
+                  <span class="yellow-text">🟨 {{overallStats.totalYellowCards}}</span>
+                  <span class="separator">|</span>
+                  <span class="red-text">🟥 {{overallStats.totalRedCards}}</span>
+                </div>
+              </div>
+              <div class="card-decoration"></div>
             </div>
           </div>
         </div>
@@ -617,363 +573,416 @@ interface MonthlyStats {
     /* Header Styles */
     /* stats-header styles removed */
 
-    /* Stats Overview Table */
-    .stats-overview-table-card {
+    /* Stats Overview Grid - Modern Card Design */
+    .stats-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 20px;
+      animation: fadeInUp 0.6s ease;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stats-overview-card {
+      position: relative;
       background: white;
       border-radius: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 28px;
       overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid transparent;
     }
 
-    .stats-overview-header {
-      background: #11998e;
-      color: white;
-      padding: 1.5rem 2rem;
+    .stats-overview-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
     }
 
-    .stats-overview-body {
-      padding: 0;
+    .stats-overview-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
+      transition: height 0.3s ease;
     }
 
-    .stats-overview-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0;
+    .stats-overview-card:hover::before {
+      height: 8px;
     }
 
-    .stats-overview-table thead th {
-      background: #f8f9fa;
-      padding: 1.25rem 1.5rem;
-      font-weight: 700;
-      color: #2c3e50;
-      text-align: left;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 2px solid #e9ecef;
+    .matches-card {
+      --card-color-1: #11998e;
+      --card-color-2: #38ef7d;
     }
 
-    .metric-header {
-      width: 25%;
+    .goals-card {
+      --card-color-1: #ff6b6b;
+      --card-color-2: #ee5a6f;
     }
 
-    .value-header {
-      width: 20%;
+    .assists-card {
+      --card-color-1: #4facfe;
+      --card-color-2: #00f2fe;
     }
 
-    .description-header {
-      width: 35%;
+    .cards-card {
+      --card-color-1: #f093fb;
+      --card-color-2: #f5576c;
     }
 
-    .status-header {
-      width: 20%;
+    .card-decoration {
+      position: absolute;
+      bottom: -20px;
+      right: -20px;
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      border-radius: 50%;
+      opacity: 0.08;
+      transition: all 0.4s ease;
     }
 
-    .stats-overview-table tbody tr {
-      transition: all 0.3s ease;
-      border-bottom: 1px solid #f1f3f4;
+    .stats-overview-card:hover .card-decoration {
+      transform: scale(1.2);
+      opacity: 0.12;
     }
 
-    .stats-overview-table tbody tr:hover {
-      background: #f8fcff;
-      transform: translateX(5px);
-    }
-
-    .matches-row {
-      border-left: 4px solid #11998e;
-    }
-
-    .goals-row {
-      border-left: 4px solid #ff6b6b;
-    }
-
-    .assists-row {
-      border-left: 4px solid #4fc3f7;
-    }
-
-    .cards-row {
-      border-left: 4px solid #f093fb;
-    }
-
-    .stats-overview-table td {
-      padding: 1.5rem;
-      vertical-align: middle;
-    }
-
-    .metric-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .metric-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 12px;
+    .card-icon-wrapper {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      border-radius: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
-      color: white;
-      font-weight: 600;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
     }
 
-    .metric-icon.matches {
-      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    .stats-overview-card:hover .card-icon-wrapper {
+      transform: scale(1.1) rotate(-5deg);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
     }
 
-    .metric-icon.goals {
-      background: #ff6b6b;
+    .card-icon {
+      font-size: 2.2rem;
+      animation: bounce 2s ease-in-out infinite;
     }
 
-    .metric-icon.assists {
-      background: #4fc3f7;
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
     }
 
-    .metric-icon.cards {
-      background: #f093fb;
+    .icon-glow {
+      position: absolute;
+      inset: -4px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      opacity: 0.3;
+      filter: blur(8px);
+      z-index: -1;
+      animation: pulse 2s ease-in-out infinite;
     }
 
-    .metric-name {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #2c3e50;
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.05);
+      }
     }
 
-    .metric-value {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: #000000;
+    .card-content {
+      flex: 1;
     }
 
-    .value-cell.matches .metric-value {
-      color: #000000 !important;
-      text-shadow: 0 1px 2px rgba(255,255,255,0.5);
-    }
-
-    .value-cell.goals .metric-value {
-      color: #000000 !important;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .value-cell.assists .metric-value {
-      color: #000000 !important;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .value-cell.cards .metric-value {
-      color: #000000 !important;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .metric-description {
+    .card-label {
       font-size: 0.9rem;
+      font-weight: 600;
       color: #7f8c8d;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
     }
 
-    .status-badge {
+    .card-value {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+
+    .card-status {
+      margin-top: 12px;
+    }
+
+    .card-status .status-badge {
       display: inline-block;
-      padding: 0.4rem 1rem;
+      padding: 6px 16px;
       border-radius: 20px;
       font-size: 0.8rem;
-      font-weight: 600;
-      text-align: center;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
       color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    .status-badge.matches {
-      background: #11998e;
+    .status-badge.excellent {
+      background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
     }
 
-    .status-badge.matches.high {
-      background: #27ae60;
+    .status-badge.good {
+      background: linear-gradient(135deg, #f39c12, #f1c40f) !important;
     }
 
-    .status-badge.matches.medium {
-      background: #f39c12;
+    .status-badge.average {
+      background: linear-gradient(135deg, #95a5a6, #bdc3c7) !important;
     }
 
-    .status-badge.matches.low {
-      background: #95a5a6;
+    .card-subtitle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+      font-weight: 600;
+      margin-top: 8px;
     }
 
-    .status-badge.goals {
-      background: #ff6b6b;
+    .card-subtitle i {
+      color: var(--card-color-1);
     }
 
-    .status-badge.assists {
-      background: #4fc3f7;
+    .yellow-text {
+      color: #f39c12;
+      font-weight: 700;
     }
 
-    .status-badge.cards {
-      background: #f093fb;
+    .red-text {
+      color: #e74c3c;
+      font-weight: 700;
     }
 
-    .status-badge.cards.high {
-      background: #e74c3c;
+    .separator {
+      color: #bdc3c7;
+      font-weight: 400;
     }
 
-    .status-badge.cards.medium {
-      background: #f39c12;
-    }
-
-    .status-badge.cards.low {
-      background: #27ae60;
-    }
-
-  /* Head-to-Head styles removed */
-
-    /* Filter Card - Simplified */
+    /* Modern Filter Card with Glassmorphism */
     .enhanced-filter-card {
-      background: white;
-      border-radius: 8px;
-      border: 1px solid #e9ecef;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 24px;
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      margin-bottom: 24px;
+      animation: slideDown 0.5s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .enhanced-filter-header {
-      background: #667eea;
-      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1.5rem 2rem;
       color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .filter-title-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .filter-icon {
+      font-size: 1.3rem;
+      animation: pulse 2s ease-in-out infinite;
     }
 
     .enhanced-filter-body {
-      padding: 1rem;
+      padding: 2rem;
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, rgba(255, 255, 255, 0.8) 100%);
     }
 
     .filter-row {
       display: flex;
-      gap: 1rem;
+      gap: 1.5rem;
+      flex-wrap: wrap;
     }
 
     .filter-group {
       flex: 1;
+      min-width: 200px;
     }
 
     .enhanced-filter-label {
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      font-size: 1rem;
+      font-size: 0.85rem;
       font-weight: 700;
-      color: #2c3e50;
+      color: #4a5568;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 0.5rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 8px;
-      background: #f8f9fa;
-      backdrop-filter: blur(5px);
+      letter-spacing: 1px;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0;
       position: relative;
-    }
-
-    .enhanced-filter-label::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 60%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 2px;
-      transition: all 0.3s ease;
-    }
-
-    .enhanced-filter-label:hover::before {
-      height: 80%;
-      box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
     }
 
     .label-icon {
       color: #667eea;
-      font-size: 1rem;
-      text-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
+      font-size: 1.1rem;
       transition: all 0.3s ease;
     }
 
     .enhanced-filter-label:hover .label-icon {
-      color: #42a5f5;
-      transform: scale(1.1);
-      text-shadow: 0 2px 4px rgba(66, 165, 245, 0.3);
+      color: #764ba2;
+      transform: scale(1.15) rotate(5deg);
     }
 
-    /* Enhanced Select Styling */
+    /* Modern Select Styling */
     .enhanced-select-wrapper {
       position: relative;
-      margin-bottom: 0.25rem;
-      display: flex;
-      align-items: center;
+      margin-bottom: 0.5rem;
     }
 
     .enhanced-select {
       width: 100%;
-      height: 58px;
-      min-height: 58px;
-      padding: 1.25rem 3rem 1.25rem 1.5rem;
-      border: 3px solid transparent;
-      border-radius: 18px;
+      height: 52px;
+      padding: 0.875rem 3rem 0.875rem 1.25rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
       background: white;
-      border: 2px solid #e3f2fd;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #2c3e50;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #2d3748;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       appearance: none;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 
-                  inset 0 1px 0 rgba(255,255,255,0.6);
-      position: relative;
-      backdrop-filter: blur(10px);
-      display: flex;
-      align-items: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
 
-    .enhanced-select::before {
-      content: '';
-      position: absolute;
-      top: -3px;
-      left: -3px;
-      right: -3px;
-      bottom: -3px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 18px;
-      z-index: -1;
-      opacity: 0;
-      transition: opacity 0.4s ease;
+    .enhanced-select:hover {
+      background: #f7fafc;
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
     }
 
     .enhanced-select:focus {
       outline: none;
       background: white;
-      border: 2px solid #667eea;
-      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.25), 
-                  0 0 0 0.3rem rgba(102, 126, 234, 0.15),
-                  inset 0 1px 0 rgba(255,255,255,0.8);
-      transform: translateY(-2px) scale(1.02);
-      color: #1a202c;
-    }
-
-    .enhanced-select:hover {
-      background: #f8fcff;
-      border: 2px solid #42a5f5;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 24px rgba(66, 165, 245, 0.2), 
-                  inset 0 1px 0 rgba(255,255,255,0.7);
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 
+                  0 4px 16px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
     }
 
     .enhanced-select-arrow {
       position: absolute;
-      right: 1.5rem;
+      right: 1.25rem;
       top: 50%;
       transform: translateY(-50%);
       color: #667eea;
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       pointer-events: none;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .enhanced-select:hover + .enhanced-select-arrow,
+    .enhanced-select:focus + .enhanced-select-arrow {
+      color: #764ba2;
+      transform: translateY(-50%) scale(1.2);
+    }
+
+    /* Status Badge Display */
+    .status-group {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .status-display {
+      display: flex;
+      align-items: center;
+      height: 52px;
+    }
+
+    .status-badge-display {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 16px rgba(17, 153, 142, 0.3);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-icon {
+      font-size: 1.1rem;
+      animation: spin 3s linear infinite;
+    }
+
+    @keyframes spin {
+      0%, 90% {
+        transform: rotate(0deg);
+      }
+      95% {
+        transform: rotate(360deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
       z-index: 10;
     }
 
@@ -1079,71 +1088,191 @@ interface MonthlyStats {
       letter-spacing: 0.5px;
     }
 
-    /* Modern Table */
+    /* Modern Enhanced Table */
     .modern-table-card {
       background: white;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+      border-radius: 24px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
       overflow: hidden;
+      margin-bottom: 24px;
+      border: 2px solid rgba(102, 126, 234, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .modern-table-card:hover {
+      box-shadow: 0 16px 56px rgba(0, 0, 0, 0.15);
+      transform: translateY(-4px);
     }
 
     .table-header {
-      background: #2c3e50;
-      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1.75rem 2rem;
       color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .table-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.2), transparent);
+      pointer-events: none;
+    }
+
+    .table-header h4 {
+      position: relative;
+      z-index: 1;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+
+    .table-body {
+      padding: 0;
     }
 
     .modern-table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .modern-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: white;
     }
 
     .modern-table th {
-      padding: 8px;
-      background: #34495e;
-      color: white;
+      padding: 1.25rem 1rem;
+      background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+      color: #2c3e50;
       text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 3px solid #667eea;
+      position: relative;
+    }
+
+    .modern-table th::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modern-table th:hover::after {
+      opacity: 1;
+    }
+
+    .modern-table tbody tr {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-bottom: 1px solid #f1f3f5;
+      background: white;
+    }
+
+    .modern-table tbody tr:hover {
+      background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+      transform: scale(1.01);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
     }
 
     .modern-table td {
-      padding: 8px;
+      padding: 1.25rem 1rem;
       text-align: center;
+      vertical-align: middle;
+      color: #495057;
+      font-weight: 500;
     }
 
     .rank-cell {
       text-align: center;
+      width: 80px;
     }
 
     .rank-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 50px;
-      height: 50px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       font-weight: 800;
-      font-size: 1.2rem;
-      background: #e9ecef;
+      font-size: 1.3rem;
+      background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
       color: #495057;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .rank-badge::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--rank-color-1, #e9ecef), var(--rank-color-2, #dee2e6));
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .rank-badge:hover::before {
+      opacity: 0.5;
     }
 
     .rank-badge.gold {
-      background: #ffd700;
+      --rank-color-1: #ffd700;
+      --rank-color-2: #ffed4e;
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
       color: #b7791f;
+      box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+      animation: goldShine 3s ease-in-out infinite;
+    }
+
+    @keyframes goldShine {
+      0%, 100% {
+        box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+      }
+      50% {
+        box-shadow: 0 8px 28px rgba(255, 215, 0, 0.6);
+      }
     }
 
     .rank-badge.silver {
-      background: #c0c0c0;
+      --rank-color-1: #c0c0c0;
+      --rank-color-2: #d3d3d3;
+      background: linear-gradient(135deg, #c0c0c0 0%, #d3d3d3 100%);
       color: #666;
+      box-shadow: 0 6px 20px rgba(192, 192, 192, 0.4);
     }
 
     .rank-badge.bronze {
-      background: #cd7f32;
+      --rank-color-1: #cd7f32;
+      --rank-color-2: #d4934d;
+      background: linear-gradient(135deg, #cd7f32 0%, #d4934d 100%);
       color: #8b4513;
+      box-shadow: 0 6px 20px rgba(205, 127, 50, 0.4);
     }
 
     .player-cell {
       text-align: left !important;
+      min-width: 200px;
     }
 
     .player-info {
@@ -1153,15 +1282,38 @@ interface MonthlyStats {
     }
 
     .player-avatar {
-      width: 50px;
-      height: 50px;
+      width: 54px;
+      height: 54px;
       border-radius: 50%;
-      background: #667eea;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
       overflow: hidden;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .player-avatar::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modern-table tbody tr:hover .player-avatar {
+      transform: scale(1.1) rotate(5deg);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .modern-table tbody tr:hover .player-avatar::before {
+      opacity: 0.5;
     }
 
     .avatar-img {
@@ -1177,20 +1329,21 @@ interface MonthlyStats {
       justify-content: center;
       width: 100%;
       height: 100%;
-      color: #667eea;
-      font-size: 24px;
+      color: white;
+      font-size: 1.5rem;
     }
 
     .player-avatar-wrapper {
       position: relative;
-      width: 45px;
-      height: 45px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #667eea;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
     .monthly-avatar {
@@ -1201,29 +1354,42 @@ interface MonthlyStats {
     }
 
     .player-name {
-      font-weight: 600;
+      font-weight: 700;
       color: #2c3e50;
-      font-size: 1rem;
+      font-size: 1.05rem;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+    }
+
+    .modern-table tbody tr:hover .player-name {
+      color: #667eea;
     }
 
     .stat-value {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 40px;
-      height: 40px;
-      border-radius: 20px;
+      min-width: 48px;
+      height: 48px;
+      border-radius: 24px;
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 1.1rem;
       color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .stat-value:hover {
+      transform: scale(1.15);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     }
 
     .stat-value.goals {
-      background: #ff6b6b;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
     }
 
     .stat-value.assists {
-      background: #4fc3f7;
+      background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
     }
 
     .stat-value.yellow {
@@ -1507,6 +1673,10 @@ interface MonthlyStats {
     /* Responsive - Simplified */
 
     @media (max-width: 768px) {
+      .stats-overview-grid {
+        grid-template-columns: 1fr;
+      }
+
       .filter-row {
         flex-direction: column;
       }

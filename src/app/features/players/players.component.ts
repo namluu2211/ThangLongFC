@@ -5,16 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { AIWorkerService } from './services/ai-worker.service';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { Player } from './player-utils'; // Augment to satisfy AIAnalysisService Player index signature
+import { Player } from './player-utils'; 
 import { PlayerInfo } from '../../core/models/player.model';
 import { TeamComposition, TeamColor, MatchStatus, MatchInfo, MatchResult, MatchFinances, ExpenseBreakdown, RevenueBreakdown, MatchStatistics, GoalType, CardType, MatchEvent, EventType } from '../../core/models/match.model';
 import type { AIAnalysisResult } from './services/ai-analysis.service';
 import { HistoryStatsService } from './services/history-stats.service';
 import { MatchFinanceService } from './services/match-finance.service';
-// FirebasePlayerService removed from direct injection; facade handles backend mode
-// NOTE: Temporarily removing PlayerDataFacade usage due to bootstrap 'Error: invalid'.
-// We fallback to simplified PlayerService that loads from localStorage/assets.
-// import { PlayerDataFacade } from './services/player-data-facade.service';
 import { PlayerService } from '../../core/services/player.service';
 import { BehaviorSubject } from 'rxjs';
 import { MatchService } from '../../core/services/match.service';
@@ -27,8 +23,6 @@ import { PlayerListComponent } from './components/player-list.component';
 import { TeamsPanelComponent } from './components/teams-panel.component';
 import { CanEditDirective } from '../../shared/can-edit.directive';
 import { DisableUnlessCanEditDirective } from '../../shared/disable-unless-can-edit.directive';
-// AIAnalysisComponent will be lazy loaded dynamically
-// Removed FinancePanelComponent & PlayerRankingsComponent from Đội hình tab
 
 interface PlayerStats { name:string; goals:number; assists:number; yellowCards:number; redCards:number; matches:number; }
 interface AIResult { predictedScore:{xanh:number;cam:number}; xanhWinProb:number; camWinProb:number; keyFactors:{name:string;impact:number}[]; historicalStats?:{xanhWins:number;camWins:number;draws:number;totalMatches:number}; teamStrengths?:{ xanh:number; cam:number; balance:number }; scoreDistribution?: { scoreline:string; probability:number }[] }
@@ -49,7 +43,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   private subs:Subscription[]=[];
   // Fallback simplified player service (file/localStorage only)
   private readonly simplePlayerService = inject(PlayerService);
-  // Legacy dataMode removed (always 'file' in fallback). Preserve observable for template binding stability.
   dataMode$ = new BehaviorSubject<'file'|'firebase'>('file');
   switchDataMode(){ /* Firebase disabled temporarily */ }
   private readonly matchService=inject(MatchService);
@@ -85,16 +78,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   _gaPlayerB:number|null=null; _gaAssistB:number|null=null; _gaMinuteB:number|null=null;
   _ycPlayerA:number|null=null; _ycMinuteA:number|null=null; _rcPlayerA:number|null=null; _rcMinuteA:number|null=null;
   _ycPlayerB:number|null=null; _ycMinuteB:number|null=null; _rcPlayerB:number|null=null; _rcMinuteB:number|null=null;
-  // Legacy free-text event inputs removed (structured arrays only)
-  /**
-   * Migration Note (2025-10-20):
-   * Free-text match event inputs (goalsTextA/goalsTextB/etc.) were deprecated in favor of
-   * structured arrays (goalsA/goalsB, yellowCardsA/B, redCardsA/B). This improves data integrity,
-   * eliminates ambiguous name matching and simplifies persistence. Historical matches that used
-   * textual events still retain their 'events' array produced at save time; new matches generate
-   * events solely from structured arrays via buildStructuredEvents(). LocalStorage key
-   * 'draft_match_events' is no longer written or read.
-   */
   // Finance getters removed (moved to dedicated fund tab)
   currentPage=PAGINATION.INITIAL_PAGE; pageSize=PAGINATION.DEFAULT_PAGE_SIZE; totalPages=0;
   private pagination= new PlayerPaginationController(this.pageSize);
@@ -105,7 +88,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   topPlayers:PlayerStats[]=[]; showPlayerRankings=true;
   private teamChange$=new Subject<void>();
   trackByPlayerId:TrackByFunction<Player>=(_:number,p:Player)=>p.id; trackByFactorName=(_:number,f:{name:string})=>f.name; Math=Math;
-  // Legacy dynamic drag & drop removed (integrated directly in TeamsPanel)
 
   // New player form state (avatar + note)
   newPlayerFirstName='';
@@ -174,10 +156,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.subscribeToPlayersStream();
     this.subscribeToCompletedMatches();
     this.loadPlayers();
-  // Removed auto AI analysis subscription – manual trigger only via toolbar button
-    // Attempt restore of persisted teams after players load (delayed to ensure players available)
     setTimeout(()=>this.restorePersistedTeams(), 600);
-  // Draft free-text event inputs deprecated – no restoration needed
   }
   ngOnDestroy(){ this.subs.forEach(s=>!s.closed&&s.unsubscribe()); this.destroy$.next(); this.destroy$.complete(); }
 
@@ -349,7 +328,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
   private triggerTeamChange(){ this.teamChange$.next(); /* persistence handled in subscription */ }
   onTeamDropped(event: { previousContainer: { data: Player[] }; container: { data: Player[] }; previousIndex: number; currentIndex: number }){
-    // Basic CDK drop event mapping without importing concrete type to avoid circular import here
     const prevList: Player[] = event.previousContainer.data;
     const currList: Player[] = event.container.data;
     if(prevList===currList){
@@ -365,7 +343,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
   clearTeams(){ this.teamA.length=0; this.teamB.length=0; this.triggerTeamChange(); localStorage.removeItem('persisted_teams'); }
   shuffleRegisteredTeams(){
-    // Allow viewer fallback: if not enough registered players, use full player list as pool
     const basePool = this.registeredPlayers.length>=2 ? this.registeredPlayers : this.allPlayers;
     const pool=basePool.slice();
     if(pool.length<2){
@@ -390,11 +367,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const hash=this.computeTeamHash(this.teamA,this.teamB);
     if(this.lastTeamCompositionHash===hash && this.aiAnalysisResults){ return; }
     this.isAnalyzing=true; this.cdr.markForCheck();
-    // Use worker-based analysis (with builtin fallback when unsupported)
-  // Ensure headToHead recomputed if teams changed since last calculation
   this.recomputeHeadToHead();
-    // Timeout safeguard: if worker hangs >8s, mark analyzing false
-    // 1) Attempt observable-based analyze (players feature service). If signature mismatch (returns Promise), adapt.
     let responded = false;
     // Local helper types to avoid any
     type LitePlayer = Player; // Already conforms sufficiently for AI service
@@ -421,8 +394,6 @@ export class PlayersComponent implements OnInit, OnDestroy {
     const failSafeTimer = setTimeout(()=>{
       if(!responded){ void fallbackDirect(); }
     }, 3000);
-    // If service returns Observable (current players AIWorkerService impl)
-  // Attempt calling analyze with inferred types; suppressing potential mismatch by feature detection only
     interface AIObserver {
       next(value: unknown): void;
       error?(err: unknown): void;
