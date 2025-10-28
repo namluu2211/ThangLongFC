@@ -310,6 +310,24 @@ import { Router } from '@angular/router';
                   </div>
                 </div>
 
+                <!-- Own Goals Section -->
+                <div class="stat-section" *ngIf="getOwnGoals(match, 'A') || getOwnGoals(match, 'B')">
+                  <div class="stat-title">
+                    <i class="fas fa-times-circle text-danger"></i>
+                    Phản lưới
+                  </div>
+                  <div class="stat-teams">
+                    <div class="team-stat blue" *ngIf="getOwnGoals(match, 'A')">
+                      <span class="team-label">Đội Xanh:</span>
+                      <span class="stat-value">{{ getOwnGoals(match, 'A') }}</span>
+                    </div>
+                    <div class="team-stat orange" *ngIf="getOwnGoals(match, 'B')">
+                      <span class="team-label">Đội Cam:</span>
+                      <span class="stat-value">{{ getOwnGoals(match, 'B') }}</span>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Yellow Cards Section -->
                 <div class="stat-section" *ngIf="getCards(match, 'A', 'yellow') || getCards(match, 'B', 'yellow')">
                   <div class="stat-title">
@@ -466,6 +484,17 @@ import { Router } from '@angular/router';
                   <div class="form-group">
                     <label for="edit-assistB">Kiến tạo Đội Cam</label>
                     <input id="edit-assistB" type="text" [(ngModel)]="editFormData.assistB" name="assistB" class="form-control" placeholder="Tên cầu thủ kiến tạo">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="edit-ownGoalA">Phản lưới Đội Xanh</label>
+                    <input id="edit-ownGoalA" type="text" [(ngModel)]="editFormData.ownGoalA" name="ownGoalA" class="form-control" placeholder="Tên cầu thủ phản lưới">
+                  </div>
+                  <div class="form-group">
+                    <label for="edit-ownGoalB">Phản lưới Đội Cam</label>
+                    <input id="edit-ownGoalB" type="text" [(ngModel)]="editFormData.ownGoalB" name="ownGoalB" class="form-control" placeholder="Tên cầu thủ phản lưới">
                   </div>
                 </div>
               </div>
@@ -2205,6 +2234,11 @@ export class HistoryComponent implements OnInit, OnDestroy {
   getAssists(match: HistoryEntry, team: 'A' | 'B'): string {
     const assist = team === 'A' ? match.assistA : match.assistB;
     return assist || '';
+  }
+
+  getOwnGoals(match: HistoryEntry, team: 'A' | 'B'): string {
+    const ownGoal = team === 'A' ? match.ownGoalA : match.ownGoalB;
+    return ownGoal || '';
   }
 
   getCards(match: HistoryEntry, team: 'A' | 'B', type: 'yellow' | 'red'): string {

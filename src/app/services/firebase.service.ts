@@ -86,6 +86,8 @@ export interface HistoryEntry {
   scorerB?: string;
   assistA?: string;
   assistB?: string;
+  ownGoalA?: string;
+  ownGoalB?: string;
   yellowA?: string;
   yellowB?: string;
   redA?: string;

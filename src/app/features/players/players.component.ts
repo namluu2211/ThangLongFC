@@ -66,6 +66,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   goalsB:{playerId:number;assistId?:number;minute:number}[]=[];
   assistsA:{playerId:number;minute:number}[]=[]; // optional separate tracking if needed
   assistsB:{playerId:number;minute:number}[]=[];
+  ownGoalsA:{playerId:number;minute:number}[]=[];
+  ownGoalsB:{playerId:number;minute:number}[]=[];
   yellowCardsA:{playerId:number;minute:number}[]=[];
   yellowCardsB:{playerId:number;minute:number}[]=[];
   redCardsA:{playerId:number;minute:number}[]=[];
@@ -76,6 +78,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Event form temp fields
   _gaPlayerA:number|null=null; _gaAssistA:number|null=null; _gaMinuteA:number|null=null;
   _gaPlayerB:number|null=null; _gaAssistB:number|null=null; _gaMinuteB:number|null=null;
+  _ogPlayerA:number|null=null; _ogMinuteA:number|null=null;
+  _ogPlayerB:number|null=null; _ogMinuteB:number|null=null;
   _ycPlayerA:number|null=null; _ycMinuteA:number|null=null; _rcPlayerA:number|null=null; _rcMinuteA:number|null=null;
   _ycPlayerB:number|null=null; _ycMinuteB:number|null=null; _rcPlayerB:number|null=null; _rcMinuteB:number|null=null;
   // Finance getters removed (moved to dedicated fund tab)
@@ -561,6 +565,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
       winner: this.scoreA===this.scoreB? 'draw': (this.scoreA>this.scoreB? 'A':'B'),
       goalsA:goalMap(this.goalsA),
       goalsB:goalMap(this.goalsB),
+      ownGoalsA:cardMap(this.ownGoalsA,CardType.YELLOW),
+      ownGoalsB:cardMap(this.ownGoalsB,CardType.YELLOW),
       yellowCardsA:cardMap(this.yellowCardsA,CardType.YELLOW),
       yellowCardsB:cardMap(this.yellowCardsB,CardType.YELLOW),
       redCardsA:cardMap(this.redCardsA,CardType.RED),
@@ -623,6 +629,8 @@ export class PlayersComponent implements OnInit, OnDestroy {
       push({ type:EventType.GOAL, description:`Ghi bàn: ${g.playerName}`+(g.minute!==undefined? ` (${g.minute}')`:''), minute:g.minute, playerId:g.playerId, teamId:'B' });
       if(g.assistedBy){ push({ type:EventType.ASSIST, description:`Kiến tạo: ${g.assistedBy}`+(g.minute!==undefined? ` (${g.minute}')`:''), minute:g.minute, playerId: undefined, teamId:'B' }); }
     }
+    if(result.ownGoalsA){ for(const og of result.ownGoalsA){ push({ type:EventType.OWN_GOAL, description:`Phản lưới: ${og.playerName}`+(og.minute!==undefined? ` (${og.minute}')`:''), minute:og.minute, playerId:og.playerId, teamId:'A' }); } }
+    if(result.ownGoalsB){ for(const og of result.ownGoalsB){ push({ type:EventType.OWN_GOAL, description:`Phản lưới: ${og.playerName}`+(og.minute!==undefined? ` (${og.minute}')`:''), minute:og.minute, playerId:og.playerId, teamId:'B' }); } }
     for(const c of result.yellowCardsA){ push({ type:EventType.YELLOW_CARD, description:`Thẻ vàng: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'A' }); }
     for(const c of result.yellowCardsB){ push({ type:EventType.YELLOW_CARD, description:`Thẻ vàng: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'B' }); }
     for(const c of result.redCardsA){ push({ type:EventType.RED_CARD, description:`Thẻ đỏ: ${c.playerName}`+(c.minute!==undefined? ` (${c.minute}')`:''), minute:c.minute, playerId:c.playerId, teamId:'A' }); }
@@ -674,6 +682,13 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
   removeGoal(team:'A'|'B', index:number){ if(!this.canEdit) return; const target=team==='A'?this.goalsA:this.goalsB; if(index>-1) target.splice(index,1); this.updateScoreFromGoals(); }
   private updateScoreFromGoals(){ this.scoreA=this.goalsA.length; this.scoreB=this.goalsB.length; }
+  
+  addOwnGoal(team:'A'|'B', playerId:number, minute:number){
+    if(!this.canEdit) return; const target=team==='A'?this.ownGoalsA:this.ownGoalsB; target.push({playerId,minute});
+  }
+  removeOwnGoal(team:'A'|'B', index:number){ 
+    if(!this.canEdit) return; const target=team==='A'?this.ownGoalsA:this.ownGoalsB; if(index>-1) target.splice(index,1); 
+  }
   private persistTeams(){
     try{
       const payload={ a:this.teamA.map(p=>p.id), b:this.teamB.map(p=>p.id), ts:Date.now() };

@@ -123,6 +123,23 @@
             </ul>
           </div>
           <div class="event-group">
+            <h5>Phản lưới</h5>
+            <div class="inline-form">
+              <select [(ngModel)]="_ogPlayerA" aria-label="Chọn cầu thủ phản lưới đội A" appDisableUnlessCanEdit>
+                <option [ngValue]="null">Cầu thủ</option>
+                <option *ngFor="let p of teamA" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_ogMinuteA" placeholder="Phút" appDisableUnlessCanEdit />
+              <button (click)="addOwnGoal('A', _ogPlayerA!, _ogMinuteA || 0); _ogPlayerA=null; _ogMinuteA=null" [disabled]="!_ogPlayerA" appDisableUnlessCanEdit title="Thêm phản lưới"><i class="fas fa-plus"></i></button>
+            </div>
+            <ul class="event-list">
+              <li *ngFor="let og of ownGoalsA; let i=index">
+                <span class="badge own-goal">🔴 {{ getPlayerName(og.playerId) }} <small *ngIf="og.minute!==undefined">({{og.minute}}')</small></span>
+                <button class="remove" *appCanEdit (click)="removeOwnGoal('A',i)">×</button>
+              </li>
+            </ul>
+          </div>
+          <div class="event-group">
             <h5>Thẻ</h5>
             <div class="inline-form">
               <select [(ngModel)]="_ycPlayerA" [disabled]="!canEdit">
@@ -173,6 +190,23 @@
               <li *ngFor="let g of goalsB; let i=index">
                 <span class="badge goal">⚽ {{ getPlayerName(g.playerId) }} <small *ngIf="g.minute!==undefined">({{g.minute}}')</small><span *ngIf="g.assistId"> - KT: {{ getPlayerName(g.assistId) }}</span></span>
                 <button class="remove" *appCanEdit (click)="removeGoal('B',i)">×</button>
+              </li>
+            </ul>
+          </div>
+          <div class="event-group">
+            <h5>Phản lưới</h5>
+            <div class="inline-form">
+              <select [(ngModel)]="_ogPlayerB" [disabled]="!canEdit">
+                <option [ngValue]="null">Cầu thủ</option>
+                <option *ngFor="let p of teamB" [ngValue]="p.id">{{p.firstName}}</option>
+              </select>
+              <input type="number" min="0" max="120" [(ngModel)]="_ogMinuteB" placeholder="Phút" [disabled]="!canEdit" />
+              <button (click)="addOwnGoal('B', _ogPlayerB!, _ogMinuteB || 0); _ogPlayerB=null; _ogMinuteB=null" [disabled]="!_ogPlayerB || !canEdit" title="Thêm phản lưới"><i class="fas fa-plus"></i></button>
+            </div>
+            <ul class="event-list">
+              <li *ngFor="let og of ownGoalsB; let i=index">
+                <span class="badge own-goal">🔴 {{ getPlayerName(og.playerId) }} <small *ngIf="og.minute!==undefined">({{og.minute}}')</small></span>
+                <button class="remove" *appCanEdit (click)="removeOwnGoal('B',i)">×</button>
               </li>
             </ul>
           </div>

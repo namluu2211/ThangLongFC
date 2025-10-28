@@ -13,6 +13,7 @@ export interface PlayerStats {
   gamesPlayed: number;
   goals: number;
   assists: number;
+  ownGoals: number;
   yellowCards: number;
   redCards: number;
   wins: number;
@@ -25,6 +26,7 @@ export interface Team {
   score?: number;
   goals?: string;
   assists?: string;
+  ownGoals?: string;
   yellowCards?: string;
   redCards?: string;
 }
@@ -68,6 +70,8 @@ export interface MatchData extends MatchFinances {
   scorerB?: string;
   assistA?: string;
   assistB?: string;
+  ownGoalA?: string;
+  ownGoalB?: string;
   
   // Cards
   yellowA?: string;

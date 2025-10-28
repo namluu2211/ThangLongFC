@@ -54,6 +54,10 @@ export interface MatchResult {
   goalsA: GoalDetail[];
   goalsB: GoalDetail[];
   
+  // Own Goals
+  ownGoalsA?: CardDetail[];
+  ownGoalsB?: CardDetail[];
+  
   // Cards
   yellowCardsA: CardDetail[];
   yellowCardsB: CardDetail[];
@@ -203,6 +207,7 @@ export enum CardType {
 export enum EventType {
   GOAL = 'goal',
   ASSIST = 'assist',
+  OWN_GOAL = 'own_goal',
   YELLOW_CARD = 'yellow_card',
   RED_CARD = 'red_card',
   SUBSTITUTION = 'substitution',
