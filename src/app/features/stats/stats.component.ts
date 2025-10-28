@@ -1271,8 +1271,16 @@ interface MonthlyStats {
     }
 
     .player-cell {
-      text-align: left !important;
+      text-align: center !important;
       min-width: 200px;
+    }
+
+    .player-achievement {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
     .player-info {

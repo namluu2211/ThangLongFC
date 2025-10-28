@@ -112,7 +112,7 @@ import { Router } from '@angular/router';
               <div class="card-value">{{ getNetProfit() | number:'1.0-0' }}</div>
               <div class="card-subtitle">
                 <i class="fas" [class.fa-arrow-up]="getNetProfit() >= 0" [class.fa-arrow-down]="getNetProfit() < 0"></i>
-                {{ getNetProfit() >= 0 ? 'Lãi' : 'Lỗ' }}
+                {{ getNetProfit() >= 0 ? 'Tổng Lãi' : 'Tổng Lỗ' }}
               </div>
             </div>
             <div class="card-decoration"></div>
@@ -129,7 +129,7 @@ import { Router } from '@angular/router';
               <div class="card-value">{{ getAveragePerMatch() | number:'1.0-0' }}</div>
               <div class="card-subtitle">
                 <i class="fas fa-chart-bar"></i>
-                Thu: {{ getAverageRevenue() | number:'1.0-0' }}
+                Lãi mỗi trận
               </div>
             </div>
             <div class="card-decoration"></div>
@@ -2174,30 +2174,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   // Financial calculation methods
-  getRevenuePercentage(): number {
-    const total = this.getTotalRevenue() + this.getTotalExpenses();
-    return total > 0 ? (this.getTotalRevenue() / total) * 100 : 0;
-  }
-
-  getExpensePercentage(): number {
-    const total = this.getTotalRevenue() + this.getTotalExpenses();
-    return total > 0 ? (this.getTotalExpenses() / total) * 100 : 0;
-  }
-
-  getBalancePercentage(): number {
-    return 100 - this.getRevenuePercentage() - this.getExpensePercentage();
-  }
-
   getAveragePerMatch(): number {
+    console.log('📊 Average profit per match:', this.getNetProfit() / this.matches.length);
     return this.matches.length > 0 ? this.getNetProfit() / this.matches.length : 0;
-  }
-
-  getAverageRevenue(): number {
-    return this.matches.length > 0 ? this.getTotalRevenue() / this.matches.length : 0;
-  }
-
-  getAverageExpensePerMatch(): number {
-    return this.matches.length > 0 ? this.getTotalExpenses() / this.matches.length : 0;
   }
 
   // Team methods
