@@ -210,6 +210,7 @@ export class PlayerService {
   dateOfBirth: (playerData.dateOfBirth || playerData.DOB || '') as string,
       avatar: playerData.avatar || '',
   notes: (playerData.notes || playerData.note || '') as string,
+      videoUrl: (playerData as Record<string, unknown>).videoUrl as string || '', // Video URL for player highlights
       
       // Status and registration
       isRegistered: playerData.isRegistered !== undefined ? playerData.isRegistered : true,

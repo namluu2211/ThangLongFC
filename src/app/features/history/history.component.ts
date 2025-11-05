@@ -112,7 +112,7 @@ import { Router } from '@angular/router';
               <div class="card-value">{{ getNetProfit() | number:'1.0-0' }}</div>
               <div class="card-subtitle">
                 <i class="fas" [class.fa-arrow-up]="getNetProfit() >= 0" [class.fa-arrow-down]="getNetProfit() < 0"></i>
-                {{ getNetProfit() >= 0 ? 'Lãi' : 'Lỗ' }}
+                {{ getNetProfit() >= 0 ? 'Tổng Lãi' : 'Tổng Lỗ' }}
               </div>
             </div>
             <div class="card-decoration"></div>
@@ -129,7 +129,7 @@ import { Router } from '@angular/router';
               <div class="card-value">{{ getAveragePerMatch() | number:'1.0-0' }}</div>
               <div class="card-subtitle">
                 <i class="fas fa-chart-bar"></i>
-                Thu: {{ getAverageRevenue() | number:'1.0-0' }}
+                Lãi mỗi trận
               </div>
             </div>
             <div class="card-decoration"></div>
@@ -310,6 +310,24 @@ import { Router } from '@angular/router';
                   </div>
                 </div>
 
+                <!-- Own Goals Section -->
+                <div class="stat-section" *ngIf="getOwnGoals(match, 'A') || getOwnGoals(match, 'B')">
+                  <div class="stat-title">
+                    <i class="fas fa-times-circle text-danger"></i>
+                    Phản lưới
+                  </div>
+                  <div class="stat-teams">
+                    <div class="team-stat blue" *ngIf="getOwnGoals(match, 'A')">
+                      <span class="team-label">Đội Xanh:</span>
+                      <span class="stat-value">{{ getOwnGoals(match, 'A') }}</span>
+                    </div>
+                    <div class="team-stat orange" *ngIf="getOwnGoals(match, 'B')">
+                      <span class="team-label">Đội Cam:</span>
+                      <span class="stat-value">{{ getOwnGoals(match, 'B') }}</span>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Yellow Cards Section -->
                 <div class="stat-section" *ngIf="getCards(match, 'A', 'yellow') || getCards(match, 'B', 'yellow')">
                   <div class="stat-title">
@@ -466,6 +484,17 @@ import { Router } from '@angular/router';
                   <div class="form-group">
                     <label for="edit-assistB">Kiến tạo Đội Cam</label>
                     <input id="edit-assistB" type="text" [(ngModel)]="editFormData.assistB" name="assistB" class="form-control" placeholder="Tên cầu thủ kiến tạo">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="edit-ownGoalA">Phản lưới Đội Xanh</label>
+                    <input id="edit-ownGoalA" type="text" [(ngModel)]="editFormData.ownGoalA" name="ownGoalA" class="form-control" placeholder="Tên cầu thủ phản lưới">
+                  </div>
+                  <div class="form-group">
+                    <label for="edit-ownGoalB">Phản lưới Đội Cam</label>
+                    <input id="edit-ownGoalB" type="text" [(ngModel)]="editFormData.ownGoalB" name="ownGoalB" class="form-control" placeholder="Tên cầu thủ phản lưới">
                   </div>
                 </div>
               </div>
@@ -2174,30 +2203,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   // Financial calculation methods
-  getRevenuePercentage(): number {
-    const total = this.getTotalRevenue() + this.getTotalExpenses();
-    return total > 0 ? (this.getTotalRevenue() / total) * 100 : 0;
-  }
-
-  getExpensePercentage(): number {
-    const total = this.getTotalRevenue() + this.getTotalExpenses();
-    return total > 0 ? (this.getTotalExpenses() / total) * 100 : 0;
-  }
-
-  getBalancePercentage(): number {
-    return 100 - this.getRevenuePercentage() - this.getExpensePercentage();
-  }
-
   getAveragePerMatch(): number {
+    console.log('📊 Average profit per match:', this.getNetProfit() / this.matches.length);
     return this.matches.length > 0 ? this.getNetProfit() / this.matches.length : 0;
-  }
-
-  getAverageRevenue(): number {
-    return this.matches.length > 0 ? this.getTotalRevenue() / this.matches.length : 0;
-  }
-
-  getAverageExpensePerMatch(): number {
-    return this.matches.length > 0 ? this.getTotalExpenses() / this.matches.length : 0;
   }
 
   // Team methods
@@ -2226,6 +2234,11 @@ export class HistoryComponent implements OnInit, OnDestroy {
   getAssists(match: HistoryEntry, team: 'A' | 'B'): string {
     const assist = team === 'A' ? match.assistA : match.assistB;
     return assist || '';
+  }
+
+  getOwnGoals(match: HistoryEntry, team: 'A' | 'B'): string {
+    const ownGoal = team === 'A' ? match.ownGoalA : match.ownGoalB;
+    return ownGoal || '';
   }
 
   getCards(match: HistoryEntry, team: 'A' | 'B', type: 'yellow' | 'red'): string {

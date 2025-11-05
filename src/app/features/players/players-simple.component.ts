@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 
 import { PlayerService } from '../../core/services/player.service';
@@ -55,8 +56,8 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
                 <i class="fas fa-sync-alt"></i>
               </div>
               <div class="action-content">
-                <h4>Tải lại</h4>
-                <p>Cập nhật dữ liệu</p>
+                <h4>Đồng bộ Firebase</h4>
+                <p>Tải dữ liệu mới nhất</p>
               </div>
             </button>
 
@@ -275,6 +276,31 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
                 <div class="hero-position">{{ selectedPlayer.position || 'Chưa xác định' }}</div>
               </div>
             </div>
+            
+            <!-- Video Section -->
+            <div class="player-video-section" *ngIf="selectedPlayer?.videoUrl">
+              <h4 class="video-label"><i class="fas fa-video me-2"></i>Video</h4>
+              <div class="video-container">
+                <iframe 
+                  [src]="getVideoEmbedUrl(selectedPlayer?.videoUrl)" 
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen
+                  loading="lazy"
+                  title="Video cầu thủ">
+                </iframe>
+              </div>
+            </div>
+            
+            <!-- Video Placeholder when no video -->
+            <div class="player-video-section video-placeholder" *ngIf="!selectedPlayer?.videoUrl">
+              <div class="video-empty-state">
+                <i class="fas fa-video video-icon"></i>
+                <p class="video-message">Chưa có video</p>
+                <p class="video-hint">Thêm video trong phần chỉnh sửa</p>
+              </div>
+            </div>
+            
             <dl class="detail-list">
               <div><dt>Tuổi</dt><dd>{{ calculateAge(selectedPlayer) }}</dd></div>
               <div><dt>Chiều cao</dt><dd>{{ selectedPlayer.height || '—' }}cm</dd></div>
@@ -306,6 +332,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
                 <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="createModel.height" (change)="onCreateHeightChange($event)" /></label>
                 <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="createModel.weight" (change)="onCreateWeightChange($event)" /></label>
               <label><span>Avatar URL</span><input name="avatar" [(ngModel)]="createModel.avatar" maxlength="300" placeholder="https://..." /></label>
+              <label><span>Video URL</span><input name="videoUrl" [(ngModel)]="createModel.videoUrl" maxlength="500" placeholder="YouTube, TikTok, Facebook, Instagram, Vimeo, Drive, OneDrive..." /></label>
               <label class="full"><span>Ghi chú</span><textarea name="notes" [(ngModel)]="createModel.notes" rows="2" maxlength="400" placeholder="Ghi chú nội bộ"></textarea></label>
               <label class="full"><span>Chọn ảnh (tùy chọn)</span><input type="file" accept="image/*" (change)="onCreateAvatarFileChange($event)" /></label>
             </div>
@@ -337,6 +364,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
               <label><span>Chiều cao (cm)</span><input type="number" name="height" [(ngModel)]="editModel.height" (change)="onEditHeightChange($event)" /></label>
               <label><span>Cân nặng (kg)</span><input type="number" name="weight" [(ngModel)]="editModel.weight" (change)="onEditWeightChange($event)" /></label>
               <label><span>Avatar URL</span><input name="avatar" [(ngModel)]="editModel.avatar" maxlength="300" placeholder="https://..." /></label>
+              <label><span>Video URL</span><input name="videoUrl" [(ngModel)]="editModel.videoUrl" maxlength="500" placeholder="YouTube, TikTok, Facebook, Instagram, Vimeo, Drive, OneDrive..." /></label>
               <label class="full"><span>Ghi chú</span><textarea name="notes" [(ngModel)]="editModel.notes" rows="2" maxlength="400" placeholder="Ghi chú nội bộ"></textarea></label>
               <label class="full"><span>Chọn ảnh mới</span><input type="file" accept="image/*" (change)="onEditAvatarFileChange($event)" /></label>
             </div>
@@ -346,7 +374,7 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
           </form>
         </div>
         <footer class="panel-footer">
-          <button class="primary-btn" [disabled]="editForm.invalid || !editValid" type="submit" form="editPlayerForm">Cập nhật</button>
+          <button class="primary-btn" [disabled]="editForm?.invalid || !editValid" type="submit" form="editPlayerForm">Cập nhật</button>
           <button class="ghost-btn" type="button" (click)="closePanels()">Hủy</button>
         </footer>
       </section>
@@ -1134,6 +1162,18 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
   .hero-meta { display:flex; flex-direction:column; justify-content:center; }
   .hero-name { font-weight:600; font-size:1.05rem; }
   .hero-position { font-size:0.75rem; text-transform:uppercase; letter-spacing:.5px; background:#eef2ff; color:#3845a7; padding:4px 8px; border-radius:12px; margin-top:6px; width:max-content; }
+  
+  /* Video Section */
+  .player-video-section { padding:0 20px 16px; }
+  .video-label { font-size:0.85rem; font-weight:600; color:#333; margin:0 0 12px; }
+  .video-container { position:relative; width:100%; padding-bottom:56.25%; /* 16:9 aspect ratio */ border-radius:12px; overflow:hidden; background:#000; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+  .video-container iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
+  .video-placeholder { margin-bottom:12px; }
+  .video-empty-state { background:#f8f9fb; border:2px dashed #d1d5db; border-radius:12px; padding:32px 20px; text-align:center; }
+  .video-icon { font-size:2.5rem; color:#9ca3af; margin-bottom:12px; }
+  .video-message { font-size:0.95rem; font-weight:600; color:#4b5563; margin:0 0 4px; }
+  .video-hint { font-size:0.75rem; color:#9ca3af; margin:0; }
+  
   .mini-stats { display:flex; gap:10px; padding:0 20px 16px; }
   .mini-stat { background:#f8f9fb; padding:10px 14px; border-radius:10px; display:flex; flex-direction:column; align-items:center; flex:1; }
   .mini-stat span { font-weight:600; font-size:1rem; }
@@ -1188,6 +1228,8 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
     .form-grid label.full { grid-column:1 / -1; }
     .avatar-preview { margin:10px 4px 0; padding:8px; border:1px solid #e2e5ec; border-radius:10px; background:#f9fafc; display:flex; align-items:center; }
     .avatar-preview img { width:70px; height:70px; object-fit:cover; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+    .upload-progress { font-size:0.85rem; color:#1a73e8; margin:8px 4px; padding:6px 10px; background:#e8f0fe; border-radius:6px; }
+    .upload-error { font-size:0.85rem; color:#d93025; margin:8px 4px; padding:6px 10px; background:#fce8e6; border-radius:6px; }
     .note-indicator { font-size:0.7rem; margin-top:4px; }
   /* debug-info removed */
   /* inline warnings removed; using toasts */
@@ -1223,6 +1265,7 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   private readonly avatarUploadService = inject(AvatarUploadService);
   private readonly toast = inject(ToastService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly sanitizer = inject(DomSanitizer);
   private readonly destroy$ = new Subject<void>();
   private readonly searchSubject$ = new Subject<string>();
   private componentLoadId: string | null = null;
@@ -1318,10 +1361,19 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     
     try {
-      const cachedData = localStorage.getItem('players.json');
-      if (cachedData) {
-        this.allPlayers = JSON.parse(cachedData);
+      console.log('🔄 Refreshing players from Firebase...');
+      
+      // Force refresh from Firebase (bypasses localStorage cache)
+      await this.playerService.refreshPlayers();
+      
+      // Get data from PlayerService instead of localStorage directly
+      this.allPlayers = this.playerService.getAllPlayers();
+      
+      if (this.allPlayers && this.allPlayers.length > 0) {
         this.processPlayersData();
+        
+        console.log('✅ Players refreshed successfully:', this.allPlayers.length, 'players loaded');
+        this.toast.success('Dữ liệu đã được cập nhật từ Firebase');
         
         // Complete performance monitoring after successful load
         if (this.componentLoadId) {
@@ -1329,15 +1381,18 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
           this.componentLoadId = null;
         }
       } else {
+        console.log('⚠️ No players in service, trying fallback...');
         await this.testFetchDirect();
         return;
       }
       
     } catch (error) {
-      console.error('Error loading players:', error);
+      console.error('❌ Error refreshing players:', error);
       this.errorMessage = `Error loading players: ${error}`;
+      this.toast.error('Không thể tải dữ liệu từ Firebase');
     } finally {
       this.isLoading = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -1471,6 +1526,162 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     return player.avatar || '/assets/images/default-avatar.svg';
   }
 
+  getVideoEmbedUrl(url: string | undefined): SafeResourceUrl {
+    if (!url) {
+      console.warn('⚠️ Empty video URL provided');
+      return this.sanitizer.bypassSecurityTrustResourceUrl('');
+    }
+    
+    console.log('🎥 Processing video URL:', url);
+    let embedUrl = '';
+    
+    // YouTube (regular, shorts, mobile)
+    const youtubeRegex = /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch) {
+      embedUrl = `https://www.youtube.com/embed/${youtubeMatch[1]}?rel=0&modestbranding=1`;
+      console.log('✅ YouTube video detected, embed URL:', embedUrl);
+      return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+    }
+    
+    // TikTok - Enhanced support
+    if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) {
+      const tiktokMatch = url.match(/\/video\/(\d+)|@[\w.]+\/video\/(\d+)|vm\.tiktok\.com\/([a-zA-Z0-9]+)/);
+      if (tiktokMatch) {
+        const videoId = tiktokMatch[1] || tiktokMatch[2] || tiktokMatch[3];
+        embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+        console.log('✅ TikTok video detected, embed URL:', embedUrl);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      }
+    }
+    
+    // Instagram Reels & Posts
+    if (url.includes('instagram.com')) {
+      // Support both /reel/ and /p/ (posts)
+      const instaMatch = url.match(/\/(reel|p|tv)\/([a-zA-Z0-9_-]+)/);
+      if (instaMatch) {
+        const mediaId = instaMatch[2];
+        embedUrl = `https://www.instagram.com/${instaMatch[1]}/${mediaId}/embed`;
+        console.log('✅ Instagram media detected, embed URL:', embedUrl);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      }
+    }
+    
+    // Facebook videos - Enhanced support
+    if (url.includes('facebook.com') || url.includes('fb.watch') || url.includes('fb.me')) {
+      embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=560`;
+      console.log('✅ Facebook video detected, embed URL:', embedUrl);
+      return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+    }
+    
+    // Vimeo support
+    if (url.includes('vimeo.com')) {
+      const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      if (vimeoMatch) {
+        embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}?title=0&byline=0&portrait=0`;
+        console.log('✅ Vimeo video detected, embed URL:', embedUrl);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      }
+    }
+    
+    // Dailymotion support
+    if (url.includes('dailymotion.com') || url.includes('dai.ly')) {
+      const dmMatch = url.match(/(?:dailymotion\.com\/video\/|dai\.ly\/)([a-zA-Z0-9]+)/);
+      if (dmMatch) {
+        embedUrl = `https://www.dailymotion.com/embed/video/${dmMatch[1]}`;
+        console.log('✅ Dailymotion video detected, embed URL:', embedUrl);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      }
+    }
+    
+    // Twitch clips and videos
+    if (url.includes('twitch.tv')) {
+      if (url.includes('/clip/')) {
+        const clipMatch = url.match(/clip\/([a-zA-Z0-9_-]+)/);
+        if (clipMatch) {
+          embedUrl = `https://clips.twitch.tv/embed?clip=${clipMatch[1]}&parent=${window.location.hostname}`;
+          console.log('✅ Twitch clip detected, embed URL:', embedUrl);
+          return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+        }
+      } else {
+        const videoMatch = url.match(/videos\/(\d+)/);
+        if (videoMatch) {
+          embedUrl = `https://player.twitch.tv/?video=${videoMatch[1]}&parent=${window.location.hostname}`;
+          console.log('✅ Twitch video detected, embed URL:', embedUrl);
+          return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+        }
+      }
+    }
+    
+    // Twitter/X videos
+    if (url.includes('twitter.com') || url.includes('x.com')) {
+      // Twitter requires the full tweet URL for embedding
+      console.log('✅ Twitter/X video detected');
+      console.warn('⚠️ Twitter videos require embedding the entire tweet. Using Twitter\'s embed API.');
+      // Note: Twitter embed might need additional setup, using iframe as fallback
+      return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    }
+    
+    // Streamable support
+    if (url.includes('streamable.com')) {
+      const streamMatch = url.match(/streamable\.com\/([a-zA-Z0-9]+)/);
+      if (streamMatch) {
+        embedUrl = `https://streamable.com/e/${streamMatch[1]}`;
+        console.log('✅ Streamable video detected, embed URL:', embedUrl);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      }
+    }
+    
+    // OneDrive videos
+    if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
+      console.log('📁 OneDrive URL detected');
+      if (url.includes('onedrive.live.com/embed')) {
+        console.log('✅ OneDrive embed URL (already formatted):', url);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+      } else if (url.includes('1drv.ms')) {
+        console.warn('⚠️ OneDrive short link detected. Please use the embed link from OneDrive share options.');
+        return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+      } else {
+        const embedOneDrive = url.replace('/view.aspx', '/embed').replace('?', '&').replace('&', '?');
+        console.log('🔄 Converting OneDrive URL to embed format:', embedOneDrive);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedOneDrive);
+      }
+    }
+    
+    // Google Drive videos
+    if (url.includes('drive.google.com')) {
+      console.log('📁 Google Drive URL detected');
+      let fileId = '';
+      if (url.includes('/file/d/')) {
+        const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (match) fileId = match[1];
+      } else if (url.includes('id=')) {
+        const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+        if (match) fileId = match[1];
+      }
+      
+      if (fileId) {
+        embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+        console.log('✅ Google Drive embed URL:', embedUrl);
+        return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      } else {
+        console.warn('❌ Could not extract Google Drive file ID from:', url);
+      }
+    }
+    
+    // Dropbox support
+    if (url.includes('dropbox.com')) {
+      // Convert dropbox sharing link to direct link
+      const dropboxUrl = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '');
+      console.log('✅ Dropbox video detected, direct URL:', dropboxUrl);
+      return this.sanitizer.bypassSecurityTrustResourceUrl(dropboxUrl);
+    }
+    
+    // Default: try to use the URL directly (for direct video file URLs like .mp4, .webm)
+    console.log('🔄 Using URL directly (fallback):', url);
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
   async loadPlayersFromService() {
     this.isLoading = true;
     this.errorMessage = '';
@@ -1496,6 +1707,16 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
   }
 
   viewPlayerDetails(player: PlayerInfo) {
+    console.log('👤 Viewing player details:', player.firstName, player.lastName);
+    console.log('📹 Player videoUrl:', player.videoUrl);
+    console.log('🔍 Full player data:', JSON.stringify(player, null, 2));
+    
+    if (player.videoUrl) {
+      console.log('✅ Video URL exists, will attempt to embed');
+    } else {
+      console.warn('⚠️ No video URL found for this player');
+    }
+    
     this.selectedPlayer = player;
     this.isDetailOpen = true;
     this.isCreateOpen = false;
@@ -1551,8 +1772,10 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
         isRegistered: true,
         status: PlayerStatus.ACTIVE,
         avatar: this.createModel.avatar || '',
+        videoUrl: this.createModel.videoUrl || '',
         notes: this.createModel.notes || ''
       };
+      console.log('💾 Creating player with videoUrl:', base.videoUrl);
       await this.playerService.createPlayer(base);
   this.toast.success('Đã tạo cầu thủ mới');
       // Rely on reactive subscription instead of manual reload
@@ -1597,8 +1820,10 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
         height: this.normalizeNumber(this.editModel.height),
         weight: this.normalizeNumber(this.editModel.weight),
         avatar: this.editModel.avatar || '',
+        videoUrl: this.editModel.videoUrl || '',
         notes: this.editModel.notes || ''
       };
+      console.log('💾 Saving player with videoUrl:', updates.videoUrl);
       await this.playerService.updatePlayer(this.editModel.id, updates);
   this.toast.success('Đã cập nhật cầu thủ');
       // Rely on reactive subscription instead of manual reload

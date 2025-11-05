@@ -18,6 +18,7 @@ interface MatchPlayer extends Omit<Player, 'id'> {
   id: string;
   scorer: number;
   assist: number;
+  ownGoal: number;
   yellow: number;
   red: number;
 }
@@ -112,7 +113,8 @@ interface AIAnalysisResult {
                       <th>Tên cầu thủ</th>
                       <th class="stat-col">⚽ Bàn thắng</th>
                       <th class="stat-col">🎯 Kiến tạo</th>
-                      <th class="stat-col">🟨 Thẻ vàng</th>
+                      <th class="stat-col">� Phản lưới</th>
+                      <th class="stat-col">�🟨 Thẻ vàng</th>
                       <th class="stat-col">🟥 Thẻ đỏ</th>
                     </tr>
                   </thead>
@@ -146,6 +148,15 @@ interface AIAnalysisResult {
                                class="stat-input assists"
                                min="0" 
                                max="10"
+                               (change)="onStatChange()">
+                      </td>
+                      <td class="input-cell">
+         <input type="number" 
+           [(ngModel)]="player.ownGoal" 
+           appDisableUnlessCanEdit
+                               class="stat-input own-goals"
+                               min="0" 
+                               max="5"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
@@ -193,7 +204,8 @@ interface AIAnalysisResult {
                       <th>Tên cầu thủ</th>
                       <th class="stat-col">⚽ Bàn thắng</th>
                       <th class="stat-col">🎯 Kiến tạo</th>
-                      <th class="stat-col">🟨 Thẻ vàng</th>
+                      <th class="stat-col">� Phản lưới</th>
+                      <th class="stat-col">�🟨 Thẻ vàng</th>
                       <th class="stat-col">🟥 Thẻ đỏ</th>
                     </tr>
                   </thead>
@@ -227,6 +239,15 @@ interface AIAnalysisResult {
                                class="stat-input assists"
                                min="0" 
                                max="10"
+                               (change)="onStatChange()">
+                      </td>
+                      <td class="input-cell">
+         <input type="number" 
+           [(ngModel)]="player.ownGoal" 
+           appDisableUnlessCanEdit
+                               class="stat-input own-goals"
+                               min="0" 
+                               max="5"
                                (change)="onStatChange()">
                       </td>
                       <td class="input-cell">
@@ -286,6 +307,11 @@ interface AIAnalysisResult {
                 <i class="fas fa-crosshairs"></i>
                 <span class="stat-label">Tổng kiến tạo:</span>
                 <span class="stat-value">{{getTotalAssists()}}</span>
+              </div>
+              <div class="stat-item">
+                <i class="fas fa-times-circle text-danger"></i>
+                <span class="stat-label">Phản lưới nhà:</span>
+                <span class="stat-value">{{getTotalOwnGoals()}}</span>
               </div>
               <div class="stat-item">
                 <i class="fas fa-square text-warning"></i>
@@ -954,6 +980,11 @@ interface AIAnalysisResult {
     .stat-input.assists:focus {
       border-color: #007bff;
       box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .stat-input.own-goals:focus {
+      border-color: #dc3545;
+      box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
     }
 
     .stat-input.yellow:focus {
@@ -1719,6 +1750,7 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
       note: player.notes || '',
       scorer: 0,
       assist: 0,
+      ownGoal: 0,
       yellow: 0,
       red: 0
     }));
@@ -1817,6 +1849,11 @@ export class MatchInfoComponent implements OnInit, OnDestroy {
   getTotalAssists(): number {
     const allPlayers = [...this.teamA, ...this.teamB];
     return allPlayers.reduce((sum, player) => sum + (player.assist || 0), 0);
+  }
+
+  getTotalOwnGoals(): number {
+    const allPlayers = [...this.teamA, ...this.teamB];
+    return allPlayers.reduce((sum, player) => sum + (player.ownGoal || 0), 0);
   }
 
   getTotalYellows(): number {

@@ -1,4 +1,7 @@
 {
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "target": "mia-fc-management",
     "public": "dist/browser/browser",

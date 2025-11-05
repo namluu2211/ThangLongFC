@@ -619,6 +619,16 @@ app-player-list .pagination-controls {
    box-shadow:0 2px 6px rgba(239, 68, 68, 0.15);
 }
 
+.badge.own-goal { 
+   background:linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+   color:#fff;
+   padding:4px 12px; 
+   border-radius:16px; 
+   font-weight:700;
+   border: 1px solid #bd2130;
+   box-shadow:0 2px 6px rgba(220, 53, 69, 0.25);
+}
+
 /* Modern Finance Summary Section */
 .finance-summary { 
    margin-top:52px;

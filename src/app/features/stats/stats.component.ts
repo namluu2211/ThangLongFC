@@ -26,6 +26,8 @@ interface MatchData {
   scorerB?: string;
   assistA?: string;
   assistB?: string;
+  ownGoalA?: string;
+  ownGoalB?: string;
   yellowA?: string;
   yellowB?: string;
   redA?: string;
@@ -43,6 +45,7 @@ interface PlayerStats {
   name: string;
   goals: number;
   assists: number;
+  ownGoals: number;
   yellowCards: number;
   redCards: number;
   matches: number;
@@ -53,6 +56,7 @@ interface MonthlyStats {
   totalMatches: number;
   totalGoals: number;
   totalAssists: number;
+  totalOwnGoals: number;
   totalYellowCards: number;
   totalRedCards: number;
   topScorer: PlayerStats | null;
@@ -196,6 +200,7 @@ interface MonthlyStats {
                       <option value="score">⭐ Điểm số</option>
                       <option value="goals">⚽ Bàn thắng</option>
                       <option value="assists">🎯 Kiến tạo</option>
+                      <option value="ownGoals">🔴 Phản lưới</option>
                       <option value="yellowCards">🟨 Thẻ vàng</option>
                       <option value="redCards">🟥 Thẻ đỏ</option>
                       <option value="matches">🏟️ Số trận</option>
@@ -292,7 +297,7 @@ interface MonthlyStats {
                   👥 Bảng xếp hạng cầu thủ
                   <small class="text-muted">
                     <i class="fas fa-calculator me-1"></i>
-                    Điểm số = (Bàn thắng × 2) + (Kiến tạo × 1) + (Số trận × 1) - (Thẻ vàng × 1) - (Thẻ đỏ × 2)
+                    Điểm số = (Bàn thắng × 2) + (Kiến tạo × 1) + (Số trận × 1) - (Phản lưới × 2) - (Thẻ vàng × 1) - (Thẻ đỏ × 2)
                   </small>
                   </h4>
               </div>
@@ -317,6 +322,10 @@ interface MonthlyStats {
                     <th class="stat-col">
                       <i class="fas fa-crosshairs me-1"></i>
                       Kiến tạo
+                    </th>
+                    <th class="stat-col">
+                      <i class="fas fa-circle text-danger me-1"></i>
+                      Phản lưới
                     </th>
                     <th class="stat-col">
                       <i class="fas fa-square text-warning me-1"></i>
@@ -368,6 +377,10 @@ interface MonthlyStats {
                     <td class="stat-cell">
                       <div class="stat-value assists" *ngIf="player.assists > 0">{{player.assists}}</div>
                       <div class="stat-empty" *ngIf="player.assists === 0">-</div>
+                    </td>
+                    <td class="stat-cell">
+                      <div class="stat-value own-goals" *ngIf="player.ownGoals > 0">{{player.ownGoals}}</div>
+                      <div class="stat-empty" *ngIf="player.ownGoals === 0">-</div>
                     </td>
                     <td class="stat-cell">
                       <div class="stat-value yellow" *ngIf="player.yellowCards > 0">{{player.yellowCards}}</div>
@@ -460,6 +473,10 @@ interface MonthlyStats {
                       Kiến tạo
                     </th>
                     <th class="stat-col">
+                      <i class="fas fa-times-circle text-danger me-1"></i>
+                      Phản lưới
+                    </th>
+                    <th class="stat-col">
                       <i class="fas fa-square text-warning me-1"></i>
                       Thẻ vàng
                     </th>
@@ -498,6 +515,10 @@ interface MonthlyStats {
                     <td class="stat-cell">
                       <div class="stat-value assists">{{monthlyStats[month]?.totalAssists || 0}}</div>
                       <div class="stat-label">kiến tạo</div>
+                    </td>
+                    <td class="stat-cell">
+                      <div class="stat-value own-goals">{{monthlyStats[month]?.totalOwnGoals || 0}}</div>
+                      <div class="stat-label">phản lưới</div>
                     </td>
                     <td class="stat-cell">
                       <div class="stat-value yellow">{{monthlyStats[month]?.totalYellowCards || 0}}</div>
@@ -1271,8 +1292,16 @@ interface MonthlyStats {
     }
 
     .player-cell {
-      text-align: left !important;
+      text-align: center !important;
       min-width: 200px;
+    }
+
+    .player-achievement {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
     .player-info {
@@ -1390,6 +1419,10 @@ interface MonthlyStats {
 
     .stat-value.assists {
       background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+    }
+
+    .stat-value.own-goals {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
 
     .stat-value.yellow {
@@ -2710,7 +2743,7 @@ export class StatsComponent implements OnInit, OnDestroy {
   // UI State
   viewMode: 'all' | 'monthly' = 'all';
   selectedMonth = '';
-  sortBy: 'score' | 'goals' | 'assists' | 'yellowCards' | 'redCards' | 'matches' = 'score';
+  sortBy: 'score' | 'goals' | 'assists' | 'ownGoals' | 'yellowCards' | 'redCards' | 'matches' = 'score';
   
   // Pagination State
   currentPage = 0;
@@ -2963,6 +2996,7 @@ export class StatsComponent implements OnInit, OnDestroy {
             name: playerName,
             goals: 0,
             assists: 0,
+            ownGoals: 0,
             yellowCards: 0,
             redCards: 0,
             matches: 0
@@ -2994,6 +3028,7 @@ export class StatsComponent implements OnInit, OnDestroy {
               name: playerName,
               goals: 0,
               assists: 0,
+              ownGoals: 0,
               yellowCards: 0,
               redCards: 0,
               matches: 0
@@ -3007,10 +3042,12 @@ export class StatsComponent implements OnInit, OnDestroy {
         playerStatsAll[playerName].matches++;
         const goals = this.parsePlayerStatFromField(match.scorerA, playerName) + this.parsePlayerStatFromField(match.scorerB, playerName);
         const assists = this.parsePlayerStatFromField(match.assistA, playerName) + this.parsePlayerStatFromField(match.assistB, playerName);
+        const ownGoals = this.parsePlayerStatFromField(match.ownGoalA, playerName) + this.parsePlayerStatFromField(match.ownGoalB, playerName);
         const yellows = this.parsePlayerStatFromField(match.yellowA, playerName) + this.parsePlayerStatFromField(match.yellowB, playerName);
         const reds = this.parsePlayerStatFromField(match.redA, playerName) + this.parsePlayerStatFromField(match.redB, playerName);
         playerStatsAll[playerName].goals += goals;
         playerStatsAll[playerName].assists += assists;
+        playerStatsAll[playerName].ownGoals += ownGoals;
         playerStatsAll[playerName].yellowCards += yellows;
         playerStatsAll[playerName].redCards += reds;
       });
@@ -3025,6 +3062,7 @@ export class StatsComponent implements OnInit, OnDestroy {
       
       let totalGoals = 0;
       let totalAssists = 0;
+      let totalOwnGoals = 0;
       let totalYellowCards = 0;
       let totalRedCards = 0;
 
@@ -3062,6 +3100,7 @@ export class StatsComponent implements OnInit, OnDestroy {
               name: playerName,
               goals: 0,
               assists: 0,
+              ownGoals: 0,
               yellowCards: 0,
               redCards: 0,
               matches: 0
@@ -3100,6 +3139,7 @@ export class StatsComponent implements OnInit, OnDestroy {
                 name,
                 goals: 0,
                 assists: 0,
+                ownGoals: 0,
                 yellowCards: 0,
                 redCards: 0,
                 matches: 0
@@ -3114,11 +3154,13 @@ export class StatsComponent implements OnInit, OnDestroy {
           
           const goals = this.parsePlayerStatFromField(match.scorerA, playerName) + this.parsePlayerStatFromField(match.scorerB, playerName);
           const assists = this.parsePlayerStatFromField(match.assistA, playerName) + this.parsePlayerStatFromField(match.assistB, playerName);
+          const ownGoals = this.parsePlayerStatFromField(match.ownGoalA, playerName) + this.parsePlayerStatFromField(match.ownGoalB, playerName);
           const yellows = this.parsePlayerStatFromField(match.yellowA, playerName) + this.parsePlayerStatFromField(match.yellowB, playerName);
           const reds = this.parsePlayerStatFromField(match.redA, playerName) + this.parsePlayerStatFromField(match.redB, playerName);
           
           monthPlayerStats[playerName].goals += goals;
           monthPlayerStats[playerName].assists += assists;
+          monthPlayerStats[playerName].ownGoals += ownGoals;
           monthPlayerStats[playerName].yellowCards += yellows;
           monthPlayerStats[playerName].redCards += reds;
         });
@@ -3128,6 +3170,7 @@ export class StatsComponent implements OnInit, OnDestroy {
         const matchAssists = this.countStatOccurrences(match.assistA) + this.countStatOccurrences(match.assistB);
         const matchYellows = this.countStatOccurrences(match.yellowA) + this.countStatOccurrences(match.yellowB);
         const matchReds = this.countStatOccurrences(match.redA) + this.countStatOccurrences(match.redB);
+        const matchOwnGoals = this.countStatOccurrences(match.ownGoalA) + this.countStatOccurrences(match.ownGoalB);
         
         console.log(`🔍 Match ${monthKey} stats:`, {
           date: match.date,
@@ -3135,18 +3178,22 @@ export class StatsComponent implements OnInit, OnDestroy {
           scorerB: match.scorerB,
           assistA: match.assistA,
           assistB: match.assistB,
+          ownGoalA: match.ownGoalA,
+          ownGoalB: match.ownGoalB,
           yellowA: match.yellowA,
           yellowB: match.yellowB,
           redA: match.redA,
           redB: match.redB,
           calculatedGoals: matchGoals,
           calculatedAssists: matchAssists,
+          calculatedOwnGoals: matchOwnGoals,
           calculatedYellows: matchYellows,
           calculatedReds: matchReds
         });
         
         totalGoals += matchGoals;
         totalAssists += matchAssists;
+        totalOwnGoals += matchOwnGoals;
         totalYellowCards += matchYellows;
         totalRedCards += matchReds;
       }
@@ -3187,6 +3234,7 @@ export class StatsComponent implements OnInit, OnDestroy {
         totalMatches: monthMatches.length,
         totalGoals,
         totalAssists,
+        totalOwnGoals,
         totalYellowCards,
         totalRedCards,
         topScorer,
@@ -3368,6 +3416,7 @@ export class StatsComponent implements OnInit, OnDestroy {
               name: player.name,
               goals: 0,
               assists: 0,
+              ownGoals: 0,
               yellowCards: 0,
               redCards: 0,
               matches: 0
@@ -3376,6 +3425,7 @@ export class StatsComponent implements OnInit, OnDestroy {
           
           allPlayers[player.name].goals += player.goals;
           allPlayers[player.name].assists += player.assists;
+          allPlayers[player.name].ownGoals += player.ownGoals;
           allPlayers[player.name].yellowCards += player.yellowCards;
           allPlayers[player.name].redCards += player.redCards;
           allPlayers[player.name].matches += player.matches;
@@ -3390,6 +3440,7 @@ export class StatsComponent implements OnInit, OnDestroy {
       if (this.sortBy === 'score') return this.calculatePlayerScore(b) - this.calculatePlayerScore(a);
       if (this.sortBy === 'goals') return b.goals - a.goals;
       if (this.sortBy === 'assists') return b.assists - a.assists;
+      if (this.sortBy === 'ownGoals') return b.ownGoals - a.ownGoals;
       if (this.sortBy === 'yellowCards') return b.yellowCards - a.yellowCards;
       if (this.sortBy === 'redCards') return b.redCards - a.redCards;
       if (this.sortBy === 'matches') return b.matches - a.matches;
@@ -3438,10 +3489,11 @@ export class StatsComponent implements OnInit, OnDestroy {
   }
 
   calculatePlayerScore(player: PlayerStats): number {
-    // Score calculation: (goals × 2) + (assists × 1) + (matches × 1) - (yellowCards × 1) - (redCards × 2)
+    // Score calculation: (goals × 2) + (assists × 1) + (matches × 1) - (ownGoals × 2) - (yellowCards × 1) - (redCards × 2)
     return (player.goals * 2)
       + (player.assists * 1)
       + (player.matches * 1)
+      - (player.ownGoals * 2)
       - (player.yellowCards * 1)
       - (player.redCards * 2);
   }
