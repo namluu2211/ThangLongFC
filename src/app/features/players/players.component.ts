@@ -354,11 +354,24 @@ export class PlayersComponent implements OnInit, OnDestroy {
       setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
       return;
     }
-    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    
+    // Fisher-Yates shuffle - generates NEW random order each time
+    console.log('🔀 Shuffling teams with', pool.length, 'players');
+    for(let i=pool.length-1;i>0;i--){ 
+      const j=Math.floor(Math.random()*(i+1)); 
+      [pool[i],pool[j]]=[pool[j],pool[i]]; 
+    }
+    console.log('🔀 Shuffled order:', pool.map(p => p.firstName).join(', '));
+    
     const half=Math.ceil(pool.length/2);
     this.teamA=[...pool.slice(0,half)];
     this.teamB=[...pool.slice(half)];
+    
+    console.log('🔀 Team A:', this.teamA.map(p => p.firstName).join(', '));
+    console.log('🔀 Team B:', this.teamB.map(p => p.firstName).join(', '));
+    
     this.triggerTeamChange();
+    this.persistTeams(); // Explicitly save the new teams to localStorage
     this.cdr.markForCheck();
   }
 
@@ -374,7 +387,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('🎯 Balancing teams by position for', basePool.length, 'players');
+    console.log('🎯 Balancing teams by position for', basePool.length, 'players (with randomization)');
     console.log('📋 Base pool sample:', basePool[0]);
 
     // Get player IDs from the pool - use coreId if available, otherwise create from id
@@ -389,7 +402,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Use the position-based balancing from PlayerService
+    // Use the position-based balancing from PlayerService (now with randomization)
     const result = this.simplePlayerService.balanceTeamsByPosition(playerIds);
 
     console.log('📊 Balance result:', {
@@ -449,6 +462,7 @@ export class PlayersComponent implements OnInit, OnDestroy {
     }, 4000);
 
     this.triggerTeamChange();
+    this.persistTeams(); // Save the balanced teams to localStorage
     this.cdr.markForCheck();
   }
 

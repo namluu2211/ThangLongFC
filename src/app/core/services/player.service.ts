@@ -607,8 +607,12 @@ export class PlayerService {
         return skillB - skillA; // Descending order
       });
 
+      // Add randomization: shuffle players with similar skill levels
+      // Group by skill tiers (high/medium/low) and shuffle within each tier
+      const shuffledPlayers = this.shuffleWithinSkillTiers(sortedPlayers);
+
       // Distribute players alternately (snake draft)
-      sortedPlayers.forEach((player, index) => {
+      shuffledPlayers.forEach((player, index) => {
         if (index % 2 === 0) {
           teamA.push(player);
         } else {
@@ -658,6 +662,42 @@ export class PlayerService {
       success: true,
       message: `Đã chia đội dựa trên vị trí và kỹ năng (${teamA.length}v${teamB.length})`
     };
+  }
+
+  /**
+   * Shuffle players within skill tiers to add randomization while maintaining balance
+   * Players with similar skill levels can be randomly swapped
+   */
+  private shuffleWithinSkillTiers(players: PlayerInfo[]): PlayerInfo[] {
+    if (players.length <= 1) return players;
+
+    // Calculate skill score for each player
+    const playersWithSkill = players.map(p => ({
+      player: p,
+      skill: (p.stats.averageGoalsPerMatch * 30) + (p.stats.averageAssistsPerMatch * 20) + (p.stats.winRate * 0.5)
+    }));
+
+    // Divide into tiers (groups of 2-3 players with similar skills)
+    const tierSize = Math.max(2, Math.floor(players.length / 3));
+    const tiers: typeof playersWithSkill[] = [];
+    
+    for (let i = 0; i < playersWithSkill.length; i += tierSize) {
+      tiers.push(playersWithSkill.slice(i, i + tierSize));
+    }
+
+    // Fisher-Yates shuffle within each tier
+    const shuffled: PlayerInfo[] = [];
+    tiers.forEach(tier => {
+      const tierPlayers = tier.map(t => t.player);
+      // Shuffle this tier
+      for (let i = tierPlayers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tierPlayers[i], tierPlayers[j]] = [tierPlayers[j], tierPlayers[i]];
+      }
+      shuffled.push(...tierPlayers);
+    });
+
+    return shuffled;
   }
 
   private groupPlayersByPosition(players: PlayerInfo[]): Record<string, PlayerInfo[]> {
