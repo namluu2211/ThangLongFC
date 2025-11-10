@@ -560,6 +560,262 @@ export class PlayerService {
     // Sort by highest gain and cap
     return suggestions.sort((x,y)=>y.expectedGain - x.expectedGain).slice(0,5);
   }
+
+  // Position-based team balancing
+  balanceTeamsByPosition(playerIds: string[]): PositionBasedTeamResult {
+    console.log('⚽ Starting position-based team balancing for', playerIds.length, 'players');
+    
+    const players = playerIds.map(id => this.getPlayerById(id)).filter(Boolean) as PlayerInfo[];
+    
+    if (players.length < 2) {
+      return this.createEmptyTeamResult('Cần ít nhất 2 cầu thủ để chia đội');
+    }
+
+    // Group players by position
+    const positionGroups = this.groupPlayersByPosition(players);
+    console.log('📊 Position groups:', Object.keys(positionGroups).map(pos => `${pos}: ${positionGroups[pos].length}`));
+
+    // Initialize teams
+    const teamA: PlayerInfo[] = [];
+    const teamB: PlayerInfo[] = [];
+
+    // Position priority order (most important first)
+    const positionPriority = [
+      'Thủ môn',           // Goalkeeper - most critical
+      'Trung vệ',          // Center Back
+      'Hậu vệ',            // Defender
+      'Hậu vệ biên',       // Fullback
+      'Tiền vệ phòng ngự', // Defensive Midfielder
+      'Tiền vệ',           // Midfielder
+      'Tiền vệ tấn công',  // Attacking Midfielder
+      'Cánh',              // Winger
+      'Tiền đạo',          // Forward
+      'Tiền đạo cắm',      // Striker
+      'Chưa xác định'      // Unknown - last
+    ];
+
+    // Distribute players by position priority
+    for (const position of positionPriority) {
+      const playersInPosition = positionGroups[position] || [];
+      
+      if (playersInPosition.length === 0) continue;
+
+      // Sort by skill within position (goals + assists + win rate)
+      const sortedPlayers = playersInPosition.sort((a, b) => {
+        const skillA = (a.stats.averageGoalsPerMatch * 30) + (a.stats.averageAssistsPerMatch * 20) + (a.stats.winRate * 0.5);
+        const skillB = (b.stats.averageGoalsPerMatch * 30) + (b.stats.averageAssistsPerMatch * 20) + (b.stats.winRate * 0.5);
+        return skillB - skillA; // Descending order
+      });
+
+      // Distribute players alternately (snake draft)
+      sortedPlayers.forEach((player, index) => {
+        if (index % 2 === 0) {
+          teamA.push(player);
+        } else {
+          teamB.push(player);
+        }
+      });
+    }
+
+    // Balance team sizes if needed
+    this.balanceTeamSizes(teamA, teamB);
+
+    // Calculate position balance scores
+    const teamAPositions = this.getPositionDistribution(teamA);
+    const teamBPositions = this.getPositionDistribution(teamB);
+    
+    const positionBalanceScore = this.calculatePositionBalanceScore(teamAPositions, teamBPositions);
+    const skillBalanceScore = this.calculateSkillBalance(teamA, teamB);
+    const sizeBalanceScore = Math.max(0, 100 - Math.abs(teamA.length - teamB.length) * 20);
+
+    const overallScore = Math.round(
+      positionBalanceScore * 0.5 +  // Position balance is most important
+      skillBalanceScore * 0.3 +      // Skill balance
+      sizeBalanceScore * 0.2         // Size balance
+    );
+
+    const recommendations = this.generatePositionRecommendations(
+      teamA, teamB, teamAPositions, teamBPositions, positionBalanceScore, skillBalanceScore
+    );
+
+    console.log('✅ Team balancing complete!');
+    console.log('📋 Team A:', teamA.length, 'players', teamAPositions);
+    console.log('📋 Team B:', teamB.length, 'players', teamBPositions);
+    console.log('📊 Overall balance score:', overallScore);
+
+    return {
+      teamA: teamA.map(p => p.id),
+      teamB: teamB.map(p => p.id),
+      teamADetails: teamA,
+      teamBDetails: teamB,
+      teamAPositions,
+      teamBPositions,
+      positionBalanceScore,
+      skillBalanceScore,
+      sizeBalanceScore,
+      overallScore,
+      recommendations,
+      success: true,
+      message: `Đã chia đội dựa trên vị trí và kỹ năng (${teamA.length}v${teamB.length})`
+    };
+  }
+
+  private groupPlayersByPosition(players: PlayerInfo[]): Record<string, PlayerInfo[]> {
+    const groups: Record<string, PlayerInfo[]> = {};
+    
+    players.forEach(player => {
+      const position = player.position || 'Chưa xác định';
+      if (!groups[position]) {
+        groups[position] = [];
+      }
+      groups[position].push(player);
+    });
+
+    return groups;
+  }
+
+  private balanceTeamSizes(teamA: PlayerInfo[], teamB: PlayerInfo[]): void {
+    // Move players from larger team to smaller team if difference > 1
+    while (Math.abs(teamA.length - teamB.length) > 1) {
+      if (teamA.length > teamB.length) {
+        const player = teamA.pop();
+        if (player) teamB.push(player);
+      } else {
+        const player = teamB.pop();
+        if (player) teamA.push(player);
+      }
+    }
+  }
+
+  private getPositionDistribution(team: PlayerInfo[]): Record<string, number> {
+    const distribution: Record<string, number> = {};
+    
+    team.forEach(player => {
+      const position = player.position || 'Chưa xác định';
+      distribution[position] = (distribution[position] || 0) + 1;
+    });
+
+    return distribution;
+  }
+
+  private calculatePositionBalanceScore(
+    teamAPositions: Record<string, number>,
+    teamBPositions: Record<string, number>
+  ): number {
+    // Get all positions from both teams
+    const allPositions = new Set([
+      ...Object.keys(teamAPositions),
+      ...Object.keys(teamBPositions)
+    ]);
+
+    let totalDifference = 0;
+    let criticalPositionsMissing = 0;
+
+    allPositions.forEach(position => {
+      const countA = teamAPositions[position] || 0;
+      const countB = teamBPositions[position] || 0;
+      const diff = Math.abs(countA - countB);
+      
+      // Critical positions (goalkeeper, defenders) have higher weight
+      const isCritical = position === 'Thủ môn' || position === 'Trung vệ' || position === 'Hậu vệ';
+      const weight = isCritical ? 2 : 1;
+      
+      totalDifference += diff * weight;
+
+      // Penalize if one team has no goalkeeper
+      if (position === 'Thủ môn' && (countA === 0 || countB === 0)) {
+        criticalPositionsMissing += 30;
+      }
+    });
+
+    // Calculate score (lower difference = higher score)
+    const baseScore = Math.max(0, 100 - (totalDifference * 10));
+    const finalScore = Math.max(0, baseScore - criticalPositionsMissing);
+
+    return Math.round(finalScore);
+  }
+
+  private calculateSkillBalance(teamA: PlayerInfo[], teamB: PlayerInfo[]): number {
+    const getTeamSkill = (team: PlayerInfo[]) => {
+      if (team.length === 0) return 0;
+      const totalSkill = team.reduce((sum, player) => {
+        return sum + (player.stats.averageGoalsPerMatch * 30) + 
+               (player.stats.averageAssistsPerMatch * 20) + 
+               (player.stats.winRate * 0.5);
+      }, 0);
+      return totalSkill / team.length;
+    };
+
+    const skillA = getTeamSkill(teamA);
+    const skillB = getTeamSkill(teamB);
+    const difference = Math.abs(skillA - skillB);
+
+    // Lower difference = higher score
+    return Math.round(Math.max(0, 100 - (difference * 2)));
+  }
+
+  private generatePositionRecommendations(
+    teamA: PlayerInfo[],
+    teamB: PlayerInfo[],
+    teamAPositions: Record<string, number>,
+    teamBPositions: Record<string, number>,
+    positionScore: number,
+    skillScore: number
+  ): string[] {
+    const recommendations: string[] = [];
+
+    // Check goalkeeper distribution
+    const goalkeepersA = teamAPositions['Thủ môn'] || 0;
+    const goalkeepersB = teamBPositions['Thủ môn'] || 0;
+    
+    if (goalkeepersA === 0 && goalkeepersB > 0) {
+      recommendations.push('⚠️ Đội A không có thủ môn! Cần chuyển 1 thủ môn sang đội A');
+    } else if (goalkeepersB === 0 && goalkeepersA > 0) {
+      recommendations.push('⚠️ Đội B không có thủ môn! Cần chuyển 1 thủ môn sang đội B');
+    } else if (Math.abs(goalkeepersA - goalkeepersB) > 1) {
+      recommendations.push('⚖️ Cân bằng số lượng thủ môn giữa 2 đội');
+    }
+
+    // Check position balance
+    if (positionScore < 60) {
+      recommendations.push('🔄 Hoán đổi cầu thủ để cân bằng vị trí giữa 2 đội');
+    }
+
+    // Check skill balance
+    if (skillScore < 60) {
+      recommendations.push('🎯 Hoán đổi cầu thủ mạnh/yếu để cân bằng kỹ năng');
+    }
+
+    // Check team sizes
+    if (Math.abs(teamA.length - teamB.length) > 1) {
+      recommendations.push('⚖️ Điều chỉnh số lượng cầu thủ cho đều hơn');
+    }
+
+    // Add positive feedback
+    if (recommendations.length === 0) {
+      recommendations.push('✅ Hai đội đã cân bằng tốt về vị trí và kỹ năng!');
+    }
+
+    return recommendations;
+  }
+
+  private createEmptyTeamResult(message: string): PositionBasedTeamResult {
+    return {
+      teamA: [],
+      teamB: [],
+      teamADetails: [],
+      teamBDetails: [],
+      teamAPositions: {},
+      teamBPositions: {},
+      positionBalanceScore: 0,
+      skillBalanceScore: 0,
+      sizeBalanceScore: 0,
+      overallScore: 0,
+      recommendations: [message],
+      success: false,
+      message
+    };
+  }
 }
 
 export interface TeamBalanceResult {
@@ -577,4 +833,20 @@ export interface TeamBalanceResult {
   // Final composite
   balanceScoreFinal: number;
   swapSuggestions?: { fromTeam: 'A' | 'B'; playerOutId: string; playerInId: string; expectedGain: number; rationale: string; }[];
+}
+
+export interface PositionBasedTeamResult {
+  teamA: string[];  // Player IDs for team A
+  teamB: string[];  // Player IDs for team B
+  teamADetails: PlayerInfo[];  // Full player objects for team A
+  teamBDetails: PlayerInfo[];  // Full player objects for team B
+  teamAPositions: Record<string, number>;  // Position distribution for team A
+  teamBPositions: Record<string, number>;  // Position distribution for team B
+  positionBalanceScore: number;  // How well positions are balanced (0-100)
+  skillBalanceScore: number;     // How well skills are balanced (0-100)
+  sizeBalanceScore: number;      // How well team sizes are balanced (0-100)
+  overallScore: number;          // Overall balance score (0-100)
+  recommendations: string[];     // Suggestions for improvement
+  success: boolean;              // Whether balancing was successful
+  message: string;               // Status message
 }

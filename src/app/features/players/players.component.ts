@@ -362,6 +362,124 @@ export class PlayersComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  balanceTeamsByPosition() {
+    const basePool = this.registeredPlayers.length >= 2 ? this.registeredPlayers : this.allPlayers;
+    
+    if (basePool.length < 2) {
+      this.matchSaveMessage = 'Cần ≥2 cầu thủ để chia đội';
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 2500);
+      return;
+    }
+
+    console.log('🎯 Balancing teams by position for', basePool.length, 'players');
+    console.log('📋 Base pool sample:', basePool[0]);
+
+    // Get player IDs from the pool - use coreId if available, otherwise create from id
+    const playerIds = basePool.map(p => p.coreId || `player_${p.id}`).filter(Boolean) as string[];
+    
+    if (playerIds.length === 0) {
+      this.matchSaveMessage = 'Không tìm thấy ID cầu thủ';
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 2500);
+      return;
+    }
+
+    // Use the position-based balancing from PlayerService
+    const result = this.simplePlayerService.balanceTeamsByPosition(playerIds);
+
+    console.log('📊 Balance result:', {
+      success: result.success,
+      teamACount: result.teamADetails.length,
+      teamBCount: result.teamBDetails.length,
+      sampleTeamAPlayer: result.teamADetails[0],
+      sampleTeamBPlayer: result.teamBDetails[0]
+    });
+
+    if (!result.success) {
+      this.matchSaveMessage = result.message;
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 3000);
+      return;
+    }
+
+    // Map the balanced teams back to the component's player format
+    // Find original player objects from basePool to preserve all properties including correct IDs
+    this.teamA = result.teamA.map(coreId => {
+      const originalPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === coreId);
+      if (originalPlayer) {
+        return originalPlayer;
+      }
+      // Fallback: convert from PlayerInfo
+      const playerInfo = result.teamADetails.find(p => p.id === coreId);
+      return playerInfo ? this.convertPlayerInfoToPlayer(playerInfo) : null;
+    }).filter(Boolean) as PlayerWithCoreId[];
+
+    this.teamB = result.teamB.map(coreId => {
+      const originalPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === coreId);
+      if (originalPlayer) {
+        return originalPlayer;
+      }
+      // Fallback: convert from PlayerInfo
+      const playerInfo = result.teamBDetails.find(p => p.id === coreId);
+      return playerInfo ? this.convertPlayerInfoToPlayer(playerInfo) : null;
+    }).filter(Boolean) as PlayerWithCoreId[];
+
+    console.log('👥 Team A mapped:', this.teamA.length, 'players', this.teamA.map(p => `${p.firstName} (ID: ${p.id})`));
+    console.log('👥 Team B mapped:', this.teamB.length, 'players', this.teamB.map(p => `${p.firstName} (ID: ${p.id})`));
+
+    // Show success message with score
+    this.matchSaveMessage = `✅ ${result.message} - Điểm cân bằng: ${result.overallScore}/100`;
+    console.log('📊 Team balance results:', result);
+    console.log('📋 Recommendations:', result.recommendations);
+
+    // Log position distribution
+    console.log('👥 Team A positions:', result.teamAPositions);
+    console.log('👥 Team B positions:', result.teamBPositions);
+
+    setTimeout(() => { 
+      this.matchSaveMessage = ''; 
+      this.cdr.markForCheck(); 
+    }, 4000);
+
+    this.triggerTeamChange();
+    this.cdr.markForCheck();
+  }
+
+  private convertPlayerInfoToPlayer(playerInfo: PlayerInfo): PlayerWithCoreId {
+    // Extract numeric ID from string ID (e.g., "player_123" -> 123)
+    const numericId = parseInt(playerInfo.id.replace(/\D/g, '')) || 0;
+    
+    const converted = {
+      id: numericId,
+      coreId: playerInfo.id,
+      firstName: playerInfo.firstName,
+      lastName: playerInfo.lastName,
+      fullName: playerInfo.fullName || `${playerInfo.firstName} ${playerInfo.lastName}`.trim(),
+      position: playerInfo.position || 'Chưa xác định',
+      DOB: playerInfo.dateOfBirth ? new Date(playerInfo.dateOfBirth).getFullYear() : 0,
+      height: playerInfo.height || 0,
+      weight: playerInfo.weight || 0,
+      avatar: playerInfo.avatar,
+      note: playerInfo.notes
+    };
+
+    console.log('🔄 Converting player:', {
+      id: playerInfo.id,
+      firstName: playerInfo.firstName,
+      lastName: playerInfo.lastName,
+      converted: converted
+    });
+
+    return converted;
+  }
+
   async runAIAnalysis(){
     // Publish team changes to global store for external analysis component/route
     this.dataStore.setTeams(this.teamA, this.teamB);
