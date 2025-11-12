@@ -232,7 +232,20 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Convert core PlayerInfo[] into legacy Player[] with stable numeric display id while preserving original coreId
   private convertCorePlayers(core:PlayerInfo[]){
     // Use player id as uniqueness key to avoid dropping distinct players sharing same name
+    console.log('🔄 Converting', core.length, 'core players');
     const unique=Array.from(new Map(core.map(p=>[p.id,p])).values());
+    console.log('✅ After deduplication:', unique.length, 'unique players');
+    
+    if (unique.length !== core.length) {
+      console.warn('⚠️ DUPLICATES DETECTED! Original:', core.length, 'Unique:', unique.length);
+      const idCounts = new Map<string, number>();
+      core.forEach(p => {
+        idCounts.set(p.id, (idCounts.get(p.id) || 0) + 1);
+      });
+      const duplicateIds = Array.from(idCounts.entries()).filter(([, count]) => count > 1);
+      console.warn('📋 Duplicate IDs:', duplicateIds);
+    }
+    
     this.allPlayers=unique.map(p=>({
       id: (typeof p.id==='string') ? Math.abs(this.hashId(p.id)) : (Number(p.id)||Math.floor(Math.random()*10000)),
       coreId: p.id,
@@ -282,8 +295,20 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   async deletePlayer(p:PlayerWithCoreId){
+    // Confirm before deleting
+    const confirmMsg = `Xác nhận xóa cầu thủ "${p.firstName} ${p.lastName || ''}"?\n\nHành động này không thể hoàn tác.`;
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+    
     const id=p.coreId? p.coreId: p.id.toString();
-    try{ await this.simplePlayerService.deletePlayer(id); }catch(e){ this.logger.errorDev('delete player failed',e); }
+    try{ 
+      await this.simplePlayerService.deletePlayer(id); 
+      console.log('✅ Deleted player:', p.firstName);
+    }catch(e){ 
+      this.logger.errorDev('delete player failed',e); 
+      alert('Không thể xóa cầu thủ. Vui lòng thử lại.');
+    }
   }
 
   getDisplayPlayers():Player[]{

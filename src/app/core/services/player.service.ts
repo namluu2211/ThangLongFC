@@ -244,13 +244,28 @@ export class PlayerService {
 
   // Update players map and notify subscribers
   private updatePlayersMap(players: PlayerInfo[]): void {
+    // Deduplicate by ID before creating map
+    const seenIds = new Set<string>();
+    const deduplicated = players.filter(player => {
+      if (seenIds.has(player.id)) {
+        console.warn('⚠️ Duplicate player ID detected:', player.id, player.firstName);
+        return false;
+      }
+      seenIds.add(player.id);
+      return true;
+    });
+    
+    if (deduplicated.length !== players.length) {
+      console.warn(`🔍 Removed ${players.length - deduplicated.length} duplicate player(s)`);
+    }
+    
     const playerMap = new Map<string, PlayerInfo>();
-    players.forEach(player => {
+    deduplicated.forEach(player => {
       playerMap.set(player.id, player);
     });
     
     this._players$.next(playerMap);
-    console.log('🔄 Updated players map with', players.length, 'players');
+    console.log('🔄 Updated players map with', deduplicated.length, 'players');
     // Invalidate balance cache on any player data change
     this._balanceCache.clear();
   }
