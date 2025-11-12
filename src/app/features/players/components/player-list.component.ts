@@ -41,8 +41,13 @@ import { Player } from '../player-utils';
             <div class="position">{{ player.position }}</div>
             <div class="reg-badge" *ngIf="isRegistered(player)" aria-label="Đã đăng ký">Đăng ký</div>
             <ng-container *ngIf="canEdit">
-              <button *ngIf="player.note || player.notes" type="button" class="note-indicator" (click)="editPlayer.emit(player)" [title]="(player.note||player.notes)||''">📝</button>
-              <button *ngIf="!player.note && !player.notes" type="button" class="note-add" (click)="editPlayer.emit(player)" title="Thêm ghi chú / avatar">＋</button>
+              <div class="action-buttons">
+                <button *ngIf="player.note || player.notes" type="button" class="note-indicator" (click)="editPlayer.emit(player)" [title]="(player.note||player.notes)||''">📝</button>
+                <button *ngIf="!player.note && !player.notes" type="button" class="note-add" (click)="editPlayer.emit(player)" title="Thêm ghi chú / avatar">＋</button>
+                <button type="button" class="delete-btn" (click)="deletePlayer.emit(player)" title="Xóa cầu thủ">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
             </ng-container>
           </div>
         </div>
@@ -105,6 +110,15 @@ import { Player } from '../player-utils';
     .name { font-weight:600; font-size:.8rem; color:#2c2350; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .position { font-size:.6rem; text-transform:uppercase; letter-spacing:.5px; color:#6e6a85; }
   .reg-badge { margin-top:2px; font-size:.5rem; background:#2e9b43; color:#fff; padding:2px 6px; border-radius:12px; letter-spacing:.5px; font-weight:600; box-shadow:0 2px 4px rgba(0,0,0,.15); }
+  .action-buttons { display:flex; gap:4px; margin-top:4px; align-items:center; }
+  .note-indicator, .note-add, .delete-btn { border:1px solid #d3cbed; padding:3px 7px; font-size:.65rem; border-radius:6px; cursor:pointer; transition:all .18s; background:#fff; }
+  .note-indicator { background:#fff8e1; border-color:#ffd54f; color:#f57c00; }
+  .note-indicator:hover { background:#ffecb3; }
+  .note-add { background:#e8f5e9; border-color:#81c784; color:#2e7d32; }
+  .note-add:hover { background:#c8e6c9; }
+  .delete-btn { background:#ffebee; border-color:#e57373; color:#c62828; padding:3px 8px; }
+  .delete-btn:hover { background:#ffcdd2; transform:scale(1.05); }
+  .delete-btn i { font-size:.65rem; }
   @keyframes spin { to { transform:rotate(360deg); } }
     .pagination-controls { display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0 4px; }
     .empty { text-align:center; padding:32px 20px; background:#faf9fe; border:1px dashed #d8d1f4; border-radius:14px; color:#695f90; }
@@ -133,8 +147,7 @@ export class PlayerListComponent {
   @Output() toggleList = new EventEmitter<void>();
   @Output() reload = new EventEmitter<void>();
   @Output() editPlayer = new EventEmitter<Player>();
-  // Delete removed from this context per design; keep emitter for backward compat optionally (deprecated)
-  // @Output() deletePlayer = new EventEmitter<Player>();
+  @Output() deletePlayer = new EventEmitter<Player>();
 
   trackByPlayerId = (_:number, p:Player) => p.id;
   isRegistered = (p:Player) => this.registeredPlayers.some(r=>r.id===p.id);

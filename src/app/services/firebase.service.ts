@@ -517,6 +517,39 @@ export class FirebaseService {
     });
   }
 
+  /**
+   * Add history entry with a specific ID (prevents duplicates by using match ID as key)
+   */
+  async addHistoryEntryWithId(id: string, entry: Omit<HistoryEntry, 'id'>): Promise<string> {
+    await this.ensureCoreReady();
+    return this.executeBatchOperation(async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fb: any = (this as any)._fb;
+  const historyRef = fb.ref(this.database, `history/${id}`);
+      
+      const optimizedEntry = {
+        ...entry,
+        id, // Include the ID in the entry itself
+        createdAt: new Date().toISOString(),
+        createdBy: this.getCurrentUserEmail()
+      };
+      
+  await fb.set(historyRef, {
+        ...entry,
+        id,
+  createdAt: this.fb().serverTimestamp(),
+        createdBy: this.getCurrentUserEmail()
+      });
+      
+      // Update cache immediately - remove any existing entry with this ID first
+      const currentHistory = this.historySubject.value.filter(h => h.id !== id);
+      this.historySubject.next([...currentHistory, optimizedEntry]);
+      
+      console.log(`✅ History entry saved with ID: ${id}`);
+      return id;
+    });
+  }
+
   // Batch operation management
   private async executeBatchOperation<T>(operation: () => Promise<T>, priority = 1): Promise<T> {
     return new Promise((resolve, reject) => {

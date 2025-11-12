@@ -232,7 +232,20 @@ export class PlayersComponent implements OnInit, OnDestroy {
   // Convert core PlayerInfo[] into legacy Player[] with stable numeric display id while preserving original coreId
   private convertCorePlayers(core:PlayerInfo[]){
     // Use player id as uniqueness key to avoid dropping distinct players sharing same name
+    console.log('🔄 Converting', core.length, 'core players');
     const unique=Array.from(new Map(core.map(p=>[p.id,p])).values());
+    console.log('✅ After deduplication:', unique.length, 'unique players');
+    
+    if (unique.length !== core.length) {
+      console.warn('⚠️ DUPLICATES DETECTED! Original:', core.length, 'Unique:', unique.length);
+      const idCounts = new Map<string, number>();
+      core.forEach(p => {
+        idCounts.set(p.id, (idCounts.get(p.id) || 0) + 1);
+      });
+      const duplicateIds = Array.from(idCounts.entries()).filter(([, count]) => count > 1);
+      console.warn('📋 Duplicate IDs:', duplicateIds);
+    }
+    
     this.allPlayers=unique.map(p=>({
       id: (typeof p.id==='string') ? Math.abs(this.hashId(p.id)) : (Number(p.id)||Math.floor(Math.random()*10000)),
       coreId: p.id,
@@ -282,8 +295,20 @@ export class PlayersComponent implements OnInit, OnDestroy {
   }
 
   async deletePlayer(p:PlayerWithCoreId){
+    // Confirm before deleting
+    const confirmMsg = `Xác nhận xóa cầu thủ "${p.firstName} ${p.lastName || ''}"?\n\nHành động này không thể hoàn tác.`;
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+    
     const id=p.coreId? p.coreId: p.id.toString();
-    try{ await this.simplePlayerService.deletePlayer(id); }catch(e){ this.logger.errorDev('delete player failed',e); }
+    try{ 
+      await this.simplePlayerService.deletePlayer(id); 
+      console.log('✅ Deleted player:', p.firstName);
+    }catch(e){ 
+      this.logger.errorDev('delete player failed',e); 
+      alert('Không thể xóa cầu thủ. Vui lòng thử lại.');
+    }
   }
 
   getDisplayPlayers():Player[]{
@@ -354,12 +379,144 @@ export class PlayersComponent implements OnInit, OnDestroy {
       setTimeout(()=>{ this.matchSaveMessage=''; this.cdr.markForCheck(); },2500);
       return;
     }
-    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    
+    // Fisher-Yates shuffle - generates NEW random order each time
+    console.log('🔀 Shuffling teams with', pool.length, 'players');
+    for(let i=pool.length-1;i>0;i--){ 
+      const j=Math.floor(Math.random()*(i+1)); 
+      [pool[i],pool[j]]=[pool[j],pool[i]]; 
+    }
+    console.log('🔀 Shuffled order:', pool.map(p => p.firstName).join(', '));
+    
     const half=Math.ceil(pool.length/2);
     this.teamA=[...pool.slice(0,half)];
     this.teamB=[...pool.slice(half)];
+    
+    console.log('🔀 Team A:', this.teamA.map(p => p.firstName).join(', '));
+    console.log('🔀 Team B:', this.teamB.map(p => p.firstName).join(', '));
+    
     this.triggerTeamChange();
+    this.persistTeams(); // Explicitly save the new teams to localStorage
     this.cdr.markForCheck();
+  }
+
+  balanceTeamsByPosition() {
+    const basePool = this.registeredPlayers.length >= 2 ? this.registeredPlayers : this.allPlayers;
+    
+    if (basePool.length < 2) {
+      this.matchSaveMessage = 'Cần ≥2 cầu thủ để chia đội';
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 2500);
+      return;
+    }
+
+    console.log('🎯 Balancing teams by position for', basePool.length, 'players (with randomization)');
+    console.log('📋 Base pool sample:', basePool[0]);
+
+    // Get player IDs from the pool - use coreId if available, otherwise create from id
+    const playerIds = basePool.map(p => p.coreId || `player_${p.id}`).filter(Boolean) as string[];
+    
+    if (playerIds.length === 0) {
+      this.matchSaveMessage = 'Không tìm thấy ID cầu thủ';
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 2500);
+      return;
+    }
+
+    // Use the position-based balancing from PlayerService (now with randomization)
+    const result = this.simplePlayerService.balanceTeamsByPosition(playerIds);
+
+    console.log('📊 Balance result:', {
+      success: result.success,
+      teamACount: result.teamADetails.length,
+      teamBCount: result.teamBDetails.length,
+      sampleTeamAPlayer: result.teamADetails[0],
+      sampleTeamBPlayer: result.teamBDetails[0]
+    });
+
+    if (!result.success) {
+      this.matchSaveMessage = result.message;
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 3000);
+      return;
+    }
+
+    // Map the balanced teams back to the component's player format
+    // Find original player objects from basePool to preserve all properties including correct IDs
+    this.teamA = result.teamA.map(coreId => {
+      const originalPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === coreId);
+      if (originalPlayer) {
+        return originalPlayer;
+      }
+      // Fallback: convert from PlayerInfo
+      const playerInfo = result.teamADetails.find(p => p.id === coreId);
+      return playerInfo ? this.convertPlayerInfoToPlayer(playerInfo) : null;
+    }).filter(Boolean) as PlayerWithCoreId[];
+
+    this.teamB = result.teamB.map(coreId => {
+      const originalPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === coreId);
+      if (originalPlayer) {
+        return originalPlayer;
+      }
+      // Fallback: convert from PlayerInfo
+      const playerInfo = result.teamBDetails.find(p => p.id === coreId);
+      return playerInfo ? this.convertPlayerInfoToPlayer(playerInfo) : null;
+    }).filter(Boolean) as PlayerWithCoreId[];
+
+    console.log('👥 Team A mapped:', this.teamA.length, 'players', this.teamA.map(p => `${p.firstName} (ID: ${p.id})`));
+    console.log('👥 Team B mapped:', this.teamB.length, 'players', this.teamB.map(p => `${p.firstName} (ID: ${p.id})`));
+
+    // Show success message with score
+    this.matchSaveMessage = `✅ ${result.message} - Điểm cân bằng: ${result.overallScore}/100`;
+    console.log('📊 Team balance results:', result);
+    console.log('📋 Recommendations:', result.recommendations);
+
+    // Log position distribution
+    console.log('👥 Team A positions:', result.teamAPositions);
+    console.log('👥 Team B positions:', result.teamBPositions);
+
+    setTimeout(() => { 
+      this.matchSaveMessage = ''; 
+      this.cdr.markForCheck(); 
+    }, 4000);
+
+    this.triggerTeamChange();
+    this.persistTeams(); // Save the balanced teams to localStorage
+    this.cdr.markForCheck();
+  }
+
+  private convertPlayerInfoToPlayer(playerInfo: PlayerInfo): PlayerWithCoreId {
+    // Extract numeric ID from string ID (e.g., "player_123" -> 123)
+    const numericId = parseInt(playerInfo.id.replace(/\D/g, '')) || 0;
+    
+    const converted = {
+      id: numericId,
+      coreId: playerInfo.id,
+      firstName: playerInfo.firstName,
+      lastName: playerInfo.lastName,
+      fullName: playerInfo.fullName || `${playerInfo.firstName} ${playerInfo.lastName}`.trim(),
+      position: playerInfo.position || 'Chưa xác định',
+      DOB: playerInfo.dateOfBirth ? new Date(playerInfo.dateOfBirth).getFullYear() : 0,
+      height: playerInfo.height || 0,
+      weight: playerInfo.weight || 0,
+      avatar: playerInfo.avatar,
+      note: playerInfo.notes
+    };
+
+    console.log('🔄 Converting player:', {
+      id: playerInfo.id,
+      firstName: playerInfo.firstName,
+      lastName: playerInfo.lastName,
+      converted: converted
+    });
+
+    return converted;
   }
 
   async runAIAnalysis(){

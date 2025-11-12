@@ -230,12 +230,8 @@ export class MatchService {
     list.push(match);
     localStorage.setItem('matchHistory', JSON.stringify(list));
 
-    // Build lightweight history entry for legacy History tab + Firebase. Previously we only stored display names (teamA/teamB)
-    // which meant after saving from Đội hình tab we lost the roster (no way to reconstruct reliably later).
-    // New fields:
-    //  - teamA_ids / teamB_ids: stable player id list
-    //  - teamA_full / teamB_full: optional minimal player object snapshot (id, firstName, lastName, position) for future analytics without full MatchInfo fetch
-    // Kept legacy fields teamA / teamB (names array) for backward compatibility with existing UI and old records.
+    // Build lightweight history entry for Firebase
+    // Use the SAME match ID as the Firebase key to prevent duplicates
     const namesA = match.teamA.players.map(p => `${p.firstName} ${p.lastName}`.trim());
     const namesB = match.teamB.players.map(p => `${p.firstName} ${p.lastName}`.trim());
     const idsA = match.teamA.players.map(p => p.id!);
@@ -245,11 +241,7 @@ export class MatchService {
 
     const revenue = match.finances.revenue;
     const expenses = match.finances.expenses;
-    // Revenue total should reflect totalRevenue (winner + loser + cards + other). Legacy field 'thu' previously used teamARevenue+teamBRevenue which are 0 in manual mode.
-  // Recompute total revenue defensively from primary categories to avoid legacy double-counting
-  const thuTotal = (revenue.winnerFees||0)+(revenue.loserFees||0)+(revenue.cardPenalties||0)+(revenue.otherRevenue||0);
-    // Expenses total should not double count aggregated fields (fixed/variable). We only sum atomic expense fields: referee, field, water, transportation, food, equipment, other.
-    // Access potential optional expense keys safely (transportation, food, equipment may not exist on interface yet)
+    const thuTotal = (revenue.winnerFees||0)+(revenue.loserFees||0)+(revenue.cardPenalties||0)+(revenue.otherRevenue||0);
     const extraKeys = ['transportation','food','equipment'] as const;
     const extraValues:number[] = extraKeys.map(k=>{
       const dyn = expenses as unknown as Record<string, unknown>;
@@ -259,13 +251,15 @@ export class MatchService {
     const chiAtomic = [expenses.referee, expenses.field, expenses.water, ...extraValues, expenses.other]
       .filter(v => typeof v === 'number') as number[];
     const chiTotal = chiAtomic.reduce((s,v)=>s+v,0);
+    
     const historyEntry = {
+      id: match.id, // CRITICAL: Use the same match ID to link and prevent duplicates
       date: match.date,
       description: `Trận đấu ngày ${match.date}`,
-      teamA: namesA, // legacy
-      teamB: namesB, // legacy
-      teamA_names: namesA, // legacy alias
-      teamB_names: namesB, // legacy alias
+      teamA: namesA,
+      teamB: namesB,
+      teamA_names: namesA,
+      teamB_names: namesB,
       teamA_ids: idsA,
       teamB_ids: idsB,
       teamA_full: fullA,
@@ -294,7 +288,14 @@ export class MatchService {
       lastSaved: new Date().toISOString()
     };
 
-    await this.firebaseService.addHistoryEntry(historyEntry as never);
+    // Save to Firebase using the SAME match ID as the key (not push())
+    try {
+      await this.firebaseService.addHistoryEntryWithId(match.id, historyEntry as never);
+      console.log(`✅ Match history synced to Firebase with ID: ${match.id}`);
+    } catch (error) {
+      // Firebase not available or disabled - this is OK, localStorage is primary storage
+      console.log('ℹ️ Firebase sync skipped (localStorage only):', error);
+    }
   }
   private async removeMatchFromStorage(id: string): Promise<void> { const list = Array.from(this._matches$.value.values()).filter(m => m.id !== id); localStorage.setItem('matchHistory', JSON.stringify(list)); }
   private filterMatches(matches: MatchInfo[], c: MatchSearchCriteria): MatchInfo[] { return matches.filter(m => { if (c.dateFrom && m.date < c.dateFrom) return false; if (c.dateTo && m.date > c.dateTo) return false; if (c.status && m.status !== c.status) return false; if (c.teamPlayer) { const q = c.teamPlayer.toLowerCase(); const has = m.teamA.players.some(p => p.firstName.toLowerCase().includes(q)) || m.teamB.players.some(p => p.firstName.toLowerCase().includes(q)); if (!has) return false; } return true; }); }

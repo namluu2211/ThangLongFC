@@ -310,6 +310,9 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
           </div>
           <footer class="panel-footer">
             <button class="primary-btn" (click)="openEditPlayer(selectedPlayer)">Chỉnh sửa</button>
+            <button class="danger-btn" (click)="deleteSelectedPlayer()">
+              <i class="fas fa-trash-alt"></i> Xóa
+            </button>
             <button class="ghost-btn" (click)="closePanels()">Đóng</button>
           </footer>
         </ng-container>
@@ -1182,10 +1185,14 @@ import { AssetOptimizationService } from '../../services/asset-optimization.serv
   .detail-list dt { font-size:0.65rem; text-transform:uppercase; letter-spacing:.5px; color:#666; margin:0 0 4px; }
   .detail-list dd { margin:0; font-size:0.88rem; font-weight:500; }
   .panel-footer { position:sticky; bottom:0; background:#fff; padding:16px 20px; display:flex; gap:12px; border-top:1px solid #eee; border-radius:0 0 16px 16px; }
-  .primary-btn, .ghost-btn, .icon-btn, .action-btn { font-family:inherit; }
+  .primary-btn, .ghost-btn, .danger-btn, .icon-btn, .action-btn { font-family:inherit; }
   .primary-btn { background:#667eea; border:none; padding:11px 20px; color:#fff; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(102,126,234,0.35); flex:1; }
   .primary-btn:hover { background:#5a6fd6; }
   .primary-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .danger-btn { background:#dc3545; border:none; padding:11px 20px; color:#fff; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(220,53,69,0.35); flex:1; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .danger-btn:hover { background:#c82333; }
+  .danger-btn:active { transform:scale(0.98); }
+  .danger-btn i { font-size:0.8rem; }
   .ghost-btn { background:#f1f2f6; border:none; padding:11px 18px; border-radius:8px; font-size:0.8rem; cursor:pointer; flex:1; }
   .ghost-btn:hover { background:#e3e6ee; }
     .player-form {
@@ -1744,6 +1751,26 @@ export class PlayersSimpleComponent implements OnInit, OnDestroy {
     this.isDetailOpen = false;
     this.isCreateOpen = false;
     this.cdr.markForCheck();
+  }
+
+  async deleteSelectedPlayer() {
+    if (!this.selectedPlayer) return;
+    
+    const playerName = `${this.selectedPlayer.firstName} ${this.selectedPlayer.lastName || ''}`.trim();
+    const confirmMsg = `Xác nhận xóa cầu thủ "${playerName}"?\n\nHành động này không thể hoàn tác.`;
+    
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    try {
+      await this.playerService.deletePlayer(this.selectedPlayer.id);
+      console.log('✅ Deleted player:', playerName);
+      this.closePanels();
+    } catch (error) {
+      console.error('❌ Failed to delete player:', error);
+      alert('Không thể xóa cầu thủ. Vui lòng thử lại.');
+    }
   }
 
   closePanels() {
