@@ -20,13 +20,6 @@ import { Player } from '../player-utils';
               <span class="count-badge" [attr.aria-label]="'Số cầu thủ đội xanh: ' + teamA.length">{{teamA.length}}</span>
               <span class="strength-badge" title="Sức mạnh tương đối">⚡ {{ teamStrength(teamA) }}</span>
             </h3>
-            <div class="right-meta">
-              <div class="pill-stat goals" title="Số bàn (từ sự kiện đã nhập)">⚽ {{ goalsCountA }}</div>
-              <div class="pill-stat yc" title="Thẻ vàng (từ sự kiện đã nhập)">🟨 {{ yellowCountA }}</div>
-              <div class="pill-stat rc" title="Thẻ đỏ (từ sự kiện đã nhập)">🟥 {{ redCountA }}</div>
-              <label class="score-label" for="scoreA">Tỉ số:</label>
-              <input id="scoreA" type="number" [(ngModel)]="scoreA" (change)="scoreAChange.emit(scoreA)" class="score-input" min="0" />
-            </div>
           </div>
           <div class="team-content">
             <h4 class="section-title players-title">Cầu thủ</h4>
@@ -38,12 +31,6 @@ import { Player } from '../player-utils';
                 <span class="player-name">{{player.firstName}}</span>
               </div>
             </div>
-            <div class="impact-mini" *ngIf="teamA.length">
-              <div class="impact-title">Top đóng góp</div>
-              <div class="impact-tags">
-                <span class="impact-tag" *ngFor="let tag of miniImpact(teamA)" [title]="tag.tooltip">{{tag.label}}</span>
-              </div>
-            </div>
           </div>
         </div>
         <div class="team-card">
@@ -53,13 +40,6 @@ import { Player } from '../player-utils';
               <span class="count-badge" [attr.aria-label]="'Số cầu thủ đội cam: ' + teamB.length">{{teamB.length}}</span>
               <span class="strength-badge" title="Sức mạnh tương đối">⚡ {{ teamStrength(teamB) }}</span>
             </h3>
-            <div class="right-meta">
-              <div class="pill-stat goals" title="Số bàn (từ sự kiện đã nhập)">⚽ {{ goalsCountB }}</div>
-              <div class="pill-stat yc" title="Thẻ vàng (từ sự kiện đã nhập)">🟨 {{ yellowCountB }}</div>
-              <div class="pill-stat rc" title="Thẻ đỏ (từ sự kiện đã nhập)">🟥 {{ redCountB }}</div>
-              <label class="score-label" for="scoreB">Tỉ số:</label>
-              <input id="scoreB" type="number" [(ngModel)]="scoreB" (change)="scoreBChange.emit(scoreB)" class="score-input" min="0" />
-            </div>
           </div>
           <div class="team-content">
             <h4 class="section-title players-title">Cầu thủ</h4>
@@ -69,12 +49,6 @@ import { Player } from '../player-utils';
                 <div class="drag-handle" cdkDragHandle title="Kéo để chuyển đội" aria-label="Kéo để chuyển đội">⋮⋮</div>
                 <img [src]="player.avatar || 'assets/images/default-avatar.svg'" (error)="onAvatarError($event)" class="player-avatar" [alt]="player.firstName" loading="lazy" />
                 <span class="player-name">{{player.firstName}}</span>
-              </div>
-            </div>
-            <div class="impact-mini" *ngIf="teamB.length">
-              <div class="impact-title">Top đóng góp</div>
-              <div class="impact-tags">
-                <span class="impact-tag" *ngFor="let tag of miniImpact(teamB)" [title]="tag.tooltip">{{tag.label}}</span>
               </div>
             </div>
           </div>
