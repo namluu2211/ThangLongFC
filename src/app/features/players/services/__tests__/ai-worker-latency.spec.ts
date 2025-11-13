@@ -1,4 +1,4 @@
-import { AIWorkerService } from './ai-worker.service';
+import { AIWorkerService } from '../ai-worker.service';
 // Worker will be mocked for deterministic timing.
 
 // Mock Worker for deterministic timing

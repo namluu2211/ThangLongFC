@@ -13,6 +13,7 @@ import { Player } from '../player-utils';
         <div class="balance-badge" *ngIf="teamA.length && teamB.length">
           <span>⚖️ Cân bằng: <strong>{{ balanceScore() }}%</strong></span>
         </div>
+        
         <div class="team-card">
           <div class="team-header team-a">
             <h3>
@@ -73,7 +74,8 @@ import { Player } from '../player-utils';
   .team-card { background:#ffffff; border:1px solid #d9d2f2; border-radius:12px; overflow:hidden; flex:1; display:flex; flex-direction:column; box-shadow:0 8px 24px -8px rgba(50,30,90,.25); }
     .teams-row { display:flex; gap:16px; flex-wrap:wrap; }
   .balance-badge { flex-basis:100%; background:#ece8fa; color:#423559; padding:6px 12px; border-radius:10px; font-size:.72rem; letter-spacing:.5px; display:flex; justify-content:center; align-items:center; gap:6px; box-shadow:0 2px 5px rgba(50,30,90,.18); }
-    .team-content { padding:10px 12px 16px; }
+  
+  .team-content { padding:10px 12px 16px; }
     .section-title { margin:4px 0 10px; font-size:.75rem; text-transform:uppercase; letter-spacing:.5px; opacity:.7; }
   .team-players { display:flex; flex-wrap:wrap; gap:8px; min-height:64px; padding:8px; border:1px dashed #c9c1e6; border-radius:10px; background:linear-gradient(145deg,#fafdff,#f2f0fb); }
   .team-players .placeholder { font-size:.65rem; opacity:.5; font-style:italic; }

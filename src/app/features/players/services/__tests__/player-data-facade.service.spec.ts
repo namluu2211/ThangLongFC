@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { PlayerDataFacade } from './player-data-facade.service';
+import { PlayerDataFacade } from '../player-data-facade.service';
 import { BehaviorSubject } from 'rxjs';
-import { DynamicPlayerFacadeLoader } from './player-facade.dynamic';
-import { FirebaseFeatureLoaderService } from './firebase-feature-loader.service';
-import { FilePlayerCrudService } from './file-player-crud.service';
-import { OfflinePlayerQueueService } from './offline-player-queue.service';
+import { DynamicPlayerFacadeLoader } from '../player-facade.dynamic';
+import { FirebaseFeatureLoaderService } from '../firebase-feature-loader.service';
+import { FilePlayerCrudService } from '../file-player-crud.service';
+import { OfflinePlayerQueueService } from '../offline-player-queue.service';
 
 // Mocks
 interface PlayerFileRecord { id: number; firstName?: string; lastName?: string; position?: string }
@@ -31,7 +31,7 @@ class MockDynamicPlayerFacadeLoader {
 }
 
 // Provide environment mock
-jest.mock('../../../../environments/environment', () => ({ environment: { features: { fileCrud: true }, firebase: { apiKey:'test', authDomain:'test', databaseURL:'https://local.test', projectId:'test', storageBucket:'test', messagingSenderId:'test', appId:'test' } } }));
+jest.mock('../../../../../environments/environment', () => ({ environment: { features: { fileCrud: true }, firebase: { apiKey:'test', authDomain:'test', databaseURL:'https://local.test', projectId:'test', storageBucket:'test', messagingSenderId:'test', appId:'test' } } }));
 
 describe('PlayerDataFacade', () => {
   beforeEach(() => {
