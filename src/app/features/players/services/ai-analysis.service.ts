@@ -44,17 +44,17 @@ export class AIAnalysisService {
   /**
    * Enhanced AI Analysis Engine
    * 
-   * Analyzes two teams and predicts match outcome using:
-   * 1. Current lineup strength (40% weight) - Based on player positions and roster size
-   * 2. Recent form (15% weight) - Last 10 matches performance
-   * 3. Head-to-head history (15-45% weight) - Dynamic based on:
+   * Analyzes two teams and predicts match outcome using the following sequential adjustments to win probabilities:
+   * 1. Current lineup strength (applies a 40% adjustment) - Based on player positions and roster size
+   * 2. Recent form (applies a 15% adjustment) - Last 10 matches performance
+   * 3. Head-to-head history (applies a 15-45% adjustment, dynamically) - Based on:
    *    - Sample size confidence (number of previous meetings)
    *    - Player roster stability (continuity of players)
-   * 4. Recent momentum (±5% adjustment) - Last 5 games trend
-   * 5. Goal differential patterns (±3% adjustment) - Historical scoring dominance
+   * 4. Recent momentum (applies a ±5% adjustment) - Last 5 games trend
+   * 5. Goal differential patterns (applies a ±3% adjustment) - Historical scoring dominance
    * 
-   * This provides more accurate predictions by weighing historical data based on
-   * its reliability (sample size) and relevance (roster continuity).
+   * These weights are not additive; each factor sequentially modifies the win probability, so the total adjustment may not sum to 100%.
+   * This provides more accurate predictions by weighing historical data based on its reliability (sample size) and relevance (roster continuity).
    */
   analyzeTeams(
     teamXanhPlayers: Player[],
