@@ -1,7 +1,7 @@
-import { AIWorkerService } from './ai-worker.service';
-import { HeadToHeadStats } from './history-stats.service';
+import { AIWorkerService } from '../ai-worker.service';
+import { HeadToHeadStats } from '../history-stats.service';
 import { runInInjectionContext, EnvironmentInjector, Injector, Provider } from '@angular/core';
-import { PerfMarksService } from '../../../core/services/perf-marks.service';
+import { PerfMarksService } from '../../../../core/services/perf-marks.service';
 
 // Note: This test exercises worker fallback path if Worker unavailable in Jest environment.
 

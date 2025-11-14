@@ -1,4 +1,4 @@
-import { AIWorkerService } from './ai-worker.service';
+import { AIWorkerService } from '../ai-worker.service';
 
 interface MockTeamPlayer { id: number; firstName: string }
 interface MockAnalysisResult {

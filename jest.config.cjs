@@ -11,11 +11,5 @@ module.exports = {
   coverageDirectory: '<rootDir>/src/test/coverage',
   coverageReporters: ['text','lcov'],
   moduleFileExtensions: ['ts','html','js','json','mjs'],
-  reporters: ['default'],
-  testPathIgnorePatterns: [
-    '<rootDir>/src/app/features/players/players.component.spec.ts',
-    '<rootDir>/src/app/features/players/__tests__/players.component.spec.ts',
-    '<rootDir>/src/app/features/players/services/ai-worker.service.spec.ts',
-    '<rootDir>/src/app/features/players/services/ai-worker-latency.spec.ts'
-  ]
+  reporters: ['default']
 };

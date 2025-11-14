@@ -1,19 +1,16 @@
-import { DynamicPlayerFacadeLoader } from './player-facade.dynamic';
+import { DynamicPlayerFacadeLoader } from '../player-facade.dynamic';
 
-// Basic mock module to simulate dynamic import target. We will monkey-patch import() via jest.mock if needed.
-// Since dynamic import path is static string, we can mock it using jest.mock with the relative path.
-
+// Mock the dynamic import in the loader
 jest.mock('../../../core/services/firebase-player.service', () => {
-  interface Sub { unsubscribe(): void }
-  interface Obs<T> { subscribe(next?: (value: T) => void): Sub }
+  const { BehaviorSubject } = jest.requireActual('rxjs');
   class MockFirebasePlayerService {
-    players$: Obs<unknown> = { subscribe: () => ({ unsubscribe: () => void 0 }) };
+    players$ = new BehaviorSubject([]);
     async createPlayer(){ /* noop */ }
     async updatePlayer(){ /* noop */ }
     async deletePlayer(){ /* noop */ }
   }
   return { FirebasePlayerService: MockFirebasePlayerService };
-});
+}, { virtual: true });
 
 describe('DynamicPlayerFacadeLoader', () => {
   it('loads facade only once and caches instance', async () => {

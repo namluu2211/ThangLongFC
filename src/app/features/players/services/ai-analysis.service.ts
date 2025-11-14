@@ -42,7 +42,19 @@ export class AIAnalysisService {
   private readonly CACHE_TTL = 60000; // 1 minute
 
   /**
-   * Analyze two teams and predict match outcome
+   * Enhanced AI Analysis Engine
+   * 
+   * Analyzes two teams and predicts match outcome using the following sequential adjustments to win probabilities:
+   * 1. Current lineup strength (applies a 40% adjustment) - Based on player positions and roster size
+   * 2. Recent form (applies a 15% adjustment) - Last 10 matches performance
+   * 3. Head-to-head history (applies a 15-45% adjustment, dynamically) - Based on:
+   *    - Sample size confidence (number of previous meetings)
+   *    - Player roster stability (continuity of players)
+   * 4. Recent momentum (applies a ±5% adjustment) - Last 5 games trend
+   * 5. Goal differential patterns (applies a ±3% adjustment) - Historical scoring dominance
+   * 
+   * These weights are not additive; each factor sequentially modifies the win probability, so the total adjustment may not sum to 100%.
+   * This provides more accurate predictions by weighing historical data based on its reliability (sample size) and relevance (roster continuity).
    */
   analyzeTeams(
     teamXanhPlayers: Player[],
@@ -96,7 +108,9 @@ export class AIAnalysisService {
       teamXanhPlayers,
       teamCamPlayers,
       xanhStrength,
-      camStrength
+      camStrength,
+      historicalContext,
+      headToHead
     );
 
   // scoreDistribution already computed above
@@ -229,7 +243,8 @@ export class AIAnalysisService {
   }
 
   /**
-   * Calculate win probabilities
+   * Calculate win probabilities with enhanced historical weighting
+   * Now incorporates: strength differential, recent form, head-to-head history, and player continuity
    */
   private calculateWinProbabilities(
     xanhStrength: number,
@@ -237,25 +252,53 @@ export class AIAnalysisService {
     historical: { stats: { xanhWins: number; camWins: number; totalMatches: number } },
     headToHead?: HeadToHeadStats
   ): { xanh: number; cam: number } {
+    // Base probability from strength differential (40% weight)
     const strengthDiff = xanhStrength - camStrength;
-    let xanhProb = 50 + strengthDiff;
+    let xanhProb = 50 + strengthDiff * 0.8; // 0.8 multiplier gives strength differential moderate influence, allowing historical data to contribute significantly
 
-    // Apply recent historical adjustment (10% weight)
+    // Apply recent historical adjustment (15% weight - increased from 10%)
     if (historical.stats.totalMatches > 0) {
       const historicalWinRate = (historical.stats.xanhWins / historical.stats.totalMatches) * 100;
-      xanhProb = xanhProb * 0.9 + historicalWinRate * 0.1;
+      xanhProb = xanhProb * 0.85 + historicalWinRate * 0.15;
     }
 
-    // Head-to-head deeper history adjustment if available
+    // Head-to-head deeper history adjustment with enhanced weighting (up to 45%)
     if (headToHead && headToHead.totalMeetings > 0) {
       const hWinRate = (headToHead.xanhWins / headToHead.totalMeetings) * 100;
-      // Stability gives confidence in weighting historical performance
-      const stabilityWeight = Math.min(0.35, 0.15 + headToHead.playerStabilityIndex * 0.2); // up to 35%
-      xanhProb = xanhProb * (1 - stabilityWeight) + hWinRate * stabilityWeight;
+      
+      // Calculate confidence based on sample size and player stability
+      const sampleConfidence = Math.min(1, headToHead.totalMeetings / 10); // Max confidence at 10+ meetings
+      const stabilityConfidence = headToHead.playerStabilityIndex; // 0-1 based on roster continuity
+      
+      // Combined confidence: both sample size and roster stability matter
+      const historicalConfidence = (sampleConfidence * 0.6 + stabilityConfidence * 0.4);
+      
+      // Dynamic weight: 15% base + up to 30% more based on confidence
+      const historicalWeight = 0.15 + (historicalConfidence * 0.30); // 15-45% range
+      
+      xanhProb = xanhProb * (1 - historicalWeight) + hWinRate * historicalWeight;
+      
+      // Recent form momentum adjustment (±5% based on last 5 games)
+      if (headToHead.recentForm.lastN >= 3) {
+        const recentGames = headToHead.recentForm.sequence.slice(-5);
+        const recentXanhWins = recentGames.filter(r => r === 'X').length;
+        const momentumScore = (recentXanhWins / recentGames.length) * 100;
+        const momentumAdjustment = (momentumScore - 50) * 0.1; // ±5% max
+        xanhProb += momentumAdjustment;
+      }
+      
+      // Goal differential pattern adjustment (±3% based on average margin)
+      if (headToHead.averageMargin > 2) {
+        // Large margins indicate dominant patterns
+        const dominanceFactor = Math.min(1, (headToHead.averageMargin - 2) / 3);
+        const xanhDominant = headToHead.averageGoalsXanh > headToHead.averageGoalsCam;
+        const dominanceAdjustment = dominanceFactor * 3 * (xanhDominant ? 1 : -1);
+        xanhProb += dominanceAdjustment;
+      }
     }
 
-    // Clamp between 15-85% (slightly wider due to stronger historical signal)
-    xanhProb = Math.max(15, Math.min(85, xanhProb));
+    // Clamp between 10-90% (wider range than before for more dramatic predictions)
+    xanhProb = Math.max(10, Math.min(90, xanhProb));
 
     return {
       xanh: Math.round(xanhProb),
@@ -322,12 +365,15 @@ export class AIAnalysisService {
 
   /**
    * Identify key factors affecting the match
+   * Enhanced to include historical patterns and trends
    */
   private identifyKeyFactors(
     teamXanh: Player[],
     teamCam: Player[],
     xanhStrength: number,
-    camStrength: number
+    camStrength: number,
+    historicalContext: { matchesAnalyzed: number; stats: { xanhWins: number; camWins: number; draws: number; totalMatches: number } },
+    headToHead?: HeadToHeadStats
   ): { name: string; impact: number }[] {
     const factors: { name: string; impact: number }[] = [];
 
@@ -361,7 +407,78 @@ export class AIAnalysisService {
       });
     }
 
-    return factors.sort((a, b) => b.impact - a.impact).slice(0, 5);
+    // Historical winning streak (if significant)
+    if (historicalContext.matchesAnalyzed >= 5) {
+      const xanhWinRate = (historicalContext.stats.xanhWins / historicalContext.stats.totalMatches) * 100;
+      if (xanhWinRate >= 70 || xanhWinRate <= 30) {
+        factors.push({
+          name: xanhWinRate >= 70 ? 'Phong độ cao Đội Xanh gần đây' : 'Phong độ cao Đội Cam gần đây',
+          impact: Math.abs(xanhWinRate - 50) * 0.4 // Convert to impact score
+        });
+      }
+    }
+
+    // Head-to-head historical dominance
+    if (headToHead && headToHead.totalMeetings >= 5) {
+      const xanhH2HRate = (headToHead.xanhWins / headToHead.totalMeetings) * 100;
+      if (xanhH2HRate >= 65 || xanhH2HRate <= 35) {
+        const dominantTeam = xanhH2HRate >= 65 ? 'Xanh' : 'Cam';
+        factors.push({
+          name: `Lịch sử thống trị (Đội ${dominantTeam})`,
+          impact: Math.abs(xanhH2HRate - 50) * 0.6
+        });
+      }
+    }
+
+    // Player stability/continuity factor
+    if (headToHead && headToHead.playerStabilityIndex >= 0.6) {
+      factors.push({
+        name: 'Đội hình ổn định (lợi thế kinh nghiệm)',
+        impact: headToHead.playerStabilityIndex * 15
+      });
+    } else if (headToHead && headToHead.playerStabilityIndex < 0.3) {
+      factors.push({
+        name: 'Đội hình mới (khó dự đoán)',
+        impact: (1 - headToHead.playerStabilityIndex) * 10
+      });
+    }
+
+    // Recent form momentum
+    if (headToHead && headToHead.recentForm.lastN >= 3) {
+      const recent5 = headToHead.recentForm.sequence.slice(-5);
+      const xanhRecent = recent5.filter(r => r === 'X').length;
+      const camRecent = recent5.filter(r => r === 'C').length;
+      
+      if (xanhRecent >= 4) {
+        factors.push({
+          name: 'Chuỗi thắng gần đây (Xanh)',
+          impact: xanhRecent * 4
+        });
+      } else if (camRecent >= 4) {
+        factors.push({
+          name: 'Chuỗi thắng gần đây (Cam)',
+          impact: camRecent * 4
+        });
+      }
+    }
+
+    // High-scoring pattern indicator
+    if (headToHead && headToHead.totalMeetings >= 3) {
+      const avgTotalGoals = headToHead.averageGoalsXanh + headToHead.averageGoalsCam;
+      if (avgTotalGoals >= 8) {
+        factors.push({
+          name: 'Xu hướng tỷ số cao',
+          impact: Math.min(25, (avgTotalGoals - 8) * 3)
+        });
+      } else if (avgTotalGoals <= 2) {
+        factors.push({
+          name: 'Xu hướng phòng ngự chặt',
+          impact: (2 - avgTotalGoals) * 5
+        });
+      }
+    }
+
+    return factors.sort((a, b) => b.impact - a.impact).slice(0, 6); // Increased from 5 to 6 factors
   }
 
   /**

@@ -1,5 +1,5 @@
-import { AIAnalysisService, Player } from './ai-analysis.service';
-import { HeadToHeadStats } from './history-stats.service';
+import { AIAnalysisService, Player } from '../ai-analysis.service';
+import { HeadToHeadStats } from '../history-stats.service';
 
 describe('AIAnalysisService head-to-head blending', () => {
   let service: AIAnalysisService;

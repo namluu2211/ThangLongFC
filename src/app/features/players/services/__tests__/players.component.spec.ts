@@ -6,12 +6,12 @@ declare const it: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 declare const expect: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 declare const beforeEach: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 declare const spyOn: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-import { PlayersComponent } from './players.component';
-import { AIAnalysisService } from './services/ai-analysis.service';
-import { FirebasePlayerService } from '../../core/services/firebase-player.service';
-import { MatchService } from '../../core/services/match.service';
-import { DataStoreService } from '../../core/services/data-store.service';
-import { LoggerService } from '../../core/services/logger.service';
+import { PlayersComponent } from '../../players.component';
+import { AIAnalysisService } from '../ai-analysis.service';
+import { FirebasePlayerService } from '../../../../core/services/firebase-player.service';
+import { MatchService } from '../../../../core/services/match.service';
+import { DataStoreService } from '../../../../core/services/data-store.service';
+import { LoggerService } from '../../../../core/services/logger.service';
 import { of } from 'rxjs';
 
 class MockAIAnalysisService { analyzeTeams(){ return { prediction:{ predictedScore:{ xanh:1, cam:2 }, winProbability:{ xanh:0.4, cam:0.6 } }, keyFactors:[], historicalContext:{ recentPerformance:{ xanhWins:0, camWins:0, draws:0 }, matchesAnalyzed:0 } }; } }

@@ -1,4 +1,4 @@
-import { OfflinePlayerQueueService } from './offline-player-queue.service';
+import { OfflinePlayerQueueService } from '../offline-player-queue.service';
 
 // Minimal mock for FirebasePlayerService used indirectly when flushing via facade (not here).
 

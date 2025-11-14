@@ -1,5 +1,5 @@
-import { HistoryStatsService } from './history-stats.service';
-import { TeamColor, MatchInfo } from '../../../core/models/match.model';
+import { HistoryStatsService } from '../history-stats.service';
+import { TeamColor, MatchInfo } from '../../../../core/models/match.model';
 
 describe('HistoryStatsService buildHeadToHead', () => {
   let service: HistoryStatsService;

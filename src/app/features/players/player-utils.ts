@@ -40,12 +40,18 @@ function shuffle<T>(array: T[]): T[] {
  * @returns Object with teamA and teamB arrays
  */
 export function dividePlayersByPosition(players: Player[]): TeamDivision {
+  console.log('🔄 dividePlayersByPosition called with', players.length, 'players');
+  
   // Group players by position
   const grouped: Record<string, Player[]> = {};
   for (const p of players) {
-    if (!grouped[p.position]) grouped[p.position] = [];
-    grouped[p.position].push(p);
+    const position = p.position || 'Chưa xác định';
+    console.log(`📝 Player: ${p.firstName} ${p.lastName || ''} - Position: "${position}"`);
+    if (!grouped[position]) grouped[position] = [];
+    grouped[position].push(p);
   }
+
+  console.log('📊 Position groups:', Object.keys(grouped).map(pos => `${pos}: ${grouped[pos].length} players`));
 
   const teamA: Player[] = [];
   const teamB: Player[] = [];
@@ -61,6 +67,10 @@ export function dividePlayersByPosition(players: Player[]): TeamDivision {
       }
     });
   });
+
+  console.log('🎯 Division results:');
+  console.log('  Team A:', teamA.map(p => `${p.firstName} (${p.position})`));
+  console.log('  Team B:', teamB.map(p => `${p.firstName} (${p.position})`));
 
   return { teamA, teamB };
 }
