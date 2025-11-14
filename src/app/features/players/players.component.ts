@@ -434,8 +434,13 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
     
     if (missingPlayers.length > 0) {
-      basePool.forEach((p, i) => {
-        console.log(`  ${i+1}. ${p.firstName} ${p.lastName || ''} - Position: "${p.position}" - ID: ${p.id} - CoreId: ${p.coreId}`);
+      missingPlayers.forEach((id, i) => {
+        const missingPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === id);
+        if (missingPlayer) {
+          console.log(`  MISSING ${i+1}. ${missingPlayer.firstName} ${missingPlayer.lastName || ''} - Position: "${missingPlayer.position}" - ID: ${missingPlayer.id} - CoreId: ${missingPlayer.coreId}`);
+        } else {
+          console.log(`  MISSING ${i+1}. Player with ID: ${id} not found in basePool`);
+        }
       });
       
       // Use simple position-based division for all players
