@@ -410,7 +410,11 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
     console.log('🎯 Balancing teams by position for', basePool.length, 'players (with randomization)');
     console.log('📋 Base pool sample:', basePool[0]);
-    console.log('📋 Base pool players:', basePool.map((p, i) => `${i+1}. ${p.firstName} ${p.lastName || ''} (${p.position || 'NO_POSITION'}) ID:${p.id}`));
+    if (basePool.length <= 20) {
+      console.log('📋 Base pool players:', basePool.map((p, i) => `${i+1}. ${p.firstName} ${p.lastName || ''} (${p.position || 'NO_POSITION'}) ID:${p.id}`));
+    } else {
+      console.log(`📋 Base pool players: ${basePool.length} players (list omitted for brevity)`);
+    }
 
     // Check if all players exist in core service
     const playerIds = basePool.map(p => p.coreId || `player_${p.id}`).filter(Boolean) as string[];
