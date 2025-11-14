@@ -1,5 +1,4 @@
-﻿// PlayersComponent (clean singular definition with typed AI caching & debounce)
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, Input, OnInit, OnDestroy, TrackByFunction, inject } from '@angular/core';
+﻿import { Component, ChangeDetectionStrategy, ChangeDetectorRef, Input, OnInit, OnDestroy, TrackByFunction, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
@@ -229,12 +228,9 @@ export class PlayersComponent implements OnInit, OnDestroy {
     }
   }
   private loadRegisteredPlayers(){ try{ const saved=localStorage.getItem(STORAGE_KEYS.REGISTERED_PLAYERS); if(saved) this.registeredPlayers=JSON.parse(saved); } catch { this.registeredPlayers=[]; } }
-  // Convert core PlayerInfo[] into legacy Player[] with stable numeric display id while preserving original coreId
   private convertCorePlayers(core:PlayerInfo[]){
-    // Use player id as uniqueness key to avoid dropping distinct players sharing same name
-    console.log('🔄 Converting', core.length, 'core players');
+
     const unique=Array.from(new Map(core.map(p=>[p.id,p])).values());
-    console.log('✅ After deduplication:', unique.length, 'unique players');
     
     if (unique.length !== core.length) {
       console.warn('⚠️ DUPLICATES DETECTED! Original:', core.length, 'Unique:', unique.length);
@@ -414,21 +410,34 @@ export class PlayersComponent implements OnInit, OnDestroy {
 
     console.log('🎯 Balancing teams by position for', basePool.length, 'players (with randomization)');
     console.log('📋 Base pool sample:', basePool[0]);
+    console.log('📋 Base pool players:', basePool.map((p, i) => `${i+1}. ${p.firstName} ${p.lastName || ''} (${p.position || 'NO_POSITION'}) ID:${p.id}`));
 
     // Check if all players exist in core service
     const playerIds = basePool.map(p => p.coreId || `player_${p.id}`).filter(Boolean) as string[];
-    const missingPlayers = playerIds.filter(id => !this.simplePlayerService.getPlayerById(id));
+    console.log('🆔 Player IDs to look up:', playerIds);
+    
+    // Check each player individually to see who's missing
+    const foundPlayers: string[] = [];
+    const missingPlayers: string[] = [];
+    playerIds.forEach(id => {
+      const found = this.simplePlayerService.getPlayerById(id);
+      if (found) {
+        foundPlayers.push(id);
+      } else {
+        missingPlayers.push(id);
+      }
+    });
+
     
     if (missingPlayers.length > 0) {
-      console.log('⚠️ Some players not found in core service, falling back to simple division:', missingPlayers.length, 'missing');
+      basePool.forEach((p, i) => {
+        console.log(`  ${i+1}. ${p.firstName} ${p.lastName || ''} - Position: "${p.position}" - ID: ${p.id} - CoreId: ${p.coreId}`);
+      });
       
       // Use simple position-based division for all players
       const division = dividePlayersByPosition(basePool as Player[]);
       this.teamA = division.teamA as PlayerWithCoreId[];
       this.teamB = division.teamB as PlayerWithCoreId[];
-      
-      console.log('👥 Simple division - Team A:', this.teamA.length, 'players');
-      console.log('👥 Simple division - Team B:', this.teamB.length, 'players');
       
       this.matchSaveMessage = `✅ Đã chia đội theo vị trí (${this.teamA.length} vs ${this.teamB.length})`;
       
@@ -472,27 +481,85 @@ export class PlayersComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Map the balanced teams back to the component's player format
-    // Find original player objects from basePool to preserve all properties including correct IDs
-    this.teamA = result.teamA.map(coreId => {
-      const originalPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === coreId);
+    this.teamA = result.teamA.map(resultId => {
+      // Strategy 1: Try to find by various ID matches
+      const  originalPlayer = basePool.find(p => {
+        return p.coreId === resultId || String(p.id) === String(resultId) || `player_${p.id}` === resultId;
+      });
+      
       if (originalPlayer) {
         return originalPlayer;
       }
-      // Fallback: convert from PlayerInfo
-      const playerInfo = result.teamADetails.find(p => p.id === coreId);
-      return playerInfo ? this.convertPlayerInfoToPlayer(playerInfo) : null;
+      
+      // Strategy 2: Fallback - convert from PlayerInfo
+      const playerInfo = result.teamADetails.find(p => p.id === resultId);
+      if (playerInfo) {
+        return this.convertPlayerInfoToPlayer(playerInfo);
+      }
+      
+      // Strategy 3: Last resort - find by name in teamADetails and basePool
+      const playerInfoByName = result.teamADetails.find(p => 
+        basePool.some(bp => bp.firstName === p.firstName && (bp.lastName || '') === (p.lastName || ''))
+      );
+      if (playerInfoByName) {
+        const basePlayer = basePool.find(bp => 
+          bp.firstName === playerInfoByName.firstName && (bp.lastName || '') === (playerInfoByName.lastName || '')
+        );
+        return basePlayer || this.convertPlayerInfoToPlayer(playerInfoByName);
+      }
+      
+      return null;
     }).filter(Boolean) as PlayerWithCoreId[];
 
-    this.teamB = result.teamB.map(coreId => {
-      const originalPlayer = basePool.find(p => (p.coreId || `player_${p.id}`) === coreId);
+    this.teamB = result.teamB.map(resultId => {
+      // Strategy 1: Try to find by various ID matches
+      const originalPlayer = basePool.find(p => {
+        return p.coreId === resultId || String(p.id) === String(resultId) || `player_${p.id}` === resultId;
+      });
+      
       if (originalPlayer) {
         return originalPlayer;
       }
-      // Fallback: convert from PlayerInfo
-      const playerInfo = result.teamBDetails.find(p => p.id === coreId);
-      return playerInfo ? this.convertPlayerInfoToPlayer(playerInfo) : null;
+      
+      // Strategy 2: Fallback - convert from PlayerInfo
+      const playerInfo = result.teamBDetails.find(p => p.id === resultId);
+      if (playerInfo) {
+        return this.convertPlayerInfoToPlayer(playerInfo);
+      }
+      
+      // Strategy 3: Last resort - find by name in teamBDetails and basePool
+      const playerInfoByName = result.teamBDetails.find(p => 
+        basePool.some(bp => bp.firstName === p.firstName && (bp.lastName || '') === (p.lastName || ''))
+      );
+      if (playerInfoByName) {
+        const basePlayer = basePool.find(bp => 
+          bp.firstName === playerInfoByName.firstName && (bp.lastName || '') === (playerInfoByName.lastName || '')
+        );
+        return basePlayer || this.convertPlayerInfoToPlayer(playerInfoByName);
+      }
+      
+      return null;
     }).filter(Boolean) as PlayerWithCoreId[];
+
+    // Safety check: if we lost players, ensure all basePool players are included
+    const allTeamPlayers = [...this.teamA, ...this.teamB];
+    const missingFromTeams = basePool.filter(bp => 
+      !allTeamPlayers.some(tp => tp.firstName === bp.firstName && (tp.lastName || '') === (bp.lastName || ''))
+    );
+    
+    if (missingFromTeams.length > 0) {
+      console.log(`⚠️ Found ${missingFromTeams.length} players missing from teams:`, missingFromTeams.map(p => p.firstName));
+      // Add missing players to the smaller team
+      const smallerTeam = this.teamA.length <= this.teamB.length ? 'A' : 'B';
+      missingFromTeams.forEach(player => {
+        if (smallerTeam === 'A') {
+          this.teamA.push(player);
+        } else {
+          this.teamB.push(player);
+        }
+      });
+      console.log(`✅ Added missing players. Final counts - Team A: ${this.teamA.length}, Team B: ${this.teamB.length}`);
+    }
 
     console.log('👥 Team A mapped:', this.teamA.length, 'players', this.teamA.map(p => `${p.firstName} (ID: ${p.id})`));
     console.log('👥 Team B mapped:', this.teamB.length, 'players', this.teamB.map(p => `${p.firstName} (ID: ${p.id})`));

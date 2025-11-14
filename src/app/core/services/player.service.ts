@@ -579,8 +579,18 @@ export class PlayerService {
   // Position-based team balancing
   balanceTeamsByPosition(playerIds: string[]): PositionBasedTeamResult {
     console.log('⚽ Starting position-based team balancing for', playerIds.length, 'players');
+    console.log('🔍 Input playerIds:', playerIds);
     
-    const players = playerIds.map(id => this.getPlayerById(id)).filter(Boolean) as PlayerInfo[];
+    const players = playerIds.map(id => {
+      const player = this.getPlayerById(id);
+      console.log(`🔍 Looking up ${id}: ${player ? `Found ${player.firstName} ${player.lastName}` : 'NOT FOUND'}`);
+      return player;
+    }).filter(Boolean) as PlayerInfo[];
+    
+    console.log('📝 After filtering, found', players.length, 'players out of', playerIds.length, 'requested');
+    if (players.length < playerIds.length) {
+      console.warn('⚠️ PLAYER COUNT MISMATCH! Lost', playerIds.length - players.length, 'players during lookup!');
+    }
     
     if (players.length < 2) {
       return this.createEmptyTeamResult('Cần ít nhất 2 cầu thủ để chia đội');
