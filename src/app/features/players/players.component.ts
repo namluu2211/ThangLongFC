@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { AIWorkerService } from './services/ai-worker.service';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { Player } from './player-utils'; 
+import { Player, dividePlayersByPosition } from './player-utils'; 
 import { PlayerInfo } from '../../core/models/player.model';
 import { TeamComposition, TeamColor, MatchStatus, MatchInfo, MatchResult, MatchFinances, ExpenseBreakdown, RevenueBreakdown, MatchStatistics, GoalType, CardType, MatchEvent, EventType } from '../../core/models/match.model';
 import type { AIAnalysisResult } from './services/ai-analysis.service';
@@ -415,8 +415,33 @@ export class PlayersComponent implements OnInit, OnDestroy {
     console.log('🎯 Balancing teams by position for', basePool.length, 'players (with randomization)');
     console.log('📋 Base pool sample:', basePool[0]);
 
-    // Get player IDs from the pool - use coreId if available, otherwise create from id
+    // Check if all players exist in core service
     const playerIds = basePool.map(p => p.coreId || `player_${p.id}`).filter(Boolean) as string[];
+    const missingPlayers = playerIds.filter(id => !this.simplePlayerService.getPlayerById(id));
+    
+    if (missingPlayers.length > 0) {
+      console.log('⚠️ Some players not found in core service, falling back to simple division:', missingPlayers.length, 'missing');
+      
+      // Use simple position-based division for all players
+      const division = dividePlayersByPosition(basePool as Player[]);
+      this.teamA = division.teamA as PlayerWithCoreId[];
+      this.teamB = division.teamB as PlayerWithCoreId[];
+      
+      console.log('👥 Simple division - Team A:', this.teamA.length, 'players');
+      console.log('👥 Simple division - Team B:', this.teamB.length, 'players');
+      
+      this.matchSaveMessage = `✅ Đã chia đội theo vị trí (${this.teamA.length} vs ${this.teamB.length})`;
+      
+      setTimeout(() => { 
+        this.matchSaveMessage = ''; 
+        this.cdr.markForCheck(); 
+      }, 4000);
+
+      this.triggerTeamChange();
+      this.persistTeams();
+      this.cdr.markForCheck();
+      return;
+    }
     
     if (playerIds.length === 0) {
       this.matchSaveMessage = 'Không tìm thấy ID cầu thủ';
