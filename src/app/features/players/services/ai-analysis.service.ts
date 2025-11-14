@@ -254,7 +254,7 @@ export class AIAnalysisService {
   ): { xanh: number; cam: number } {
     // Base probability from strength differential (40% weight)
     const strengthDiff = xanhStrength - camStrength;
-    let xanhProb = 50 + strengthDiff * 0.8; // Reduced from 1.0 to allow more room for historical data
+    let xanhProb = 50 + strengthDiff * 0.8; // 0.8 multiplier gives strength differential moderate influence, allowing historical data to contribute significantly
 
     // Apply recent historical adjustment (15% weight - increased from 10%)
     if (historical.stats.totalMatches > 0) {
